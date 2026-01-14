@@ -12,3 +12,8 @@
 .controls .right{ display:flex; align-items:center; gap:8px }
 .controls .speaker{ display:flex; align-items:center; justify-content:center; padding:6px }
 .controls .vol-range{ width:140px }
+
+/* Hover timestamp and vertical line */
+.waveform-navigator{ position: relative }
+.hover-line{ position: absolute; top: 0; bottom: 56px; width: 2px; background: rgba(0,0,0,0.45); transform: translateX(-50%); pointer-events: none }
+.hover-tooltip{ position: absolute; top: -34px; transform: translateX(-50%); background: rgba(17,24,39,0.95); color: #fff; padding: 6px 8px; font-size: 12px; border-radius: 6px; pointer-events: none; white-space: nowrap }

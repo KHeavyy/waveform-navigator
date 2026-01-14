@@ -39,6 +39,8 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 	const [currentTime, setCurrentTime] = useState<number>(0);
 	const [volume, setVolume] = useState<number>(1);
 	const [peaks, setPeaks] = useState<Float32Array | null>(null);
+	const [hoverX, setHoverX] = useState<number | null>(null);
+	const [hoverTime, setHoverTime] = useState<number | null>(null);
 
 	// requestAnimationFrame id for smooth progress updates
 	const rafRef = useRef<number | null>(null);
@@ -264,6 +266,20 @@ useEffect(() => {
 		}
 	}
 
+	function onCanvasMove(e: React.MouseEvent<HTMLCanvasElement>) {
+		const rect = canvasRef.current?.getBoundingClientRect();
+		if (!rect) return;
+		const x = e.clientX - rect.left;
+		setHoverX(x);
+		const t = duration > 0 ? (x / rect.width) * duration : 0;
+		setHoverTime(isFinite(t) ? t : null);
+	}
+
+	function onCanvasLeave() {
+		setHoverX(null);
+		setHoverTime(null);
+	}
+
 	function togglePlay() {
 		const a = audioRef.current;
 		if (!a) return;
@@ -342,7 +358,14 @@ useEffect(() => {
 
 	return (
 		<div className={`waveform-navigator ${className}`}>
-			<canvas ref={canvasRef} onClick={onCanvasClick} className="waveform-canvas" />
+			<canvas ref={canvasRef} onClick={onCanvasClick} onMouseMove={onCanvasMove} onMouseLeave={onCanvasLeave} className="waveform-canvas" />
+
+			{hoverX !== null && (
+				<>
+					<div className="hover-line" style={{ left: `${hoverX}px` }} />
+					<div className="hover-tooltip" style={{ left: `${hoverX}px` }}>{hoverTime !== null ? formatTime(hoverTime) : ''}</div>
+				</>
+			)}
 
 			<div className="controls">
 				<div className="left">
