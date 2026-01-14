@@ -232,22 +232,44 @@ useEffect(() => {
 
 			const played = typeof currentTimeParam === 'number' ? currentTimeParam : currentTime;
 			const playedRatio = duration > 0 ? played / duration : 0;
-			const playedWidth = Math.max(0, Math.min(1, playedRatio)) * width;
+			const renderedWidth = canvas.getBoundingClientRect().width || width;
+			const playedWidth = Math.max(0, Math.min(1, playedRatio)) * renderedWidth;
+
+			// Clear the entire drawing surface (device pixels) to avoid overlay smearing
+			ctx.save();
+			ctx.setTransform(1, 0, 0, 1, 0, 0);
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			ctx.restore();
+
+			// draw background and base waveform bars
+			if (backgroundColor && backgroundColor !== 'transparent') {
+				ctx.fillStyle = backgroundColor;
+				ctx.fillRect(0, 0, renderedWidth, height);
+			}
+
+			for (let i = 0; i < peaksArr.length; i++) {
+				const x = i * (barWidth + gap);
+				const w = barWidth;
+				const h = peaksArr[i] * (height * 0.95);
+				const y = (height / 2) - h / 2;
+				ctx.fillStyle = barColor;
+				ctx.fillRect(x, y, w, h);
+			}
 
 			// Draw progress by painting progressColor over bars up to playedWidth
 			for (let i = 0; i < peaksArr.length; i++) {
-					const x = i * (barWidth + gap);
-					const w = barWidth;
-					const h = peaksArr[i] * (height * 0.95);
-					const y = (height / 2) - h / 2;
-					if (x + w <= playedWidth) {
-							ctx.fillStyle = progressColor;
-							ctx.fillRect(x, y, w, h);
-					} else if (x < playedWidth) {
-							const partial = Math.max(0, playedWidth - x);
-							ctx.fillStyle = progressColor;
-							ctx.fillRect(x, y, partial, h);
-					}
+				const x = i * (barWidth + gap);
+				const w = barWidth;
+				const h = peaksArr[i] * (height * 0.95);
+				const y = (height / 2) - h / 2;
+				if (x + w <= playedWidth) {
+					ctx.fillStyle = progressColor;
+					ctx.fillRect(x, y, w, h);
+				} else if (x < playedWidth) {
+					const partial = Math.max(0, playedWidth - x);
+					ctx.fillStyle = progressColor;
+					ctx.fillRect(x, y, partial, h);
+				}
 			}
 
 			// playhead
