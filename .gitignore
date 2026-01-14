@@ -1,0 +1,17 @@
+/node_modules/
+/dist/
+/build/
+/coverage/
+/demo/dist/
+.DS_Store
+.env
+.env.*
+npm-debug.log*
+yarn-error.log*
+*.tgz
+.idea/
+.vscode/
+/.pnp
+.pnp.js
+/.turbo
+*.log

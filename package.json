@@ -1,0 +1,26 @@
+{
+  "name": "waveform-navigator",
+  "version": "0.1.0",
+  "description": "A React component to display and navigate audio waveforms with custom controls.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "scripts": {
+    "test": "echo \"No tests configured\" && exit 0",
+    "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build",
+    "dev": "concurrently \"tsc -w -p tsconfig.json\" \"(cd demo && npm run dev)\""
+  },
+  "files": ["dist", "src"],
+  "devDependencies": {
+    "typescript": "^5.1.6",
+    "@types/react": "^18.2.21",
+    "@types/react-dom": "^18.2.7",
+    "concurrently": "^8.2.0"
+  }
+}
