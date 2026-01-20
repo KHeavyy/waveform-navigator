@@ -67,6 +67,11 @@ export function useAudioPlayer({
 
 	// Determine if component is in controlled mode
 	const isControlled = controlledCurrentTime !== undefined;
+	const isControlledRef = useRef(isControlled);
+
+	useEffect(() => {
+		isControlledRef.current = isControlled;
+	}, [isControlled]);
 
 	// Initialize audio element
 	useEffect(() => {
@@ -93,7 +98,7 @@ export function useAudioPlayer({
 			setCurrentTime(time);
 			onTimeUpdateRef.current?.(time);
 			// Call onCurrentTimeChange for uncontrolled mode
-			if (!isControlled) {
+			if (!isControlledRef.current) {
 				onCurrentTimeChangeRef.current?.(time);
 			}
 		};

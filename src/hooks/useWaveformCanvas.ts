@@ -131,13 +131,13 @@ export function useWaveformCanvas({
 		return () => {
 			if (rafId) window.cancelAnimationFrame(rafId);
 		};
-	}, [isPlaying, peaks, currentTime, duration]);
+	}, [isPlaying, peaks, currentTime, duration, barWidth, gap, barColor, progressColor, backgroundColor, playheadColor, width, height]);
 
 	// Redraw on time or peaks change (non-animated update)
 	useEffect(() => {
 		if (!peaks) return;
 		drawWaveform(peaks, currentTime);
-	}, [currentTime, peaks]);
+	}, [currentTime, peaks, duration, barWidth, gap, barColor, progressColor, backgroundColor, playheadColor, width, height]);
 
 	return {
 		canvasRef
