@@ -3,6 +3,9 @@ import './styles.css';
 
 type AudioProp = string | File | null | undefined;
 
+// Threshold for controlled time sync to avoid feedback loops (in seconds)
+const CONTROLLED_TIME_THRESHOLD = 0.01;
+
 export interface WaveformNavigatorProps {
 	audio: AudioProp;
 	width?: number;
@@ -87,6 +90,9 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 		onPeaksComputedRef.current = onPeaksComputed;
 	}, [onPlay, onPause, onEnded, onLoaded, onTimeUpdate, onCurrentTimeChange, onPeaksComputed]);
 
+	// Determine if component is in controlled mode
+	const isControlled = controlledCurrentTime !== undefined;
+
 // Initialize audio element
 	useEffect(() => {
 		const el = new Audio();
@@ -112,7 +118,7 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 			setCurrentTime(time);
 			onTimeUpdateRef.current?.(time);
 			// Call onCurrentTimeChange for uncontrolled mode
-			if (controlledCurrentTime === undefined) {
+			if (!isControlled) {
 				onCurrentTimeChangeRef.current?.(time);
 			}
 		};
@@ -152,6 +158,7 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 				audioElementRef.current = null;
 			}
 		};
+	// audioElementRef is intentionally excluded from deps to avoid recreating audio element
 	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
@@ -360,7 +367,7 @@ useEffect(() => {
 		const t = (x / rect.width) * duration;
 		if (audioRef.current && !Number.isNaN(t)) {
 			const newTime = Math.max(0, Math.min(duration, t));
-			if (controlledCurrentTime !== undefined) {
+			if (isControlled) {
 				// In controlled mode, notify parent
 				onCurrentTimeChangeRef.current?.(newTime);
 			} else {
@@ -394,7 +401,7 @@ useEffect(() => {
 		const a = audioRef.current;
 		if (!a) return;
 		const newTime = Math.max(0, Math.min((a.duration || 0), a.currentTime + delta));
-		if (controlledCurrentTime !== undefined) {
+		if (isControlled) {
 			// In controlled mode, notify parent
 			onCurrentTimeChangeRef.current?.(newTime);
 		} else {
@@ -416,17 +423,17 @@ useEffect(() => {
 
 	// Controlled mode: sync audio element when controlledCurrentTime changes
 	useEffect(() => {
-		if (controlledCurrentTime !== undefined && audioRef.current) {
+		if (isControlled && audioRef.current) {
 			const audio = audioRef.current;
 			// Only update if there's a significant difference to avoid feedback loop
-			if (Math.abs(audio.currentTime - controlledCurrentTime) > 0.01) {
-				audio.currentTime = controlledCurrentTime;
+			if (Math.abs(audio.currentTime - controlledCurrentTime!) > CONTROLLED_TIME_THRESHOLD) {
+				audio.currentTime = controlledCurrentTime!;
 			}
 		}
-	}, [controlledCurrentTime]);
+	}, [controlledCurrentTime, isControlled]);
 
 	// Use controlled time when provided, otherwise use internal state
-	const displayTime = controlledCurrentTime !== undefined ? controlledCurrentTime : currentTime;
+	const displayTime = isControlled ? controlledCurrentTime! : currentTime;
 
 	// smooth progress updates while playing using requestAnimationFrame
 	useEffect(() => {
