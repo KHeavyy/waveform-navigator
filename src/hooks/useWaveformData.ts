@@ -10,7 +10,6 @@ interface UseWaveformDataProps {
 
 interface UseWaveformDataReturn {
 	peaks: Float32Array | null;
-	audioCtxRef: React.MutableRefObject<AudioContext | null>;
 }
 
 export function useWaveformData({
@@ -137,7 +136,6 @@ export function useWaveformData({
 	}
 
 	return {
-		peaks,
-		audioCtxRef
+		peaks
 	};
 }
