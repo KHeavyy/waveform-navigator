@@ -35,6 +35,18 @@ export function useWaveformCanvas({
 }: UseWaveformCanvasProps): UseWaveformCanvasReturn {
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const rafRef = useRef<number | null>(null);
+	
+	// Use refs for frequently changing values to avoid recreating RAF loop
+	const currentTimeRef = useRef(currentTime);
+	const durationRef = useRef(duration);
+	const peaksRef = useRef(peaks);
+	
+	// Keep refs updated
+	useEffect(() => {
+		currentTimeRef.current = currentTime;
+		durationRef.current = duration;
+		peaksRef.current = peaks;
+	}, [currentTime, duration, peaks]);
 
 	// Initialize canvas
 	useEffect(() => {
@@ -46,10 +58,6 @@ export function useWaveformCanvas({
 		canvas.height = Math.floor(height * dpr);
 		canvas.style.width = `${width}px`;
 		canvas.style.height = `${height}px`;
-		
-		const ctx = canvas.getContext('2d');
-		if (!ctx) return;
-		ctx.scale(dpr, dpr);
 	}, [width, height]);
 
 	// Draw waveform with progress
@@ -59,15 +67,21 @@ export function useWaveformCanvas({
 		const ctx = canvas.getContext('2d');
 		if (!ctx) return;
 
-		const playedRatio = duration > 0 ? time / duration : 0;
+		const dpr = window.devicePixelRatio || 1;
+		const dur = durationRef.current;
+		const playedRatio = dur > 0 ? time / dur : 0;
 		const renderedWidth = canvas.getBoundingClientRect().width || width;
 		const playedWidth = Math.max(0, Math.min(1, playedRatio)) * renderedWidth;
 
-		// Clear the entire drawing surface
+		// Clear and reset transform
 		ctx.save();
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
 		ctx.restore();
+		
+		// Reapply scaling for device pixel ratio
+		ctx.save();
+		ctx.scale(dpr, dpr);
 
 		// Draw background
 		if (backgroundColor && backgroundColor !== 'transparent') {
@@ -105,13 +119,17 @@ export function useWaveformCanvas({
 		const px = playedWidth;
 		ctx.fillStyle = playheadColor;
 		ctx.fillRect(px - 1, 0, 2, height);
+		
+		ctx.restore();
 	}
 
 	// Smooth progress updates while playing using requestAnimationFrame
 	useEffect(() => {
 		function loop() {
-			if (peaks) {
-				drawWaveform(peaks, currentTime);
+			const currentPeaks = peaksRef.current;
+			const currentTimeValue = currentTimeRef.current;
+			if (currentPeaks) {
+				drawWaveform(currentPeaks, currentTimeValue);
 				rafRef.current = window.requestAnimationFrame(loop);
 			}
 		}
@@ -135,7 +153,7 @@ export function useWaveformCanvas({
 				rafRef.current = null;
 			}
 		};
-	}, [isPlaying, peaks, currentTime, duration, barWidth, gap, barColor, progressColor, backgroundColor, playheadColor, width, height]);
+	}, [isPlaying, peaks, barWidth, gap, barColor, progressColor, backgroundColor, playheadColor, width, height]);
 
 	return {
 		canvasRef

@@ -3,7 +3,7 @@ import WaveformNavigator from '../../src'
 
 export default function App() {
 	const audioRef = useRef<HTMLAudioElement | null>(null)
-	// Hardcoded demo audio path (served from demo/public/media/Demo.mp3)
+	// Hardcoded demo audio path (served from demo/media/Demo.mp3)
 	const demoAudioPath = '/media/Demo.mp3'
 	
 	// Demo controlled mode

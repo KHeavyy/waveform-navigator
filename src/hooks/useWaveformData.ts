@@ -28,6 +28,21 @@ export function useWaveformData({
 		onPeaksComputedRef.current = onPeaksComputed;
 	}, [onPeaksComputed]);
 
+	// Initialize worker once
+	useEffect(() => {
+		if (window.Worker && !workerRef.current) {
+			workerRef.current = new Worker(new URL('../peaks.worker.ts', import.meta.url), { type: 'module' });
+			workerRef.current.onmessage = (ev: MessageEvent) => {
+				const msg = ev.data;
+				if (msg.type === 'progress') {
+					const peaksArrReceived = new Float32Array(msg.peaksBuffer);
+					setPeaks(peaksArrReceived);
+					onPeaksComputedRef.current?.(peaksArrReceived);
+				}
+			};
+		}
+	}, []);
+
 	// Cleanup worker on unmount
 	useEffect(() => {
 		return () => {
@@ -51,6 +66,12 @@ export function useWaveformData({
 
 		const loadArrayBuffer = async () => {
 			try {
+				// Close previous AudioContext if it exists
+				if (audioCtxRef.current && typeof audioCtxRef.current.close === 'function') {
+					await audioCtxRef.current.close();
+					audioCtxRef.current = null;
+				}
+
 				let arrayBuffer: ArrayBuffer | null = null;
 				if (typeof audio === 'string') {
 					const resp = await fetch(audio, { mode: 'cors' });
@@ -103,19 +124,7 @@ export function useWaveformData({
 		onPeaksComputedRef.current?.(peaksArr);
 
 		// Use worker for more accurate computation if available
-		if (window.Worker) {
-			if (!workerRef.current) {
-				workerRef.current = new Worker(new URL('../peaks.worker.ts', import.meta.url), { type: 'module' });
-				workerRef.current.onmessage = (ev: MessageEvent) => {
-					const msg = ev.data;
-					if (msg.type === 'progress') {
-						const peaksArrReceived = new Float32Array(msg.peaksBuffer);
-						setPeaks(peaksArrReceived);
-						onPeaksComputedRef.current?.(peaksArrReceived);
-					}
-				};
-			}
-
+		if (workerRef.current) {
 			try {
 				// Transfer a copy of the buffer to avoid losing the original data
 				const channelCopy = new Float32Array(channelData);
