@@ -15,6 +15,17 @@ export interface WaveformNavigatorProps {
 	progressColor?: string;
 	backgroundColor?: string;
 	playheadColor?: string;
+	// controlled props
+	controlledCurrentTime?: number;
+	onCurrentTimeChange?: (time: number) => void;
+	audioElementRef?: React.RefObject<HTMLAudioElement>;
+	// callback events
+	onPlay?: () => void;
+	onPause?: () => void;
+	onEnded?: () => void;
+	onLoaded?: (duration: number) => void;
+	onTimeUpdate?: (currentTime: number) => void;
+	onPeaksComputed?: (peaks: Float32Array) => void;
 }
 
 const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
@@ -27,7 +38,16 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 	barColor = '#2b6ef6',
 	progressColor = '#0747a6',
 	backgroundColor = 'transparent',
-	playheadColor = '#ff4d4f'
+	playheadColor = '#ff4d4f',
+	controlledCurrentTime,
+	onCurrentTimeChange,
+	audioElementRef,
+	onPlay,
+	onPause,
+	onEnded,
+	onLoaded,
+	onTimeUpdate,
+	onPeaksComputed
 }) => {
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -54,23 +74,51 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 		el.preload = 'auto';
 		el.crossOrigin = 'anonymous';
 		audioRef.current = el;
+		
+		// Expose audio element via ref if provided
+		if (audioElementRef) {
+			(audioElementRef as React.MutableRefObject<HTMLAudioElement | null>).current = el;
+		}
 
-		const onPlay = () => setIsPlaying(true);
-		const onPause = () => setIsPlaying(false);
-		const onTime = () => setCurrentTime(el.currentTime);
-		const onLoaded = () => setDuration(el.duration || 0);
+		const onPlayEvent = () => {
+			setIsPlaying(true);
+			onPlay?.();
+		};
+		const onPauseEvent = () => {
+			setIsPlaying(false);
+			onPause?.();
+		};
+		const onTimeEvent = () => {
+			const time = el.currentTime;
+			setCurrentTime(time);
+			onTimeUpdate?.(time);
+			// Call onCurrentTimeChange for controlled mode
+			if (controlledCurrentTime === undefined) {
+				onCurrentTimeChange?.(time);
+			}
+		};
+		const onLoadedEvent = () => {
+			const dur = el.duration || 0;
+			setDuration(dur);
+			onLoaded?.(dur);
+		};
+		const onEndedEvent = () => {
+			onEnded?.();
+		};
 
-		el.addEventListener('play', onPlay);
-		el.addEventListener('pause', onPause);
-		el.addEventListener('timeupdate', onTime);
-		el.addEventListener('loadedmetadata', onLoaded);
+		el.addEventListener('play', onPlayEvent);
+		el.addEventListener('pause', onPauseEvent);
+		el.addEventListener('timeupdate', onTimeEvent);
+		el.addEventListener('loadedmetadata', onLoadedEvent);
+		el.addEventListener('ended', onEndedEvent);
 
 		return () => {
 			el.pause();
-			el.removeEventListener('play', onPlay);
-			el.removeEventListener('pause', onPause);
-			el.removeEventListener('timeupdate', onTime);
-			el.removeEventListener('loadedmetadata', onLoaded);
+			el.removeEventListener('play', onPlayEvent);
+			el.removeEventListener('pause', onPauseEvent);
+			el.removeEventListener('timeupdate', onTimeEvent);
+			el.removeEventListener('loadedmetadata', onLoadedEvent);
+			el.removeEventListener('ended', onEndedEvent);
 			if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
 			if (audioCtxRef.current && typeof audioCtxRef.current.close === 'function') {
 				audioCtxRef.current.close();
@@ -80,8 +128,12 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 				workerRef.current.terminate();
 				workerRef.current = null;
 			}
+			// Clean up ref
+			if (audioElementRef) {
+				(audioElementRef as React.MutableRefObject<HTMLAudioElement | null>).current = null;
+			}
 		};
-	}, []);
+	}, [audioElementRef, onPlay, onPause, onEnded, onLoaded, onTimeUpdate, onCurrentTimeChange, controlledCurrentTime]);
 
 // Set audio source when `audio` prop changes and decode waveform
 useEffect(() => {
@@ -180,6 +232,7 @@ useEffect(() => {
 					if (msg.type === 'progress') {
 						const peaksArrReceived = new Float32Array(msg.peaksBuffer);
 						setPeaks(peaksArrReceived);
+						onPeaksComputed?.(peaksArrReceived);
 						// draw base bars on first partial message so UI becomes responsive
 						const ctx2 = canvas.getContext('2d');
 						if (ctx2) {
@@ -218,9 +271,11 @@ useEffect(() => {
 			} catch (err) {
 				// fallback: local set
 				setPeaks(peaksArr);
+				onPeaksComputed?.(peaksArr);
 			}
 		} else {
 			setPeaks(peaksArr);
+			onPeaksComputed?.(peaksArr);
 		}
 	}
 
@@ -324,6 +379,17 @@ useEffect(() => {
 		if (!audioRef.current) return;
 		audioRef.current.volume = volume;
 	}, [volume]);
+
+	// Controlled mode: sync audio element when controlledCurrentTime changes
+	useEffect(() => {
+		if (controlledCurrentTime !== undefined && audioRef.current) {
+			const audio = audioRef.current;
+			// Only update if there's a significant difference to avoid feedback loop
+			if (Math.abs(audio.currentTime - controlledCurrentTime) > 0.01) {
+				audio.currentTime = controlledCurrentTime;
+			}
+		}
+	}, [controlledCurrentTime]);
 
 	// smooth progress updates while playing using requestAnimationFrame
 	useEffect(() => {
