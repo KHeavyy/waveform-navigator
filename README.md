@@ -50,7 +50,7 @@ The component supports both controlled and uncontrolled modes for playback posit
 
 - **`controlledCurrentTime`** (number | undefined): When provided, the component operates in controlled mode where the parent manages the playback position. The audio element's currentTime will be synced with this value.
 - **`onCurrentTimeChange`** ((time: number) => void): Callback fired when the internal time changes (in uncontrolled mode). Use this with `controlledCurrentTime` to implement controlled mode.
-- **`audioElementRef`** (React.RefObject<HTMLAudioElement>): A ref that will be populated with the internal audio element, allowing direct access to the HTMLAudioElement API.
+- **`audioElementRef`** (React.MutableRefObject<HTMLAudioElement | null>): A ref that will be populated with the internal audio element, allowing direct access to the HTMLAudioElement API.
 
 #### Event Callbacks
 

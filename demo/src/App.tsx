@@ -95,9 +95,7 @@ export default function App() {
 					height={140}
 					controlledCurrentTime={useControlled ? controlledTime : undefined}
 					onCurrentTimeChange={(time) => {
-						if (!useControlled) {
-							setControlledTime(time)
-						}
+						setControlledTime(time)
 					}}
 					audioElementRef={audioRef}
 					onPlay={() => setPlayState('playing')}

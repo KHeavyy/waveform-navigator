@@ -18,7 +18,7 @@ export interface WaveformNavigatorProps {
 	// controlled props
 	controlledCurrentTime?: number;
 	onCurrentTimeChange?: (time: number) => void;
-	audioElementRef?: React.RefObject<HTMLAudioElement>;
+	audioElementRef?: React.MutableRefObject<HTMLAudioElement | null>;
 	// callback events
 	onPlay?: () => void;
 	onPause?: () => void;
@@ -68,6 +68,25 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 	// worker ref for peak computation
 	const workerRef = useRef<Worker | null>(null);
 
+	// Refs for callbacks to avoid recreating audio element
+	const onPlayRef = useRef(onPlay);
+	const onPauseRef = useRef(onPause);
+	const onEndedRef = useRef(onEnded);
+	const onLoadedRef = useRef(onLoaded);
+	const onTimeUpdateRef = useRef(onTimeUpdate);
+	const onCurrentTimeChangeRef = useRef(onCurrentTimeChange);
+	const onPeaksComputedRef = useRef(onPeaksComputed);
+
+	useEffect(() => {
+		onPlayRef.current = onPlay;
+		onPauseRef.current = onPause;
+		onEndedRef.current = onEnded;
+		onLoadedRef.current = onLoaded;
+		onTimeUpdateRef.current = onTimeUpdate;
+		onCurrentTimeChangeRef.current = onCurrentTimeChange;
+		onPeaksComputedRef.current = onPeaksComputed;
+	}, [onPlay, onPause, onEnded, onLoaded, onTimeUpdate, onCurrentTimeChange, onPeaksComputed]);
+
 // Initialize audio element
 	useEffect(() => {
 		const el = new Audio();
@@ -77,33 +96,33 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 		
 		// Expose audio element via ref if provided
 		if (audioElementRef) {
-			(audioElementRef as React.MutableRefObject<HTMLAudioElement | null>).current = el;
+			audioElementRef.current = el;
 		}
 
 		const onPlayEvent = () => {
 			setIsPlaying(true);
-			onPlay?.();
+			onPlayRef.current?.();
 		};
 		const onPauseEvent = () => {
 			setIsPlaying(false);
-			onPause?.();
+			onPauseRef.current?.();
 		};
 		const onTimeEvent = () => {
 			const time = el.currentTime;
 			setCurrentTime(time);
-			onTimeUpdate?.(time);
-			// Call onCurrentTimeChange for controlled mode
+			onTimeUpdateRef.current?.(time);
+			// Call onCurrentTimeChange for uncontrolled mode
 			if (controlledCurrentTime === undefined) {
-				onCurrentTimeChange?.(time);
+				onCurrentTimeChangeRef.current?.(time);
 			}
 		};
 		const onLoadedEvent = () => {
 			const dur = el.duration || 0;
 			setDuration(dur);
-			onLoaded?.(dur);
+			onLoadedRef.current?.(dur);
 		};
 		const onEndedEvent = () => {
-			onEnded?.();
+			onEndedRef.current?.();
 		};
 
 		el.addEventListener('play', onPlayEvent);
@@ -130,10 +149,11 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 			}
 			// Clean up ref
 			if (audioElementRef) {
-				(audioElementRef as React.MutableRefObject<HTMLAudioElement | null>).current = null;
+				audioElementRef.current = null;
 			}
 		};
-	}, [audioElementRef, onPlay, onPause, onEnded, onLoaded, onTimeUpdate, onCurrentTimeChange, controlledCurrentTime]);
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
 // Set audio source when `audio` prop changes and decode waveform
 useEffect(() => {
@@ -232,7 +252,7 @@ useEffect(() => {
 					if (msg.type === 'progress') {
 						const peaksArrReceived = new Float32Array(msg.peaksBuffer);
 						setPeaks(peaksArrReceived);
-						onPeaksComputed?.(peaksArrReceived);
+						onPeaksComputedRef.current?.(peaksArrReceived);
 						// draw base bars on first partial message so UI becomes responsive
 						const ctx2 = canvas.getContext('2d');
 						if (ctx2) {
@@ -271,11 +291,11 @@ useEffect(() => {
 			} catch (err) {
 				// fallback: local set
 				setPeaks(peaksArr);
-				onPeaksComputed?.(peaksArr);
+				onPeaksComputedRef.current?.(peaksArr);
 			}
 		} else {
 			setPeaks(peaksArr);
-			onPeaksComputed?.(peaksArr);
+			onPeaksComputedRef.current?.(peaksArr);
 		}
 	}
 
@@ -342,7 +362,7 @@ useEffect(() => {
 			const newTime = Math.max(0, Math.min(duration, t));
 			if (controlledCurrentTime !== undefined) {
 				// In controlled mode, notify parent
-				onCurrentTimeChange?.(newTime);
+				onCurrentTimeChangeRef.current?.(newTime);
 			} else {
 				// In uncontrolled mode, update directly
 				audioRef.current.currentTime = newTime;
@@ -376,7 +396,7 @@ useEffect(() => {
 		const newTime = Math.max(0, Math.min((a.duration || 0), a.currentTime + delta));
 		if (controlledCurrentTime !== undefined) {
 			// In controlled mode, notify parent
-			onCurrentTimeChange?.(newTime);
+			onCurrentTimeChangeRef.current?.(newTime);
 		} else {
 			// In uncontrolled mode, update directly
 			a.currentTime = newTime;
