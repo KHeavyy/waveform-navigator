@@ -339,7 +339,14 @@ useEffect(() => {
 		const x = e.clientX - rect.left;
 		const t = (x / rect.width) * duration;
 		if (audioRef.current && !Number.isNaN(t)) {
-			audioRef.current.currentTime = Math.max(0, Math.min(duration, t));
+			const newTime = Math.max(0, Math.min(duration, t));
+			if (controlledCurrentTime !== undefined) {
+				// In controlled mode, notify parent
+				onCurrentTimeChange?.(newTime);
+			} else {
+				// In uncontrolled mode, update directly
+				audioRef.current.currentTime = newTime;
+			}
 		}
 	}
 
@@ -366,7 +373,14 @@ useEffect(() => {
 	function seek(delta: number) {
 		const a = audioRef.current;
 		if (!a) return;
-		a.currentTime = Math.max(0, Math.min((a.duration || 0), a.currentTime + delta));
+		const newTime = Math.max(0, Math.min((a.duration || 0), a.currentTime + delta));
+		if (controlledCurrentTime !== undefined) {
+			// In controlled mode, notify parent
+			onCurrentTimeChange?.(newTime);
+		} else {
+			// In uncontrolled mode, update directly
+			a.currentTime = newTime;
+		}
 	}
 
 	function onVolumeChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -390,6 +404,9 @@ useEffect(() => {
 			}
 		}
 	}, [controlledCurrentTime]);
+
+	// Use controlled time when provided, otherwise use internal state
+	const displayTime = controlledCurrentTime !== undefined ? controlledCurrentTime : currentTime;
 
 	// smooth progress updates while playing using requestAnimationFrame
 	useEffect(() => {
@@ -441,8 +458,8 @@ useEffect(() => {
 		}
 
 		// draw current progress/playhead
-		drawProgressOverlay(peaks, currentTime);
-	}, [currentTime, peaks]);
+		drawProgressOverlay(peaks, displayTime);
+	}, [displayTime, peaks]);
 
 	return (
 		<div className={`waveform-navigator ${className}`}>
@@ -457,7 +474,7 @@ useEffect(() => {
 
 			<div className="controls">
 				<div className="left">
-					<div className="time">{formatTime(currentTime)} / {formatTime(duration)}</div>
+					<div className="time">{formatTime(displayTime)} / {formatTime(duration)}</div>
 				</div>
 
 				<div className="center">
