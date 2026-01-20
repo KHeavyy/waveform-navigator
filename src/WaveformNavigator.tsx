@@ -4,6 +4,7 @@ import { useAudioPlayer } from './hooks/useAudioPlayer';
 import { useWaveformData } from './hooks/useWaveformData';
 import { useWaveformCanvas } from './hooks/useWaveformCanvas';
 import { WaveformControls } from './components/WaveformControls';
+import { formatTime } from './utils';
 
 type AudioProp = string | File | null | undefined;
 
@@ -126,13 +127,6 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 	function onCanvasLeave() {
 		setHoverX(null);
 		setHoverTime(null);
-	}
-
-	function formatTime(t: number) {
-		if (!t || !isFinite(t)) return '0:00';
-		const s = Math.floor(t % 60).toString().padStart(2, '0');
-		const m = Math.floor(t / 60);
-		return `${m}:${s}`;
 	}
 
 	return (

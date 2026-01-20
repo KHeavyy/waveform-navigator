@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatTime } from '../utils';
 
 interface WaveformControlsProps {
 	isPlaying: boolean;
@@ -8,13 +9,6 @@ interface WaveformControlsProps {
 	onTogglePlay: () => void;
 	onSeek: (delta: number) => void;
 	onVolumeChange: (volume: number) => void;
-}
-
-function formatTime(t: number) {
-	if (!t || !isFinite(t)) return '0:00';
-	const s = Math.floor(t % 60).toString().padStart(2, '0');
-	const m = Math.floor(t / 60);
-	return `${m}:${s}`;
 }
 
 export const WaveformControls: React.FC<WaveformControlsProps> = ({
