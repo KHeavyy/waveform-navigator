@@ -58,6 +58,11 @@ export function useWaveformCanvas({
 		canvas.height = Math.floor(height * dpr);
 		canvas.style.width = `${width}px`;
 		canvas.style.height = `${height}px`;
+		
+		// Redraw after canvas resize to prevent blank canvas
+		if (peaks && !isPlaying) {
+			drawWaveform(peaks, currentTime);
+		}
 	}, [width, height]);
 
 	// Draw waveform with progress
