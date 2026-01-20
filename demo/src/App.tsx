@@ -2,9 +2,9 @@ import React, { useRef, useState } from 'react'
 import WaveformNavigator from '../../src'
 
 export default function App() {
-	const [file, setFile] = useState<File | null>(null)
-	const inputRef = useRef<HTMLInputElement | null>(null)
 	const audioRef = useRef<HTMLAudioElement | null>(null)
+	// Hardcoded demo audio path (served from demo/media/Demo.mp3)
+	const demoAudioPath = '/media/Demo.mp3'
 	
 	// Demo controlled mode
 	const [controlledTime, setControlledTime] = useState<number | undefined>(undefined)
@@ -21,10 +21,7 @@ export default function App() {
 			<h1>waveform-navigator demo</h1>
 			
 			<div style={{ marginBottom: 12 }}>
-				<input ref={inputRef} type="file" accept="audio/*" onChange={(e) => {
-					setFile(e.target.files?.[0] ?? null)
-					setPeaksReady(false)
-				}} />
+				<p>Using demo audio: <strong>media/Demo.mp3</strong></p>
 			</div>
 			
 			{/* Status display */}
@@ -90,7 +87,7 @@ export default function App() {
 			
 			<div style={{ width: 900 }}>
 				<WaveformNavigator 
-					audio={file} 
+					audio={demoAudioPath} 
 					width={900} 
 					height={140}
 					controlledCurrentTime={useControlled ? controlledTime : undefined}
