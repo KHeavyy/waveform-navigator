@@ -109,18 +109,15 @@ export function useWaveformCanvas({
 
 	// Smooth progress updates while playing using requestAnimationFrame
 	useEffect(() => {
-		let rafId = 0;
-		
 		function loop() {
 			if (peaks) {
 				drawWaveform(peaks, currentTime);
-				rafId = window.requestAnimationFrame(loop);
+				rafRef.current = window.requestAnimationFrame(loop);
 			}
 		}
 
 		if (isPlaying && peaks) {
-			rafId = window.requestAnimationFrame(loop);
-			rafRef.current = rafId;
+			rafRef.current = window.requestAnimationFrame(loop);
 		} else {
 			if (rafRef.current) {
 				window.cancelAnimationFrame(rafRef.current);
@@ -133,7 +130,10 @@ export function useWaveformCanvas({
 		}
 
 		return () => {
-			if (rafId) window.cancelAnimationFrame(rafId);
+			if (rafRef.current) {
+				window.cancelAnimationFrame(rafRef.current);
+				rafRef.current = null;
+			}
 		};
 	}, [isPlaying, peaks, currentTime, duration, barWidth, gap, barColor, progressColor, backgroundColor, playheadColor, width, height]);
 

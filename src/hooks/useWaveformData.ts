@@ -118,17 +118,19 @@ export function useWaveformData({
 			}
 
 			try {
+				// Transfer a copy of the buffer to avoid losing the original data
+				const channelCopy = new Float32Array(channelData);
 				workerRef.current.postMessage({
 					type: 'compute',
-					channelBuffer: channelData.buffer,
-					channelLength: channelData.length,
+					channelBuffer: channelCopy.buffer,
+					channelLength: channelCopy.length,
 					width,
 					barWidth,
 					gap,
 					chunkSize: 262144
-				}, [channelData.buffer]);
+				}, [channelCopy.buffer]);
 			} catch (err) {
-				// Already have fallback peaks set above
+				// Fallback peaks are already set above
 				console.warn('Worker postMessage failed, using fallback peaks:', err);
 			}
 		}
