@@ -167,17 +167,17 @@ export function useAudioPlayer({
 
 	// Controlled mode: sync audio element when controlledCurrentTime changes
 	useEffect(() => {
-		if (isControlled && audioRef.current) {
+		if (isControlled && audioRef.current && controlledCurrentTime !== undefined) {
 			const audio = audioRef.current;
 			// Only update if there's a significant difference to avoid feedback loop
-			if (Math.abs(audio.currentTime - controlledCurrentTime!) > CONTROLLED_TIME_THRESHOLD) {
-				audio.currentTime = controlledCurrentTime!;
+			if (Math.abs(audio.currentTime - controlledCurrentTime) > CONTROLLED_TIME_THRESHOLD) {
+				audio.currentTime = controlledCurrentTime;
 			}
 		}
 	}, [controlledCurrentTime, isControlled]);
 
 	// Use controlled time when provided, otherwise use internal state
-	const displayTime = isControlled ? controlledCurrentTime! : currentTime;
+	const displayTime = isControlled && controlledCurrentTime !== undefined ? controlledCurrentTime : currentTime;
 
 	function togglePlay() {
 		const a = audioRef.current;

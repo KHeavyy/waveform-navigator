@@ -126,18 +126,16 @@ export function useWaveformCanvas({
 				window.cancelAnimationFrame(rafRef.current);
 				rafRef.current = null;
 			}
+			// Draw once when paused to show current state
+			if (peaks) {
+				drawWaveform(peaks, currentTime);
+			}
 		}
 
 		return () => {
 			if (rafId) window.cancelAnimationFrame(rafId);
 		};
 	}, [isPlaying, peaks, currentTime, duration, barWidth, gap, barColor, progressColor, backgroundColor, playheadColor, width, height]);
-
-	// Redraw on time or peaks change (non-animated update)
-	useEffect(() => {
-		if (!peaks) return;
-		drawWaveform(peaks, currentTime);
-	}, [currentTime, peaks, duration, barWidth, gap, barColor, progressColor, backgroundColor, playheadColor, width, height]);
 
 	return {
 		canvasRef
