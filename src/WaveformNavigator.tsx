@@ -3,6 +3,9 @@ import './styles.css';
 
 type AudioProp = string | File | null | undefined;
 
+// Threshold for controlled time sync to avoid feedback loops (in seconds)
+const CONTROLLED_TIME_THRESHOLD = 0.01;
+
 export interface WaveformNavigatorProps {
 	audio: AudioProp;
 	width?: number;
@@ -15,6 +18,17 @@ export interface WaveformNavigatorProps {
 	progressColor?: string;
 	backgroundColor?: string;
 	playheadColor?: string;
+	// controlled props
+	controlledCurrentTime?: number;
+	onCurrentTimeChange?: (time: number) => void;
+	audioElementRef?: React.MutableRefObject<HTMLAudioElement | null>;
+	// callback events
+	onPlay?: () => void;
+	onPause?: () => void;
+	onEnded?: () => void;
+	onLoaded?: (duration: number) => void;
+	onTimeUpdate?: (currentTime: number) => void;
+	onPeaksComputed?: (peaks: Float32Array) => void;
 }
 
 const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
@@ -27,7 +41,16 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 	barColor = '#2b6ef6',
 	progressColor = '#0747a6',
 	backgroundColor = 'transparent',
-	playheadColor = '#ff4d4f'
+	playheadColor = '#ff4d4f',
+	controlledCurrentTime,
+	onCurrentTimeChange,
+	audioElementRef,
+	onPlay,
+	onPause,
+	onEnded,
+	onLoaded,
+	onTimeUpdate,
+	onPeaksComputed
 }) => {
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -48,29 +71,79 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 	// worker ref for peak computation
 	const workerRef = useRef<Worker | null>(null);
 
+	// Refs for callbacks to avoid recreating audio element
+	const onPlayRef = useRef(onPlay);
+	const onPauseRef = useRef(onPause);
+	const onEndedRef = useRef(onEnded);
+	const onLoadedRef = useRef(onLoaded);
+	const onTimeUpdateRef = useRef(onTimeUpdate);
+	const onCurrentTimeChangeRef = useRef(onCurrentTimeChange);
+	const onPeaksComputedRef = useRef(onPeaksComputed);
+
+	useEffect(() => {
+		onPlayRef.current = onPlay;
+		onPauseRef.current = onPause;
+		onEndedRef.current = onEnded;
+		onLoadedRef.current = onLoaded;
+		onTimeUpdateRef.current = onTimeUpdate;
+		onCurrentTimeChangeRef.current = onCurrentTimeChange;
+		onPeaksComputedRef.current = onPeaksComputed;
+	}, [onPlay, onPause, onEnded, onLoaded, onTimeUpdate, onCurrentTimeChange, onPeaksComputed]);
+
+	// Determine if component is in controlled mode
+	const isControlled = controlledCurrentTime !== undefined;
+
 // Initialize audio element
 	useEffect(() => {
 		const el = new Audio();
 		el.preload = 'auto';
 		el.crossOrigin = 'anonymous';
 		audioRef.current = el;
+		
+		// Expose audio element via ref if provided
+		if (audioElementRef) {
+			audioElementRef.current = el;
+		}
 
-		const onPlay = () => setIsPlaying(true);
-		const onPause = () => setIsPlaying(false);
-		const onTime = () => setCurrentTime(el.currentTime);
-		const onLoaded = () => setDuration(el.duration || 0);
+		const onPlayEvent = () => {
+			setIsPlaying(true);
+			onPlayRef.current?.();
+		};
+		const onPauseEvent = () => {
+			setIsPlaying(false);
+			onPauseRef.current?.();
+		};
+		const onTimeEvent = () => {
+			const time = el.currentTime;
+			setCurrentTime(time);
+			onTimeUpdateRef.current?.(time);
+			// Call onCurrentTimeChange for uncontrolled mode
+			if (!isControlled) {
+				onCurrentTimeChangeRef.current?.(time);
+			}
+		};
+		const onLoadedEvent = () => {
+			const dur = el.duration || 0;
+			setDuration(dur);
+			onLoadedRef.current?.(dur);
+		};
+		const onEndedEvent = () => {
+			onEndedRef.current?.();
+		};
 
-		el.addEventListener('play', onPlay);
-		el.addEventListener('pause', onPause);
-		el.addEventListener('timeupdate', onTime);
-		el.addEventListener('loadedmetadata', onLoaded);
+		el.addEventListener('play', onPlayEvent);
+		el.addEventListener('pause', onPauseEvent);
+		el.addEventListener('timeupdate', onTimeEvent);
+		el.addEventListener('loadedmetadata', onLoadedEvent);
+		el.addEventListener('ended', onEndedEvent);
 
 		return () => {
 			el.pause();
-			el.removeEventListener('play', onPlay);
-			el.removeEventListener('pause', onPause);
-			el.removeEventListener('timeupdate', onTime);
-			el.removeEventListener('loadedmetadata', onLoaded);
+			el.removeEventListener('play', onPlayEvent);
+			el.removeEventListener('pause', onPauseEvent);
+			el.removeEventListener('timeupdate', onTimeEvent);
+			el.removeEventListener('loadedmetadata', onLoadedEvent);
+			el.removeEventListener('ended', onEndedEvent);
 			if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
 			if (audioCtxRef.current && typeof audioCtxRef.current.close === 'function') {
 				audioCtxRef.current.close();
@@ -80,7 +153,13 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 				workerRef.current.terminate();
 				workerRef.current = null;
 			}
+			// Clean up ref
+			if (audioElementRef) {
+				audioElementRef.current = null;
+			}
 		};
+	// audioElementRef is intentionally excluded from deps to avoid recreating audio element
+	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 // Set audio source when `audio` prop changes and decode waveform
@@ -180,6 +259,7 @@ useEffect(() => {
 					if (msg.type === 'progress') {
 						const peaksArrReceived = new Float32Array(msg.peaksBuffer);
 						setPeaks(peaksArrReceived);
+						onPeaksComputedRef.current?.(peaksArrReceived);
 						// draw base bars on first partial message so UI becomes responsive
 						const ctx2 = canvas.getContext('2d');
 						if (ctx2) {
@@ -218,9 +298,11 @@ useEffect(() => {
 			} catch (err) {
 				// fallback: local set
 				setPeaks(peaksArr);
+				onPeaksComputedRef.current?.(peaksArr);
 			}
 		} else {
 			setPeaks(peaksArr);
+			onPeaksComputedRef.current?.(peaksArr);
 		}
 	}
 
@@ -284,7 +366,14 @@ useEffect(() => {
 		const x = e.clientX - rect.left;
 		const t = (x / rect.width) * duration;
 		if (audioRef.current && !Number.isNaN(t)) {
-			audioRef.current.currentTime = Math.max(0, Math.min(duration, t));
+			const newTime = Math.max(0, Math.min(duration, t));
+			if (isControlled) {
+				// In controlled mode, notify parent
+				onCurrentTimeChangeRef.current?.(newTime);
+			} else {
+				// In uncontrolled mode, update directly
+				audioRef.current.currentTime = newTime;
+			}
 		}
 	}
 
@@ -311,7 +400,14 @@ useEffect(() => {
 	function seek(delta: number) {
 		const a = audioRef.current;
 		if (!a) return;
-		a.currentTime = Math.max(0, Math.min((a.duration || 0), a.currentTime + delta));
+		const newTime = Math.max(0, Math.min((a.duration || 0), a.currentTime + delta));
+		if (isControlled) {
+			// In controlled mode, notify parent
+			onCurrentTimeChangeRef.current?.(newTime);
+		} else {
+			// In uncontrolled mode, update directly
+			a.currentTime = newTime;
+		}
 	}
 
 	function onVolumeChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -324,6 +420,20 @@ useEffect(() => {
 		if (!audioRef.current) return;
 		audioRef.current.volume = volume;
 	}, [volume]);
+
+	// Controlled mode: sync audio element when controlledCurrentTime changes
+	useEffect(() => {
+		if (isControlled && audioRef.current) {
+			const audio = audioRef.current;
+			// Only update if there's a significant difference to avoid feedback loop
+			if (Math.abs(audio.currentTime - controlledCurrentTime!) > CONTROLLED_TIME_THRESHOLD) {
+				audio.currentTime = controlledCurrentTime!;
+			}
+		}
+	}, [controlledCurrentTime, isControlled]);
+
+	// Use controlled time when provided, otherwise use internal state
+	const displayTime = isControlled ? controlledCurrentTime! : currentTime;
 
 	// smooth progress updates while playing using requestAnimationFrame
 	useEffect(() => {
@@ -375,8 +485,8 @@ useEffect(() => {
 		}
 
 		// draw current progress/playhead
-		drawProgressOverlay(peaks, currentTime);
-	}, [currentTime, peaks]);
+		drawProgressOverlay(peaks, displayTime);
+	}, [displayTime, peaks]);
 
 	return (
 		<div className={`waveform-navigator ${className}`}>
@@ -391,7 +501,7 @@ useEffect(() => {
 
 			<div className="controls">
 				<div className="left">
-					<div className="time">{formatTime(currentTime)} / {formatTime(duration)}</div>
+					<div className="time">{formatTime(displayTime)} / {formatTime(duration)}</div>
 				</div>
 
 				<div className="center">
