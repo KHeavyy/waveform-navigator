@@ -97,10 +97,9 @@ export function useAudioPlayer({
 			const time = el.currentTime;
 			setCurrentTime(time);
 			onTimeUpdateRef.current?.(time);
-			// Call onCurrentTimeChange for uncontrolled mode
-			if (!isControlledRef.current) {
-				onCurrentTimeChangeRef.current?.(time);
-			}
+			// Always notify parent of currentTime changes so controlled mode
+			// parents receive regular updates and can mirror the playhead.
+			onCurrentTimeChangeRef.current?.(time);
 		};
 		const onLoadedEvent = () => {
 			const dur = el.duration || 0;
