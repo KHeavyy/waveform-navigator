@@ -240,6 +240,8 @@ The component uses a Web Worker to compute waveform peaks off the main thread fo
 
 ### Bundler Configuration
 
+**Default Behavior:** The component uses an inline worker that is bundled directly into the library (as a base64-encoded data URL). This works out of the box with all modern bundlers and requires no additional configuration. The worker code is automatically extracted and executed in a separate thread when needed.
+
 The component is designed to work with modern bundlers that support `new URL(..., import.meta.url)` syntax for worker bundling.
 
 #### Vite (Recommended - Works Out of the Box)
@@ -253,6 +255,8 @@ function App() {
   return <WaveformNavigator audio="/path/to/audio.mp3" width={900} height={140} />;
 }
 ```
+
+The component will use the inline worker by default, with zero configuration required.
 
 #### Webpack 5
 
@@ -289,7 +293,7 @@ export default {
 
 #### Custom Worker Hosting
 
-If you need to host the worker file separately (e.g., on a CDN or due to bundler constraints), you can provide a custom worker URL:
+In most cases, you don't need to use custom worker hosting. However, if you have specific requirements (e.g., strict Content Security Policy that blocks data URLs, or you want to host the worker on a CDN), you can provide a custom worker URL:
 
 ```jsx
 import WaveformNavigator from 'waveform-navigator';
@@ -306,7 +310,7 @@ function App() {
 }
 ```
 
-**Note:** The worker file is located at `dist/peaks.worker.js` in the published package.
+**Note:** The compiled worker file is available at `dist/peaks.worker.js` in the published package for custom hosting scenarios.
 
 ### Forcing Main-Thread Computation
 
@@ -390,6 +394,91 @@ The default colors meet WCAG AA contrast requirements:
 - Hover tooltip: `rgba(17,24,39,0.95)` background with white text (contrast ratio 15:1)
 
 For custom themes, ensure your colors maintain sufficient contrast for accessibility.
+
+## Build and Development
+
+### Building the Package
+
+The package is built using Vite in library mode, which produces optimized ESM and CJS outputs along with TypeScript declarations.
+
+```bash
+# Build the library
+npm run build
+
+# Build in watch mode (useful during development)
+npm run build:watch
+
+# Run demo app alongside watch mode
+npm run dev
+```
+
+#### Build Outputs
+
+The build process generates the following files in `dist/`:
+
+- **`index.mjs`** - ES module build (for modern bundlers and Node.js with ESM)
+- **`index.cjs`** - CommonJS build (for older bundlers and Node.js with CJS)
+- **`index.d.ts`** - TypeScript type declarations
+- **`styles.css`** - Component styles (must be imported separately)
+- **`peaks.worker.js`** - Compiled Web Worker script (for custom hosting scenarios)
+- **Source maps** - For debugging (`.map` files)
+
+### CSS Import
+
+The component requires styles to be imported separately:
+
+```jsx
+import WaveformNavigator from 'waveform-navigator'
+import 'waveform-navigator/styles.css'
+```
+
+Some bundlers may auto-inject styles, but it's recommended to import explicitly for clarity.
+
+### Package Exports
+
+The package uses the modern `exports` field for proper ESM/CJS support:
+
+```json
+{
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./styles.css": "./dist/styles.css"
+  }
+}
+```
+
+### Publishing
+
+Before publishing to npm:
+
+1. Ensure all changes are committed
+2. Update version in `package.json`
+3. Run `npm run build` to create fresh build outputs
+4. Run `npm publish`
+
+The `prepare` script automatically runs the build before publishing, ensuring the latest code is always published.
+
+### Development Setup
+
+To work on this package:
+
+```bash
+# Install dependencies
+npm install
+
+# Build the package
+npm run build
+
+# Run demo app for testing changes
+cd demo
+npm install
+npm run dev
+```
+
+The demo app imports the library from the parent directory, allowing you to test changes in a real application context.
 
 ## Notes
 

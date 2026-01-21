@@ -2,25 +2,50 @@
   "name": "waveform-navigator",
   "version": "0.1.0",
   "description": "A React component to display and navigate audio waveforms with custom controls.",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./styles.css": "./dist/styles.css",
+    "./package.json": "./package.json"
+  },
   "author": "",
   "license": "MIT",
+  "sideEffects": [
+    "*.css"
+  ],
   "peerDependencies": {
     "react": ">=18",
     "react-dom": ">=18"
   },
   "scripts": {
     "test": "echo \"No tests configured\" && exit 0",
-    "build": "tsc -p tsconfig.json",
+    "build": "vite build && vite build --mode worker",
+    "build:watch": "vite build --watch",
     "prepare": "npm run build",
-    "dev": "concurrently \"tsc -w -p tsconfig.json\" \"(cd demo && npm run dev)\""
+    "dev": "concurrently \"npm run build:watch\" \"(cd demo && npm run dev)\""
   },
-  "files": ["dist", "src"],
+  "files": [
+    "dist",
+    "src"
+  ],
   "devDependencies": {
-    "typescript": "^5.1.6",
     "@types/react": "^18.2.21",
     "@types/react-dom": "^18.2.7",
-    "concurrently": "^8.2.0"
+    "@vitejs/plugin-react": "^5.1.2",
+    "concurrently": "^8.2.0",
+    "typescript": "^5.1.6",
+    "vite": "^7.3.1",
+    "vite-plugin-dts": "^4.5.4"
   }
 }
