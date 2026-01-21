@@ -36,6 +36,7 @@ export function useWaveformCanvas({
 }: UseWaveformCanvasProps): UseWaveformCanvasReturn {
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const rafRef = useRef<number | null>(null);
+	const dprRef = useRef<number>(1);
 	
 	// Use refs for frequently changing values to avoid recreating RAF loop
 	const currentTimeRef = useRef(currentTime);
@@ -54,8 +55,8 @@ export function useWaveformCanvas({
 		const canvas = canvasRef.current;
 		if (!canvas) return;
 		
-		// Sync canvas size with devicePixelRatio
-		syncCanvasSize(canvas, width, height);
+		// Sync canvas size with devicePixelRatio and store DPR
+		dprRef.current = syncCanvasSize(canvas, width, height);
 		
 		// Redraw after canvas resize to prevent blank canvas
 		if (peaks && !isPlaying) {
@@ -76,13 +77,11 @@ export function useWaveformCanvas({
 		const playedWidth = Math.max(0, Math.min(1, playedRatio)) * width;
 
 		// Clear canvas using device pixels (reset transform)
-		ctx.save();
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
-		ctx.restore();
 		
 		// Re-apply DPR transform for logical pixel drawing
-		const dpr = Math.max(1, window.devicePixelRatio || 1);
+		const dpr = dprRef.current;
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
 		// Draw background (using logical coordinates)
