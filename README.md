@@ -354,7 +354,7 @@ The waveform can be focused and controlled entirely via keyboard:
 | **Page Up** | Seek backward by large step (default: 10% of duration) |
 | **Page Down** | Seek forward by large step (default: 10% of duration) |
 | **Home** | Jump to the start of the audio |
-| **End** | Jump to the end of the audio |
+| **End** | Jump to the final moments of the audio (seeks close to the end) |
 | **Space** or **Enter** | Toggle play/pause |
 
 ### Screen Reader Support
