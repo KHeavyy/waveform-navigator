@@ -40,6 +40,11 @@ ReactDOM.render(<App/>, document.getElementById('root'))
 - **`responsive`** (boolean, default: true): Enable automatic resizing to match container width using ResizeObserver. When enabled, the waveform automatically adjusts the number of bars and resamples peaks when the container is resized.
 - **`responsiveDebounceMs`** (number, default: 150): Debounce delay in milliseconds for resize events. Higher values reduce recomputation frequency during continuous resizing.
 
+#### Worker Configuration Props
+
+- **`workerUrl`** (string | undefined): Optional custom URL for the Web Worker that computes waveform peaks. When not provided, the component uses the bundled worker. Use this when hosting the worker file separately (e.g., on a CDN) or when your bundler requires a specific worker path.
+- **`forceMainThread`** (boolean, default: false): Force peak computation to run on the main thread instead of using a Web Worker. Set to `true` to disable worker usage (useful for debugging or environments where workers are restricted).
+
 #### Visual Customization Props
 
 - **`barWidth`** (number, default: 3): Width of each waveform bar in pixels.
@@ -214,6 +219,117 @@ function App() {
   );
 }
 ```
+
+## Web Worker and Performance
+
+### How Peak Computation Works
+
+The component uses a Web Worker to compute waveform peaks off the main thread for better performance, especially with large audio files. The worker processes audio data in chunks and streams partial results back, enabling progressive waveform rendering.
+
+**Key features:**
+- **Automatic fallback:** If Web Workers are not supported or worker creation fails (e.g., due to CSP restrictions), the component automatically falls back to main-thread computation.
+- **Immediate display:** Initial peaks are computed synchronously on the main thread for instant display, then refined by the worker.
+- **No blocking:** The worker runs asynchronously, keeping the UI responsive during peak computation.
+
+### Bundler Configuration
+
+The component is designed to work with modern bundlers that support `new URL(..., import.meta.url)` syntax for worker bundling.
+
+#### Vite (Recommended - Works Out of the Box)
+
+Vite automatically handles Web Worker bundling with no additional configuration needed:
+
+```jsx
+import WaveformNavigator from 'waveform-navigator';
+
+function App() {
+  return <WaveformNavigator audio="/path/to/audio.mp3" width={900} height={140} />;
+}
+```
+
+#### Webpack 5
+
+Webpack 5 supports the same syntax as Vite. No additional configuration is required for the bundled worker:
+
+```jsx
+import WaveformNavigator from 'waveform-navigator';
+
+function App() {
+  return <WaveformNavigator audio="/path/to/audio.mp3" width={900} height={140} />;
+}
+```
+
+#### Rollup
+
+For Rollup, ensure you're using `@rollup/plugin-node-resolve` and your output format supports dynamic imports:
+
+```js
+// rollup.config.js
+import resolve from '@rollup/plugin-node-resolve';
+
+export default {
+  // ... other config
+  plugins: [
+    resolve(),
+    // ... other plugins
+  ],
+  output: {
+    format: 'esm', // or 'system'
+    // ...
+  }
+};
+```
+
+#### Custom Worker Hosting
+
+If you need to host the worker file separately (e.g., on a CDN or due to bundler constraints), you can provide a custom worker URL:
+
+```jsx
+import WaveformNavigator from 'waveform-navigator';
+
+function App() {
+  return (
+    <WaveformNavigator 
+      audio="/path/to/audio.mp3"
+      width={900}
+      height={140}
+      workerUrl="https://cdn.example.com/peaks.worker.js"
+    />
+  );
+}
+```
+
+**Note:** The worker file is located at `dist/peaks.worker.js` in the published package.
+
+### Forcing Main-Thread Computation
+
+For debugging or environments where Web Workers are problematic, you can force main-thread computation:
+
+```jsx
+import WaveformNavigator from 'waveform-navigator';
+
+function App() {
+  return (
+    <WaveformNavigator 
+      audio="/path/to/audio.mp3"
+      width={900}
+      height={140}
+      forceMainThread={true}
+    />
+  );
+}
+```
+
+### Fallback Behavior
+
+The component automatically detects and handles worker failures:
+
+1. **Worker supported and created successfully:** Peak computation runs in worker (default behavior)
+2. **Worker not supported:** Falls back to main-thread computation with a console warning
+3. **Worker creation fails (CSP, CORS, etc.):** Falls back to main-thread computation with a console warning
+4. **`forceMainThread={true}` provided:** Skips worker creation entirely and uses main-thread
+
+In all cases, the waveform is rendered correctly—worker usage is a performance optimization, not a requirement.
 
 ## Notes
 

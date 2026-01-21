@@ -19,6 +19,9 @@ export default function App() {
 	// Demo responsive mode
 	const [responsiveEnabled, setResponsiveEnabled] = useState(true)
 	const [containerWidth, setContainerWidth] = useState(900)
+	
+	// Demo worker mode
+	const [forceMainThread, setForceMainThread] = useState(false)
 
 	return (
 		<div style={{ padding: 24 }}>
@@ -120,12 +123,31 @@ export default function App() {
 				</p>
 			</div>
 			
+			{/* Worker mode demo */}
+			<div style={{ marginBottom: 12, padding: 12, backgroundColor: '#f8e8f8', borderRadius: 4 }}>
+				<h3>Worker Mode Demo</h3>
+				<label>
+					<input 
+						type="checkbox" 
+						checked={forceMainThread} 
+						onChange={(e) => setForceMainThread(e.target.checked)}
+					/>
+					Force Main-Thread Processing (disable worker)
+				</label>
+				<p style={{ fontSize: 12, marginTop: 8 }}>
+					{forceMainThread 
+						? '⚠️ Peak computation runs on main thread (slower for large files)' 
+						: '✅ Using Web Worker for peak computation (default)'}
+				</p>
+			</div>
+			
 			<div style={{ width: containerWidth, transition: 'width 0.3s' }}>
 				<WaveformNavigator 
 					audio={demoAudioPath} 
 					width={900} 
 					height={140}
 					responsive={responsiveEnabled}
+					forceMainThread={forceMainThread}
 					controlledCurrentTime={useControlled ? controlledTime : undefined}
 					onCurrentTimeChange={(time) => {
 						setControlledTime(time)

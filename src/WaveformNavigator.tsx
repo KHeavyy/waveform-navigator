@@ -24,6 +24,9 @@ export interface WaveformNavigatorProps {
 	// responsive props
 	responsive?: boolean;
 	responsiveDebounceMs?: number;
+	// worker configuration
+	workerUrl?: string;
+	forceMainThread?: boolean;
 	// controlled props
 	controlledCurrentTime?: number;
 	onCurrentTimeChange?: (time: number) => void;
@@ -50,6 +53,8 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 	playheadColor = '#ff4d4f',
 	responsive = true,
 	responsiveDebounceMs = 150,
+	workerUrl,
+	forceMainThread = false,
 	controlledCurrentTime,
 	onCurrentTimeChange,
 	audioElementRef,
@@ -101,6 +106,8 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 		width: effectiveWidth,
 		barWidth,
 		gap,
+		workerUrl,
+		forceMainThread,
 		onPeaksComputed
 	});
 

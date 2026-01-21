@@ -13,6 +13,7 @@ self.onmessage = (ev: MessageEvent) => {
 			const peaks = new Float32Array(slot);
 			const chunkSamples = msg.chunkSize || 262144;
 
+			// Process in chunks and stream partial results for progressive rendering
 			for (let offset = 0; offset < channelLength; offset += chunkSamples) {
 				const end = Math.min(offset + chunkSamples, channelLength);
 				for (let i = offset; i < end; i++) {
