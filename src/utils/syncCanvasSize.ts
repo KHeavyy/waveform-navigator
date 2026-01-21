@@ -5,13 +5,13 @@
  * @returns The calculated device pixel ratio
  */
 export function syncCanvasSize(canvas: HTMLCanvasElement, width: number, height: number): number {
-	const dpr = Math.max(1, window.devicePixelRatio || 1);
+	const dpr = window.devicePixelRatio || 1;
 	
 	// CSS size (logical pixels)
 	canvas.style.width = `${width}px`;
 	canvas.style.height = `${height}px`;
 
-	// Backing store size (device pixels)
+	// Backing store size (device pixels) - ensure at least 1px to avoid invalid canvas
 	const pixelWidth = Math.max(1, Math.floor(width * dpr));
 	const pixelHeight = Math.max(1, Math.floor(height * dpr));
 	
