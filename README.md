@@ -71,6 +71,13 @@ The component supports both controlled and uncontrolled modes for playback posit
 - **`onTimeUpdate`** ((currentTime: number) => void): Callback fired during playback as the current time updates, providing the current time in seconds.
 - **`onPeaksComputed`** ((peaks: Float32Array) => void): Callback fired when waveform peaks are computed, providing the peak data array.
 
+#### Accessibility Props
+
+- **`keyboardSmallStep`** (number, default: 5): Step size in seconds for small seek operations (ArrowLeft/ArrowRight keys).
+- **`keyboardLargeStep`** (number | undefined): Step size in seconds for large seek operations (PageUp/PageDown keys). If not provided, defaults to 10% of the audio duration.
+- **`disableKeyboardControls`** (boolean, default: false): Disable built-in keyboard navigation. Set to `true` if you want to implement custom keyboard handling.
+- **`ariaLabel`** (string, default: 'Audio waveform seek bar'): Accessible label for the waveform control, announced to screen readers.
+
 ## Usage Examples
 
 ### Uncontrolled Mode (Default)
@@ -330,6 +337,59 @@ The component automatically detects and handles worker failures:
 4. **`forceMainThread={true}` provided:** Skips worker creation entirely and uses main-thread
 
 In all cases, the waveform is rendered correctly—worker usage is a performance optimization, not a requirement.
+
+## Accessibility
+
+The waveform component is designed to be fully accessible to keyboard users and screen readers.
+
+### Keyboard Navigation
+
+The waveform can be focused and controlled entirely via keyboard:
+
+| Key | Action |
+|-----|--------|
+| **Tab** | Focus the waveform control |
+| **Arrow Left** | Seek backward by small step (default: 5 seconds) |
+| **Arrow Right** | Seek forward by small step (default: 5 seconds) |
+| **Page Up** | Seek backward by large step (default: 10% of duration) |
+| **Page Down** | Seek forward by large step (default: 10% of duration) |
+| **Home** | Jump to the start of the audio |
+| **End** | Jump to the end of the audio |
+| **Space** or **Enter** | Toggle play/pause |
+
+### Screen Reader Support
+
+- The waveform is exposed as a slider control (`role="slider"`) to assistive technologies
+- Current time and duration are announced via `aria-valuetext` (e.g., "2:30 of 4:43")
+- The control has an accessible name via `aria-label` (default: "Audio waveform seek bar")
+- `aria-valuenow`, `aria-valuemin`, and `aria-valuemax` provide the numeric state
+
+### Focus Indicators
+
+- When focused via keyboard, the waveform displays a high-contrast blue outline
+- The focus indicator meets WCAG AA contrast requirements
+- Uses `:focus-visible` to show focus only for keyboard navigation (not mouse clicks)
+
+### Customizing Accessibility
+
+```jsx
+<WaveformNavigator 
+  audio="/audio.mp3"
+  ariaLabel="Podcast episode waveform"
+  keyboardSmallStep={10}  // Seek 10 seconds with arrow keys
+  keyboardLargeStep={60}  // Seek 60 seconds with PageUp/PageDown
+  disableKeyboardControls={false}  // Set true to disable built-in keyboard handling
+/>
+```
+
+### Color Contrast
+
+The default colors meet WCAG AA contrast requirements:
+- Focus outline: `#0066cc` on light backgrounds (contrast ratio 4.5:1)
+- Playhead: `#ff4d4f` (red) is visible against the waveform
+- Hover tooltip: `rgba(17,24,39,0.95)` background with white text (contrast ratio 15:1)
+
+For custom themes, ensure your colors maintain sufficient contrast for accessibility.
 
 ## Notes
 
