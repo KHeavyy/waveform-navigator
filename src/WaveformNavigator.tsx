@@ -4,6 +4,7 @@ import { useAudioPlayer } from './hooks/useAudioPlayer';
 import { useWaveformData } from './hooks/useWaveformData';
 import { useWaveformCanvas } from './hooks/useWaveformCanvas';
 import { useResponsiveWidth } from './hooks/useResponsiveWidth';
+import { useKeyboardControls } from './hooks/useKeyboardControls';
 import { WaveformControls } from './components/WaveformControls';
 import { formatTime } from './utils';
 
@@ -161,58 +162,16 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 		setHoverTime(null);
 	}
 
-	// Keyboard navigation handler
-	function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
-		if (disableKeyboardControls) return;
-
-		// Calculate large step as 10% of duration if not provided
-		const largeStep = keyboardLargeStep ?? duration * 0.1;
-		
-		let handled = false;
-
-		switch (e.key) {
-			case 'ArrowLeft':
-				// Small seek backward
-				seek(-keyboardSmallStep);
-				handled = true;
-				break;
-			case 'ArrowRight':
-				// Small seek forward
-				seek(keyboardSmallStep);
-				handled = true;
-				break;
-			case 'PageUp':
-				// Large seek backward
-				seek(-largeStep);
-				handled = true;
-				break;
-			case 'PageDown':
-				// Large seek forward
-				seek(largeStep);
-				handled = true;
-				break;
-			case 'Home':
-				// Jump to start
-				seekTo(0);
-				handled = true;
-				break;
-			case 'End':
-				// Jump to end
-				seekTo(duration);
-				handled = true;
-				break;
-			case ' ':
-			case 'Enter':
-				// Toggle play/pause
-				togglePlay();
-				handled = true;
-				break;
-		}
-
-		if (handled) {
-			e.preventDefault();
-		}
-	}
+	// Use keyboard controls hook
+	const { onKeyDown } = useKeyboardControls({
+		duration,
+		keyboardSmallStep,
+		keyboardLargeStep,
+		disableKeyboardControls,
+		seek,
+		seekTo,
+		togglePlay
+	});
 
 	return (
 		<div ref={containerRef} className={`waveform-navigator ${className}`}>
