@@ -32,3 +32,34 @@
 .waveform-navigator{ position: relative }
 .hover-line{ position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(0,0,0,0.45); transform: translateX(-50%); pointer-events: none }
 .hover-tooltip{ position: absolute; top: -34px; transform: translateX(-50%); background: rgba(17,24,39,0.95); color: #fff; padding: 6px 8px; font-size: 12px; border-radius: 6px; pointer-events: none; white-space: nowrap }
+
+/* Error overlay */
+.waveform-error {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	background: rgba(255, 255, 255, 0.95);
+	border-radius: 8px;
+	padding: 20px;
+	text-align: center;
+	z-index: 10;
+}
+
+.waveform-error-icon {
+	font-size: 32px;
+	margin-bottom: 8px;
+}
+
+.waveform-error-message {
+	color: #dc2626;
+	font-size: 14px;
+	font-weight: 500;
+	max-width: 400px;
+	line-height: 1.5;
+}

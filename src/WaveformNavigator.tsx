@@ -39,6 +39,7 @@ export interface WaveformNavigatorProps {
 	onLoaded?: (duration: number) => void;
 	onTimeUpdate?: (currentTime: number) => void;
 	onPeaksComputed?: (peaks: Float32Array) => void;
+	onError?: (error: Error, type: 'audio' | 'waveform') => void;
 	// accessibility props
 	keyboardSmallStep?: number;
 	keyboardLargeStep?: number;
@@ -70,6 +71,7 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 	onLoaded,
 	onTimeUpdate,
 	onPeaksComputed,
+	onError,
 	keyboardSmallStep = 5,
 	keyboardLargeStep,
 	disableKeyboardControls = false,
@@ -77,6 +79,7 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 }) => {
 	const [hoverX, setHoverX] = useState<number | null>(null);
 	const [hoverTime, setHoverTime] = useState<number | null>(null);
+	const [errorState, setErrorState] = useState<{ message: string; type: 'audio' | 'waveform' } | null>(null);
 
 	// Use responsive width hook when responsive mode is enabled
 	const { width: responsiveWidth, containerRef } = useResponsiveWidth({
@@ -107,7 +110,11 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 		onPause,
 		onEnded,
 		onLoaded,
-		onTimeUpdate
+		onTimeUpdate,
+		onError: (error) => {
+			setErrorState({ message: error.message, type: 'audio' });
+			onError?.(error, 'audio');
+		}
 	});
 
 	// Use waveform data hook
@@ -118,7 +125,11 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 		gap,
 		workerUrl,
 		forceMainThread,
-		onPeaksComputed
+		onPeaksComputed,
+		onError: (error) => {
+			setErrorState({ message: error.message, type: 'waveform' });
+			onError?.(error, 'waveform');
+		}
 	});
 
 	// Use waveform canvas hook
@@ -196,7 +207,14 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 					tabIndex={-1}
 				/>
 
-				{hoverX !== null && (
+				{errorState && (
+					<div className="waveform-error">
+						<div className="waveform-error-icon">⚠️</div>
+						<div className="waveform-error-message">{errorState.message}</div>
+					</div>
+				)}
+
+				{hoverX !== null && !errorState && (
 					<>
 						<div className="hover-line" style={{ left: `${hoverX}px` }} />
 						<div className="hover-tooltip" style={{ left: `${hoverX}px` }}>
