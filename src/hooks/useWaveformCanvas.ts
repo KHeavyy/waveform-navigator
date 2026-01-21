@@ -156,6 +156,11 @@ export function useWaveformCanvas({
 		ctx.fillRect(px - 1, 0, 2, height);
 	}
 
+	// Invalidate cache when base waveform properties change
+	useEffect(() => {
+		baseWaveformCache.current = null;
+	}, [peaks, barWidth, gap, barColor, backgroundColor]);
+
 	// Smooth progress updates while playing using requestAnimationFrame
 	useEffect(() => {
 		function loop() {
@@ -166,10 +171,6 @@ export function useWaveformCanvas({
 				rafRef.current = window.requestAnimationFrame(loop);
 			}
 		}
-
-		// Invalidate cache when any rendering property changes
-		// This ensures the base waveform reflects the latest configuration
-		baseWaveformCache.current = null;
 
 		if (isPlaying && peaks) {
 			// Start animation loop - drawWaveform will build cache on first frame if needed
@@ -191,7 +192,7 @@ export function useWaveformCanvas({
 				rafRef.current = null;
 			}
 		};
-	}, [isPlaying, peaks, barWidth, gap, barColor, progressColor, backgroundColor, playheadColor, width, height]);
+	}, [isPlaying, peaks, progressColor, playheadColor]);
 
 	return {
 		canvasRef
