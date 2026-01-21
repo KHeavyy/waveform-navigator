@@ -3,6 +3,7 @@ import './styles.css';
 import { useAudioPlayer } from './hooks/useAudioPlayer';
 import { useWaveformData } from './hooks/useWaveformData';
 import { useWaveformCanvas } from './hooks/useWaveformCanvas';
+import { useResponsiveWidth } from './hooks/useResponsiveWidth';
 import { WaveformControls } from './components/WaveformControls';
 import { formatTime } from './utils';
 
@@ -20,6 +21,9 @@ export interface WaveformNavigatorProps {
 	progressColor?: string;
 	backgroundColor?: string;
 	playheadColor?: string;
+	// responsive props
+	responsive?: boolean;
+	responsiveDebounceMs?: number;
 	// controlled props
 	controlledCurrentTime?: number;
 	onCurrentTimeChange?: (time: number) => void;
@@ -44,6 +48,8 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 	progressColor = '#0747a6',
 	backgroundColor = 'transparent',
 	playheadColor = '#ff4d4f',
+	responsive = true,
+	responsiveDebounceMs = 150,
 	controlledCurrentTime,
 	onCurrentTimeChange,
 	audioElementRef,
@@ -56,6 +62,16 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 }) => {
 	const [hoverX, setHoverX] = useState<number | null>(null);
 	const [hoverTime, setHoverTime] = useState<number | null>(null);
+
+	// Use responsive width hook when responsive mode is enabled
+	const { width: responsiveWidth, containerRef } = useResponsiveWidth({
+		responsive,
+		debounceMs: responsiveDebounceMs,
+		fallbackWidth: width
+	});
+
+	// Use responsive width if enabled, otherwise use the provided width prop
+	const effectiveWidth = responsive ? responsiveWidth : width;
 
 	// Use audio player hook
 	const {
@@ -82,7 +98,7 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 	// Use waveform data hook
 	const { peaks } = useWaveformData({
 		audio,
-		width,
+		width: effectiveWidth,
 		barWidth,
 		gap,
 		onPeaksComputed
@@ -90,7 +106,7 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 
 	// Use waveform canvas hook
 	const { canvasRef } = useWaveformCanvas({
-		width,
+		width: effectiveWidth,
 		height,
 		barWidth,
 		gap,
@@ -130,7 +146,7 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 	}
 
 	return (
-		<div className={`waveform-navigator ${className}`}>
+		<div ref={containerRef} className={`waveform-navigator ${className}`}>
 			<canvas 
 				ref={canvasRef} 
 				onClick={onCanvasClick} 
