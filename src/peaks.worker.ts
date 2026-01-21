@@ -1,5 +1,3 @@
-import { computePeaksFromChannelData } from './utils/peaksComputation';
-
 /* Worker: compute peaks from a Float32 PCM buffer and stream partial results back */
 self.onmessage = (ev: MessageEvent) => {
 	const msg = ev.data;

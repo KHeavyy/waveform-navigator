@@ -40,8 +40,10 @@ export function createPeaksWorker(options: WorkerCreationOptions = {}): Worker |
 			// Use custom worker URL provided by consumer
 			worker = new Worker(workerUrl, { type: 'module' });
 		} else {
-			// Use bundled worker - the bundler (Vite/Webpack/Rollup) should resolve this URL
-			// Note: In the built library, this reference will point to peaks.worker.js in dist/
+			// Use bundled worker with relative path from this module's location in dist/
+			// In the compiled library: dist/utils/workerCreation.js -> ../peaks.worker.js
+			// Modern bundlers (Vite/Webpack 5) will resolve this correctly.
+			// If your bundler doesn't support this, provide a custom workerUrl prop.
 			const url = new URL('../peaks.worker.js', import.meta.url);
 			worker = new Worker(url, { type: 'module' });
 		}
