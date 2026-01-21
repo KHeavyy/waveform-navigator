@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
+import { computePeaksFromChannelData } from '../utils/peaksComputation';
+import { createPeaksWorker } from '../utils/workerCreation';
 
 interface UseWaveformDataProps {
 	audio: string | File | null | undefined;
 	width: number;
 	barWidth: number;
 	gap: number;
+	workerUrl?: string;
+	forceMainThread?: boolean;
 	onPeaksComputed?: (peaks: Float32Array) => void;
 }
 
@@ -17,6 +21,8 @@ export function useWaveformData({
 	width,
 	barWidth,
 	gap,
+	workerUrl,
+	forceMainThread,
 	onPeaksComputed
 }: UseWaveformDataProps): UseWaveformDataReturn {
 	const [peaks, setPeaks] = useState<Float32Array | null>(null);
@@ -34,18 +40,21 @@ export function useWaveformData({
 
 	// Initialize worker once
 	useEffect(() => {
-		if (window.Worker && !workerRef.current) {
-			workerRef.current = new Worker(new URL('../peaks.worker.ts', import.meta.url), { type: 'module' });
-			workerRef.current.onmessage = (ev: MessageEvent) => {
-				const msg = ev.data;
-				if (msg.type === 'progress') {
-					const peaksArrReceived = new Float32Array(msg.peaksBuffer);
-					setPeaks(peaksArrReceived);
-					onPeaksComputedRef.current?.(peaksArrReceived);
-				}
-			};
+		if (!workerRef.current) {
+			workerRef.current = createPeaksWorker({ workerUrl, forceMainThread });
+			
+			if (workerRef.current) {
+				workerRef.current.onmessage = (ev: MessageEvent) => {
+					const msg = ev.data;
+					if (msg.type === 'progress') {
+						const peaksArrReceived = new Float32Array(msg.peaksBuffer);
+						setPeaks(peaksArrReceived);
+						onPeaksComputedRef.current?.(peaksArrReceived);
+					}
+				};
+			}
 		}
-	}, []);
+	}, [workerUrl, forceMainThread]);
 
 	// Cleanup worker on unmount
 	useEffect(() => {
@@ -129,27 +138,19 @@ export function useWaveformData({
 	}, [width, barWidth, gap]);
 
 	function computePeaks(channelData: Float32Array) {
-		const slot = Math.max(1, Math.floor(width / (barWidth + gap)));
-		const samplesPerSlot = Math.floor(channelData.length / slot) || 1;
-		const peaksArr = new Float32Array(slot);
-		
-		// Quick initial computation for immediate display
-		for (let i = 0; i < slot; i++) {
-			let start = i * samplesPerSlot;
-			let end = Math.min(start + samplesPerSlot, channelData.length);
-			let max = 0;
-			for (let s = start; s < end; s++) {
-				const v = Math.abs(channelData[s]);
-				if (v > max) max = v;
-			}
-			peaksArr[i] = max;
-		}
+		// Always compute peaks immediately on main thread for instant display
+		const { peaks: peaksArr } = computePeaksFromChannelData({
+			channelData,
+			width,
+			barWidth,
+			gap
+		});
 
 		// Set initial peaks for immediate display
 		setPeaks(peaksArr);
 		onPeaksComputedRef.current?.(peaksArr);
 
-		// Use worker for more accurate computation if available
+		// Use worker for more accurate progressive computation if available
 		if (workerRef.current) {
 			try {
 				// Transfer a copy of the buffer to avoid losing the original data
@@ -164,8 +165,8 @@ export function useWaveformData({
 					chunkSize: 262144
 				}, [channelCopy.buffer]);
 			} catch (err) {
-				// Fallback peaks are already set above
-				console.warn('Worker postMessage failed, using fallback peaks:', err);
+				// Fallback peaks are already set above, so this is fine
+				console.warn('[WaveformNavigator] Worker postMessage failed, using main-thread peaks:', err);
 			}
 		}
 	}
