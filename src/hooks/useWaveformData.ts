@@ -40,10 +40,11 @@ export function useWaveformData({
 
 	// Initialize worker and cleanup when props change
 	useEffect(() => {
-		workerRef.current = createPeaksWorker({ workerUrl, forceMainThread });
+		const worker = createPeaksWorker({ workerUrl, forceMainThread });
+		workerRef.current = worker;
 		
-		if (workerRef.current) {
-			workerRef.current.onmessage = (ev: MessageEvent) => {
+		if (worker) {
+			worker.onmessage = (ev: MessageEvent) => {
 				const msg = ev.data;
 				if (msg.type === 'progress') {
 					const peaksArrReceived = new Float32Array(msg.peaksBuffer);
@@ -55,9 +56,9 @@ export function useWaveformData({
 
 		// Cleanup worker when props change or on unmount
 		return () => {
-			if (workerRef.current) {
-				workerRef.current.postMessage({ type: 'terminate' });
-				workerRef.current.terminate();
+			if (worker) {
+				worker.postMessage({ type: 'terminate' });
+				worker.terminate();
 				workerRef.current = null;
 			}
 		};
