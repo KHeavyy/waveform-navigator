@@ -391,6 +391,91 @@ The default colors meet WCAG AA contrast requirements:
 
 For custom themes, ensure your colors maintain sufficient contrast for accessibility.
 
+## Build and Development
+
+### Building the Package
+
+The package is built using Vite in library mode, which produces optimized ESM and CJS outputs along with TypeScript declarations.
+
+```bash
+# Build the library
+npm run build
+
+# Build in watch mode (useful during development)
+npm run build:watch
+
+# Run demo app alongside watch mode
+npm run dev
+```
+
+#### Build Outputs
+
+The build process generates the following files in `dist/`:
+
+- **`index.mjs`** - ES module build (for modern bundlers and Node.js with ESM)
+- **`index.cjs`** - CommonJS build (for older bundlers and Node.js with CJS)
+- **`index.d.ts`** - TypeScript type declarations
+- **`styles.css`** - Component styles (must be imported separately)
+- **`peaks.worker.js`** - Web Worker source file (for custom hosting scenarios)
+- **Source maps** - For debugging (`.map` files)
+
+### CSS Import
+
+The component requires styles to be imported separately:
+
+```jsx
+import WaveformNavigator from 'waveform-navigator'
+import 'waveform-navigator/styles.css'
+```
+
+Some bundlers may auto-inject styles, but it's recommended to import explicitly for clarity.
+
+### Package Exports
+
+The package uses the modern `exports` field for proper ESM/CJS support:
+
+```json
+{
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./styles.css": "./dist/styles.css"
+  }
+}
+```
+
+### Publishing
+
+Before publishing to npm:
+
+1. Ensure all changes are committed
+2. Update version in `package.json`
+3. Run `npm run build` to create fresh build outputs
+4. Run `npm publish`
+
+The `prepare` script automatically runs the build before publishing, ensuring the latest code is always published.
+
+### Development Setup
+
+To work on this package:
+
+```bash
+# Install dependencies
+npm install
+
+# Build the package
+npm run build
+
+# Run demo app for testing changes
+cd demo
+npm install
+npm run dev
+```
+
+The demo app imports the library from the parent directory, allowing you to test changes in a real application context.
+
 ## Notes
 
 - This package expects a modern browser with `AudioContext` support.
