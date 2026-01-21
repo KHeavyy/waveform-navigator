@@ -13,6 +13,7 @@ interface UseAudioPlayerProps {
 	onEnded?: () => void;
 	onLoaded?: (duration: number) => void;
 	onTimeUpdate?: (currentTime: number) => void;
+	onError?: (error: Error) => void;
 }
 
 interface UseAudioPlayerReturn {
@@ -38,7 +39,8 @@ export function useAudioPlayer({
 	onPause,
 	onEnded,
 	onLoaded,
-	onTimeUpdate
+	onTimeUpdate,
+	onError
 }: UseAudioPlayerProps): UseAudioPlayerReturn {
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 	const objectUrlRef = useRef<string | null>(null);
@@ -55,6 +57,7 @@ export function useAudioPlayer({
 	const onLoadedRef = useRef(onLoaded);
 	const onTimeUpdateRef = useRef(onTimeUpdate);
 	const onCurrentTimeChangeRef = useRef(onCurrentTimeChange);
+	const onErrorRef = useRef(onError);
 
 	useEffect(() => {
 		onPlayRef.current = onPlay;
@@ -63,7 +66,8 @@ export function useAudioPlayer({
 		onLoadedRef.current = onLoaded;
 		onTimeUpdateRef.current = onTimeUpdate;
 		onCurrentTimeChangeRef.current = onCurrentTimeChange;
-	}, [onPlay, onPause, onEnded, onLoaded, onTimeUpdate, onCurrentTimeChange]);
+		onErrorRef.current = onError;
+	}, [onPlay, onPause, onEnded, onLoaded, onTimeUpdate, onCurrentTimeChange, onError]);
 
 	// Determine if component is in controlled mode
 	const isControlled = controlledCurrentTime !== undefined;
@@ -111,12 +115,38 @@ export function useAudioPlayer({
 		const onEndedEvent = () => {
 			onEndedRef.current?.();
 		};
+		const onErrorEvent = () => {
+			const error = el.error;
+			if (error) {
+				let errorMessage: string;
+				switch (error.code) {
+					case MediaError.MEDIA_ERR_ABORTED:
+						errorMessage = 'Audio loading was aborted';
+						break;
+					case MediaError.MEDIA_ERR_NETWORK:
+						errorMessage = 'Network error while loading audio';
+						break;
+					case MediaError.MEDIA_ERR_DECODE:
+						errorMessage = 'Audio decoding failed';
+						break;
+					case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+						errorMessage =
+							'Audio source is not supported. Check that the file format is supported by this browser and that the server allows cross-origin (CORS) access for this URL.';
+						break;
+					default:
+						errorMessage = 'Unknown audio error occurred';
+						break;
+				}
+				onErrorRef.current?.(new Error(errorMessage));
+			}
+		};
 
 		el.addEventListener('play', onPlayEvent);
 		el.addEventListener('pause', onPauseEvent);
 		el.addEventListener('timeupdate', onTimeEvent);
 		el.addEventListener('loadedmetadata', onLoadedEvent);
 		el.addEventListener('ended', onEndedEvent);
+		el.addEventListener('error', onErrorEvent);
 
 		return () => {
 			el.pause();
@@ -125,6 +155,7 @@ export function useAudioPlayer({
 			el.removeEventListener('timeupdate', onTimeEvent);
 			el.removeEventListener('loadedmetadata', onLoadedEvent);
 			el.removeEventListener('ended', onEndedEvent);
+			el.removeEventListener('error', onErrorEvent);
 			if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
 			// Clean up ref
 			if (audioElementRef) {

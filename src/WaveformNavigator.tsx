@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './styles.css';
 import { useAudioPlayer } from './hooks/useAudioPlayer';
 import { useWaveformData } from './hooks/useWaveformData';
@@ -39,6 +39,7 @@ export interface WaveformNavigatorProps {
 	onLoaded?: (duration: number) => void;
 	onTimeUpdate?: (currentTime: number) => void;
 	onPeaksComputed?: (peaks: Float32Array) => void;
+	onError?: (error: Error, type: 'audio' | 'waveform') => void;
 	// accessibility props
 	keyboardSmallStep?: number;
 	keyboardLargeStep?: number;
@@ -70,6 +71,7 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 	onLoaded,
 	onTimeUpdate,
 	onPeaksComputed,
+	onError,
 	keyboardSmallStep = 5,
 	keyboardLargeStep,
 	disableKeyboardControls = false,
@@ -77,6 +79,12 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 }) => {
 	const [hoverX, setHoverX] = useState<number | null>(null);
 	const [hoverTime, setHoverTime] = useState<number | null>(null);
+	const [errorState, setErrorState] = useState<{ message: string; type: 'audio' | 'waveform' } | null>(null);
+
+	// Clear error state when audio prop changes
+	useEffect(() => {
+		setErrorState(null);
+	}, [audio]);
 
 	// Use responsive width hook when responsive mode is enabled
 	const { width: responsiveWidth, containerRef } = useResponsiveWidth({
@@ -106,8 +114,15 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 		onPlay,
 		onPause,
 		onEnded,
-		onLoaded,
-		onTimeUpdate
+		onLoaded: (dur) => {
+			setErrorState(null); // Clear error on successful load
+			onLoaded?.(dur);
+		},
+		onTimeUpdate,
+		onError: (error) => {
+			setErrorState({ message: error.message, type: 'audio' });
+			onError?.(error, 'audio');
+		}
 	});
 
 	// Use waveform data hook
@@ -118,7 +133,14 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 		gap,
 		workerUrl,
 		forceMainThread,
-		onPeaksComputed
+		onPeaksComputed: (peaks) => {
+			setErrorState(null); // Clear error on successful peaks computation
+			onPeaksComputed?.(peaks);
+		},
+		onError: (error) => {
+			setErrorState({ message: error.message, type: 'waveform' });
+			onError?.(error, 'waveform');
+		}
 	});
 
 	// Use waveform canvas hook
@@ -196,7 +218,14 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 					tabIndex={-1}
 				/>
 
-				{hoverX !== null && (
+				{errorState && (
+					<div className="waveform-error" role="alert" aria-live="assertive">
+						<div className="waveform-error-icon" aria-hidden="true">⚠️</div>
+						<div className="waveform-error-message">{errorState.message}</div>
+					</div>
+				)}
+
+				{hoverX !== null && !errorState && (
 					<>
 						<div className="hover-line" style={{ left: `${hoverX}px` }} />
 						<div className="hover-tooltip" style={{ left: `${hoverX}px` }}>
