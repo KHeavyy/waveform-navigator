@@ -30,7 +30,7 @@
   },
   "scripts": {
     "test": "echo \"No tests configured\" && exit 0",
-    "build": "vite build",
+    "build": "vite build && vite build --mode worker",
     "build:watch": "vite build --watch",
     "prepare": "npm run build",
     "dev": "concurrently \"npm run build:watch\" \"(cd demo && npm run dev)\""
@@ -46,7 +46,6 @@
     "concurrently": "^8.2.0",
     "typescript": "^5.1.6",
     "vite": "^7.3.1",
-    "vite-plugin-dts": "^4.5.4",
-    "vite-plugin-static-copy": "^3.1.5"
+    "vite-plugin-dts": "^4.5.4"
   }
 }

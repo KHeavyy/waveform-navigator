@@ -240,6 +240,8 @@ The component uses a Web Worker to compute waveform peaks off the main thread fo
 
 ### Bundler Configuration
 
+**Default Behavior:** The component uses an inline worker that is bundled directly into the library (as a base64-encoded data URL). This works out of the box with all modern bundlers and requires no additional configuration. The worker code is automatically extracted and executed in a separate thread when needed.
+
 The component is designed to work with modern bundlers that support `new URL(..., import.meta.url)` syntax for worker bundling.
 
 #### Vite (Recommended - Works Out of the Box)
@@ -253,6 +255,8 @@ function App() {
   return <WaveformNavigator audio="/path/to/audio.mp3" width={900} height={140} />;
 }
 ```
+
+The component will use the inline worker by default, with zero configuration required.
 
 #### Webpack 5
 
@@ -289,7 +293,7 @@ export default {
 
 #### Custom Worker Hosting
 
-If you need to host the worker file separately (e.g., on a CDN or due to bundler constraints), you can provide a custom worker URL:
+In most cases, you don't need to use custom worker hosting. However, if you have specific requirements (e.g., strict Content Security Policy that blocks data URLs, or you want to host the worker on a CDN), you can provide a custom worker URL:
 
 ```jsx
 import WaveformNavigator from 'waveform-navigator';
@@ -306,7 +310,7 @@ function App() {
 }
 ```
 
-**Note:** The worker file is located at `dist/peaks.worker.js` in the published package.
+**Note:** The compiled worker file is available at `dist/peaks.worker.js` in the published package for custom hosting scenarios.
 
 ### Forcing Main-Thread Computation
 
@@ -416,7 +420,7 @@ The build process generates the following files in `dist/`:
 - **`index.cjs`** - CommonJS build (for older bundlers and Node.js with CJS)
 - **`index.d.ts`** - TypeScript type declarations
 - **`styles.css`** - Component styles (must be imported separately)
-- **`peaks.worker.js`** - Web Worker source file (for custom hosting scenarios)
+- **`peaks.worker.js`** - Compiled Web Worker script (for custom hosting scenarios)
 - **Source maps** - For debugging (`.map` files)
 
 ### CSS Import
