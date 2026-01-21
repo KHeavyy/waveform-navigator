@@ -38,34 +38,36 @@ export function useWaveformData({
 		onPeaksComputedRef.current = onPeaksComputed;
 	}, [onPeaksComputed]);
 
-	// Initialize worker once
+	// Initialize worker and cleanup when props change
 	useEffect(() => {
-		if (!workerRef.current) {
-			workerRef.current = createPeaksWorker({ workerUrl, forceMainThread });
-			
-			if (workerRef.current) {
-				workerRef.current.onmessage = (ev: MessageEvent) => {
-					const msg = ev.data;
-					if (msg.type === 'progress') {
-						const peaksArrReceived = new Float32Array(msg.peaksBuffer);
-						setPeaks(peaksArrReceived);
-						onPeaksComputedRef.current?.(peaksArrReceived);
-					}
-				};
-			}
+		workerRef.current = createPeaksWorker({ workerUrl, forceMainThread });
+		
+		if (workerRef.current) {
+			workerRef.current.onmessage = (ev: MessageEvent) => {
+				const msg = ev.data;
+				if (msg.type === 'progress') {
+					const peaksArrReceived = new Float32Array(msg.peaksBuffer);
+					setPeaks(peaksArrReceived);
+					onPeaksComputedRef.current?.(peaksArrReceived);
+				}
+			};
 		}
-	}, [workerUrl, forceMainThread]);
 
-	// Cleanup worker on unmount
-	useEffect(() => {
+		// Cleanup worker when props change or on unmount
 		return () => {
-			if (audioCtxRef.current && typeof audioCtxRef.current.close === 'function') {
-				audioCtxRef.current.close();
-			}
 			if (workerRef.current) {
 				workerRef.current.postMessage({ type: 'terminate' });
 				workerRef.current.terminate();
 				workerRef.current = null;
+			}
+		};
+	}, [workerUrl, forceMainThread]);
+
+	// Cleanup audio context on unmount
+	useEffect(() => {
+		return () => {
+			if (audioCtxRef.current && typeof audioCtxRef.current.close === 'function') {
+				audioCtxRef.current.close();
 			}
 		};
 	}, []);
