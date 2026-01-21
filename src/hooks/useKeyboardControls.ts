@@ -30,12 +30,14 @@ export function useKeyboardControls({
 
 			switch (e.key) {
 				case 'ArrowLeft':
-					// Small seek backward
+				case 'ArrowDown':
+					// Small seek backward (ArrowDown for ARIA slider pattern compliance)
 					seek(-keyboardSmallStep);
 					handled = true;
 					break;
 				case 'ArrowRight':
-					// Small seek forward
+				case 'ArrowUp':
+					// Small seek forward (ArrowUp for ARIA slider pattern compliance)
 					seek(keyboardSmallStep);
 					handled = true;
 					break;
