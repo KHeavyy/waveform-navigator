@@ -59,7 +59,10 @@ export function useWaveformData({
 			if (worker) {
 				worker.postMessage({ type: 'terminate' });
 				worker.terminate();
-				workerRef.current = null;
+				// Only null the ref if it still points to this worker instance
+				if (workerRef.current === worker) {
+					workerRef.current = null;
+				}
 			}
 		};
 	}, [workerUrl, forceMainThread]);
