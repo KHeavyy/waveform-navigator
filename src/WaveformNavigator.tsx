@@ -213,8 +213,8 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 				/>
 
 				{errorState && (
-					<div className="waveform-error">
-						<div className="waveform-error-icon">⚠️</div>
+					<div className="waveform-error" role="alert" aria-live="assertive">
+						<div className="waveform-error-icon" aria-hidden="true">⚠️</div>
 						<div className="waveform-error-message">{errorState.message}</div>
 					</div>
 				)}
