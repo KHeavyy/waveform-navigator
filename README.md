@@ -519,6 +519,10 @@ npm run dev
 
 To work on this package:
 
+**Prerequisites:**
+- Node.js 20+ (required for development dependencies)
+- The package itself supports Node.js 14+ for consumers
+
 ```bash
 # Install dependencies
 npm install
