@@ -114,8 +114,12 @@ export function useWaveformData({
 	// Recompute peaks when width, barWidth, or gap changes (without re-fetching audio)
 	useEffect(() => {
 		if (audioBufferRef.current) {
-			// Only recompute if dimensions actually changed
-			if (width !== lastWidthRef.current || barWidth !== lastBarWidthRef.current || gap !== lastGapRef.current) {
+			// Only recompute if dimensions actually changed (with threshold for sub-pixel changes)
+			const widthChanged = Math.abs(width - (lastWidthRef.current || 0)) > 1;
+			const barWidthChanged = barWidth !== lastBarWidthRef.current;
+			const gapChanged = gap !== lastGapRef.current;
+			
+			if (widthChanged || barWidthChanged || gapChanged) {
 				lastWidthRef.current = width;
 				lastBarWidthRef.current = barWidth;
 				lastGapRef.current = gap;

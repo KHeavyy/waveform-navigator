@@ -25,7 +25,7 @@ export function useResponsiveWidth({
 }: UseResponsiveWidthProps): UseResponsiveWidthReturn {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [width, setWidth] = useState<number>(fallbackWidth);
-	const debounceTimerRef = useRef<number | null>(null);
+	const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const rafRef = useRef<number | null>(null);
 	const currentWidthRef = useRef<number>(fallbackWidth);
 
@@ -77,7 +77,7 @@ export function useResponsiveWidth({
 					}
 
 					// Debounce the width update
-					debounceTimerRef.current = window.setTimeout(() => {
+					debounceTimerRef.current = setTimeout(() => {
 						debounceTimerRef.current = null;
 						currentWidthRef.current = newWidth;
 						setWidth(newWidth);
