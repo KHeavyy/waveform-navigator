@@ -4,6 +4,7 @@ import { useAudioPlayer } from './hooks/useAudioPlayer';
 import { useWaveformData } from './hooks/useWaveformData';
 import { useWaveformCanvas } from './hooks/useWaveformCanvas';
 import { useResponsiveWidth } from './hooks/useResponsiveWidth';
+import { useKeyboardControls } from './hooks/useKeyboardControls';
 import { WaveformControls } from './components/WaveformControls';
 import { formatTime } from './utils';
 
@@ -38,6 +39,11 @@ export interface WaveformNavigatorProps {
 	onLoaded?: (duration: number) => void;
 	onTimeUpdate?: (currentTime: number) => void;
 	onPeaksComputed?: (peaks: Float32Array) => void;
+	// accessibility props
+	keyboardSmallStep?: number;
+	keyboardLargeStep?: number;
+	disableKeyboardControls?: boolean;
+	ariaLabel?: string;
 }
 
 const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
@@ -63,7 +69,11 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 	onEnded,
 	onLoaded,
 	onTimeUpdate,
-	onPeaksComputed
+	onPeaksComputed,
+	keyboardSmallStep = 5,
+	keyboardLargeStep,
+	disableKeyboardControls = false,
+	ariaLabel = 'Audio waveform seek bar'
 }) => {
 	const [hoverX, setHoverX] = useState<number | null>(null);
 	const [hoverTime, setHoverTime] = useState<number | null>(null);
@@ -152,24 +162,49 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 		setHoverTime(null);
 	}
 
+	// Use keyboard controls hook
+	const { onKeyDown } = useKeyboardControls({
+		duration,
+		keyboardSmallStep,
+		keyboardLargeStep,
+		disableKeyboardControls,
+		seek,
+		seekTo,
+		togglePlay
+	});
+
 	return (
 		<div ref={containerRef} className={`waveform-navigator ${className}`}>
-			<canvas 
-				ref={canvasRef} 
-				onClick={onCanvasClick} 
-				onMouseMove={onCanvasMove} 
-				onMouseLeave={onCanvasLeave} 
-				className="waveform-canvas" 
-			/>
+			<div 
+				className="waveform-interactive"
+				role="slider"
+				aria-label={ariaLabel}
+				aria-valuemin={0}
+				aria-valuemax={duration > 0 ? duration : 1}
+				aria-valuenow={displayTime}
+				aria-valuetext={`${formatTime(displayTime)} of ${formatTime(duration)}`}
+				tabIndex={0}
+				onKeyDown={onKeyDown}
+				onMouseLeave={onCanvasLeave}
+			>
+				<canvas 
+					ref={canvasRef} 
+					onClick={onCanvasClick} 
+					onMouseMove={onCanvasMove} 
+					onMouseLeave={onCanvasLeave} 
+					className="waveform-canvas" 
+					tabIndex={-1}
+				/>
 
-			{hoverX !== null && (
-				<>
-					<div className="hover-line" style={{ left: `${hoverX}px` }} />
-					<div className="hover-tooltip" style={{ left: `${hoverX}px` }}>
-						{hoverTime !== null ? formatTime(hoverTime) : ''}
-					</div>
-				</>
-			)}
+				{hoverX !== null && (
+					<>
+						<div className="hover-line" style={{ left: `${hoverX}px` }} />
+						<div className="hover-tooltip" style={{ left: `${hoverX}px` }}>
+							{hoverTime !== null ? formatTime(hoverTime) : ''}
+						</div>
+					</>
+				)}
+			</div>
 
 			<WaveformControls
 				isPlaying={isPlaying}
