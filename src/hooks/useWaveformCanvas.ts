@@ -42,6 +42,9 @@ export function useWaveformCanvas({
 	// This avoids redrawing all bars on every progress update
 	const baseWaveformCache = useRef<ImageData | null>(null);
 	
+	// Cache the canvas context with willReadFrequently hint for optimal getImageData performance
+	const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+	
 	// Use refs for frequently changing values to avoid recreating RAF loop
 	const currentTimeRef = useRef(currentTime);
 	const durationRef = useRef(duration);
@@ -58,6 +61,11 @@ export function useWaveformCanvas({
 	useEffect(() => {
 		const canvas = canvasRef.current;
 		if (!canvas) return;
+		
+		// Initialize canvas context with willReadFrequently hint for optimal ImageData operations
+		if (!ctxRef.current) {
+			ctxRef.current = canvas.getContext('2d', { willReadFrequently: true });
+		}
 		
 		// Sync canvas size with devicePixelRatio and store DPR
 		dprRef.current = syncCanvasSize(canvas, width, height);
@@ -81,7 +89,7 @@ export function useWaveformCanvas({
 		const canvas = canvasRef.current;
 		if (!canvas) return;
 		
-		const ctx = canvas.getContext('2d');
+		const ctx = ctxRef.current;
 		if (!ctx) return;
 
 		// Clear canvas using device pixels (reset transform)
@@ -125,7 +133,7 @@ export function useWaveformCanvas({
 		const canvas = canvasRef.current;
 		if (!canvas) return;
 		
-		const ctx = canvas.getContext('2d');
+		const ctx = ctxRef.current;
 		if (!ctx) return;
 
 		const dur = durationRef.current;
