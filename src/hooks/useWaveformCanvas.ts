@@ -38,6 +38,13 @@ export function useWaveformCanvas({
 	const rafRef = useRef<number | null>(null);
 	const dprRef = useRef<number>(1);
 	
+	// Cache the base waveform as ImageData for performance optimization
+	// This avoids redrawing all bars on every progress update
+	const baseWaveformCache = useRef<ImageData | null>(null);
+	
+	// Cache the canvas context with willReadFrequently hint for optimal getImageData performance
+	const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+	
 	// Use refs for frequently changing values to avoid recreating RAF loop
 	const currentTimeRef = useRef(currentTime);
 	const durationRef = useRef(duration);
@@ -55,49 +62,81 @@ export function useWaveformCanvas({
 		const canvas = canvasRef.current;
 		if (!canvas) return;
 		
+		// Initialize canvas context with willReadFrequently hint for optimal ImageData operations
+		if (!ctxRef.current) {
+			const context = canvas.getContext('2d', { willReadFrequently: true });
+			if (!context) {
+				console.warn('Failed to get 2D context for waveform canvas');
+				return;
+			}
+			ctxRef.current = context;
+		}
+		
 		// Sync canvas size with devicePixelRatio and store DPR
 		dprRef.current = syncCanvasSize(canvas, width, height);
 		
+		// Invalidate cache on resize since canvas dimensions changed
+		baseWaveformCache.current = null;
+		
 		// Redraw after canvas resize to prevent blank canvas
+		// drawWaveform will handle building the cache via fallback if needed
 		if (peaks && !isPlaying) {
 			drawWaveform(peaks, currentTime);
 		}
 	}, [width, height]);
 
-	// Draw waveform with progress
+	/**
+	 * Draw waveform with progress overlay.
+	 * Uses cached base waveform (ImageData) and only draws progress bars + playhead.
+	 * Builds and caches the base waveform on first render or after cache invalidation.
+	 * Called on every frame during playback via requestAnimationFrame.
+	 */
 	function drawWaveform(peaksArr: Float32Array, time: number) {
 		const canvas = canvasRef.current;
 		if (!canvas) return;
 		
-		const ctx = canvas.getContext('2d');
+		const ctx = ctxRef.current;
 		if (!ctx) return;
 
 		const dur = durationRef.current;
 		const playedRatio = dur > 0 ? time / dur : 0;
 		const playedWidth = Math.max(0, Math.min(1, playedRatio)) * width;
-
-		// Clear canvas using device pixels (reset transform)
-		ctx.setTransform(1, 0, 0, 1, 0, 0);
-		ctx.clearRect(0, 0, canvas.width, canvas.height);
-		
-		// Re-apply DPR transform for logical pixel drawing
 		const dpr = dprRef.current;
-		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-		// Draw background (using logical coordinates)
-		if (backgroundColor && backgroundColor !== 'transparent') {
-			ctx.fillStyle = backgroundColor;
-			ctx.fillRect(0, 0, width, height);
-		}
+		// Restore cached base waveform for optimal performance
+		// This avoids redrawing all base bars on every frame
+		if (baseWaveformCache.current) {
+			ctx.setTransform(1, 0, 0, 1, 0, 0);
+			ctx.putImageData(baseWaveformCache.current, 0, 0);
+			
+			// Re-apply DPR transform for logical pixel drawing
+			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+		} else {
+			// Build and cache base waveform if cache doesn't exist
+			// This ensures cache is built on first render or after invalidation
+			ctx.setTransform(1, 0, 0, 1, 0, 0);
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			
+			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-		// Draw base waveform bars (using logical coordinates)
-		for (let i = 0; i < peaksArr.length; i++) {
-			const x = i * (barWidth + gap);
-			const w = barWidth;
-			const h = peaksArr[i] * (height * 0.95);
-			const y = (height / 2) - h / 2;
-			ctx.fillStyle = barColor;
-			ctx.fillRect(x, y, w, h);
+			if (backgroundColor && backgroundColor !== 'transparent') {
+				ctx.fillStyle = backgroundColor;
+				ctx.fillRect(0, 0, width, height);
+			}
+
+			for (let i = 0; i < peaksArr.length; i++) {
+				const x = i * (barWidth + gap);
+				const w = barWidth;
+				const h = peaksArr[i] * (height * 0.95);
+				const y = (height / 2) - h / 2;
+				ctx.fillStyle = barColor;
+				ctx.fillRect(x, y, w, h);
+			}
+			
+			// Cache the newly drawn base waveform
+			ctx.setTransform(1, 0, 0, 1, 0, 0);
+			baseWaveformCache.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
+			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 		}
 
 		// Draw progress overlay (using logical coordinates)
@@ -122,6 +161,11 @@ export function useWaveformCanvas({
 		ctx.fillRect(px - 1, 0, 2, height);
 	}
 
+	// Invalidate cache when base waveform properties change
+	useEffect(() => {
+		baseWaveformCache.current = null;
+	}, [peaks, barWidth, gap, barColor, backgroundColor]);
+
 	// Smooth progress updates while playing using requestAnimationFrame
 	useEffect(() => {
 		function loop() {
@@ -134,13 +178,14 @@ export function useWaveformCanvas({
 		}
 
 		if (isPlaying && peaks) {
+			// Start animation loop - drawWaveform will build cache on first frame if needed
 			rafRef.current = window.requestAnimationFrame(loop);
 		} else {
 			if (rafRef.current) {
 				window.cancelAnimationFrame(rafRef.current);
 				rafRef.current = null;
 			}
-			// Draw once when paused to show current state
+			// Draw once when paused - will build and cache if needed
 			if (peaks) {
 				drawWaveform(peaks, currentTime);
 			}
@@ -152,7 +197,7 @@ export function useWaveformCanvas({
 				rafRef.current = null;
 			}
 		};
-	}, [isPlaying, peaks, barWidth, gap, barColor, progressColor, backgroundColor, playheadColor, width, height]);
+	}, [isPlaying, peaks, progressColor, playheadColor, currentTime]);
 
 	return {
 		canvasRef
