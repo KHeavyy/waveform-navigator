@@ -136,14 +136,14 @@ export function useWaveformData({
 				console.warn('Failed to load audio for waveform:', err);
 				// Create a more user-friendly error message
 				let errorMessage = 'Failed to load waveform';
-				if (err instanceof Error && err.message) {
+				if (err instanceof Error) {
 					const msg = err.message;
-					// Network / fetch-related errors (our custom message or browser "Failed to fetch")
-					if (msg.startsWith('Failed to fetch audio:') || msg.startsWith('Failed to fetch')) {
+					// Our custom fetch error message
+					if (msg.startsWith('Failed to fetch audio:')) {
 						errorMessage = 'Network error: Unable to fetch audio file';
-					// CORS-related errors: look for the standalone word "CORS" (case-insensitive)
-					} else if (/\bCORS\b/i.test(msg)) {
-						errorMessage = 'CORS error: Audio file cannot be loaded due to cross-origin restrictions';
+					// Browser's native fetch error (typically CORS or network issues)
+					} else if (err.name === 'TypeError' && msg.includes('fetch')) {
+						errorMessage = 'Network error: Unable to fetch audio file. This may be due to CORS restrictions or network issues.';
 					// Decode-related errors: match our custom decode prefix
 					} else if (msg.startsWith('Failed to decode audio data')) {
 						errorMessage = 'Audio decode error: File format may be unsupported or corrupted';

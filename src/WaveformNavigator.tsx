@@ -114,7 +114,10 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 		onPlay,
 		onPause,
 		onEnded,
-		onLoaded,
+		onLoaded: (dur) => {
+			setErrorState(null); // Clear error on successful load
+			onLoaded?.(dur);
+		},
 		onTimeUpdate,
 		onError: (error) => {
 			setErrorState({ message: error.message, type: 'audio' });
@@ -130,7 +133,10 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 		gap,
 		workerUrl,
 		forceMainThread,
-		onPeaksComputed,
+		onPeaksComputed: (peaks) => {
+			setErrorState(null); // Clear error on successful peaks computation
+			onPeaksComputed?.(peaks);
+		},
 		onError: (error) => {
 			setErrorState({ message: error.message, type: 'waveform' });
 			onError?.(error, 'waveform');
