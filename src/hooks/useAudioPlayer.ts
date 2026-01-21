@@ -130,7 +130,8 @@ export function useAudioPlayer({
 						errorMessage = 'Audio decoding failed';
 						break;
 					case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-						errorMessage = 'Audio format not supported or CORS error';
+						errorMessage =
+							'Audio source is not supported. Check that the file format is supported by this browser and that the server allows cross-origin (CORS) access for this URL.';
 						break;
 					default:
 						errorMessage = 'Unknown audio error occurred';
