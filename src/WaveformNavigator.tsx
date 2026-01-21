@@ -185,6 +185,7 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 				aria-valuetext={`${formatTime(displayTime)} of ${formatTime(duration)}`}
 				tabIndex={0}
 				onKeyDown={onKeyDown}
+				onMouseLeave={onCanvasLeave}
 			>
 				<canvas 
 					ref={canvasRef} 
