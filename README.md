@@ -651,7 +651,7 @@ Safari and iOS have special restrictions for audio playback to prevent unwanted 
 
    ```jsx
    function App() {
-     const audioRef = useRef<HTMLAudioElement>(null);
+     const audioRef = useRef<HTMLAudioElement | null>(null);
      
      const handleUserGesture = async () => {
        // Resume AudioContext on user gesture (required for Safari/iOS)
