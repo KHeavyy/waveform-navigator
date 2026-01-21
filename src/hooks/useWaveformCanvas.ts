@@ -74,8 +74,8 @@ export function useWaveformCanvas({
 		baseWaveformCache.current = null;
 		
 		// Redraw after canvas resize to prevent blank canvas
+		// drawWaveform will handle building the cache via fallback if needed
 		if (peaks && !isPlaying) {
-			drawBaseWaveform(peaks);
 			drawWaveform(peaks, currentTime);
 		}
 	}, [width, height]);
@@ -150,8 +150,8 @@ export function useWaveformCanvas({
 			const dpr = dprRef.current;
 			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 		} else {
-			// Fallback: draw base waveform if cache doesn't exist
-			// This should rarely happen - only on first render before cache is built
+			// Fallback: draw and cache base waveform if cache doesn't exist
+			// This ensures cache is built on first render or after invalidation
 			ctx.setTransform(1, 0, 0, 1, 0, 0);
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
 			
@@ -171,6 +171,11 @@ export function useWaveformCanvas({
 				ctx.fillStyle = barColor;
 				ctx.fillRect(x, y, w, h);
 			}
+			
+			// Cache the newly drawn base waveform
+			ctx.setTransform(1, 0, 0, 1, 0, 0);
+			baseWaveformCache.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
+			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 		}
 
 		// Draw progress overlay (using logical coordinates)
@@ -206,22 +211,20 @@ export function useWaveformCanvas({
 			}
 		}
 
-		// Invalidate cache when style properties change
-		// This ensures the base waveform reflects the latest styles
+		// Invalidate cache when any rendering property changes
+		// This ensures the base waveform reflects the latest configuration
 		baseWaveformCache.current = null;
 
 		if (isPlaying && peaks) {
-			// Build cache before starting animation loop
-			drawBaseWaveform(peaks);
+			// Start animation loop - drawWaveform will build cache on first frame if needed
 			rafRef.current = window.requestAnimationFrame(loop);
 		} else {
 			if (rafRef.current) {
 				window.cancelAnimationFrame(rafRef.current);
 				rafRef.current = null;
 			}
-			// Draw once when paused to show current state
+			// Draw once when paused - will build and cache if needed
 			if (peaks) {
-				drawBaseWaveform(peaks);
 				drawWaveform(peaks, currentTime);
 			}
 		}
