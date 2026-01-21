@@ -385,7 +385,7 @@ The waveform can be focused and controlled entirely via keyboard:
 ### Color Contrast
 
 The default colors meet WCAG AA contrast requirements:
-- Focus outline: `#0066cc` on light backgrounds (contrast ratio 4.5:1)
+- Focus outline: `#0066cc` against white backgrounds (`#ffffff`, contrast ratio ≈4.54:1)
 - Playhead: `#ff4d4f` (red) is visible against the waveform
 - Hover tooltip: `rgba(17,24,39,0.95)` background with white text (contrast ratio 15:1)
 
