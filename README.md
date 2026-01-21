@@ -715,3 +715,126 @@ Safari and iOS have special restrictions for audio playback to prevent unwanted 
 3. **Reduce file size:** Lower the bitrate or sample rate of your audio files if waveform quality is more important than audio quality.
 4. **Adjust responsive debounce:** Increase `responsiveDebounceMs` to reduce recomputation frequency during resizing.
 
+## Development
+
+### Running Tests
+
+This project includes comprehensive test coverage with unit tests, integration tests, and visual regression tests.
+
+#### Unit Tests
+
+Run unit tests with Vitest:
+
+```bash
+# Run tests once
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+
+# Open Vitest UI
+npm run test:ui
+```
+
+Unit tests cover:
+- Utility functions (formatTime, peaksComputation, syncCanvasSize)
+- Custom React hooks
+- Component rendering logic
+
+#### Integration and E2E Tests
+
+Run integration tests with Playwright:
+
+```bash
+# Run all e2e tests
+npm run e2e
+
+# Run with UI mode (interactive)
+npm run e2e:ui
+
+# Run in headed mode (see browser)
+npm run e2e:headed
+
+# Debug tests
+npm run e2e:debug
+```
+
+Integration tests cover:
+- Audio loading and playback
+- Seek/click-to-seek functionality
+- Responsive resizing behavior
+- Event callbacks
+- Accessibility (a11y) with axe-core
+
+#### Visual Regression Tests
+
+Visual tests capture canvas snapshots and compare them to baselines:
+
+```bash
+# Run visual tests
+npm run e2e -- e2e/visual.spec.ts
+
+# Update visual snapshots (when making intentional visual changes)
+npm run visual:update
+```
+
+Visual tests verify:
+- Waveform rendering at DPR 1 and DPR 2
+- Consistent rendering at different viewport widths
+- Correct aspect ratios and canvas dimensions
+
+**Updating Visual Snapshots:**
+
+When you make intentional changes to the visual appearance of the waveform:
+
+1. Run `npm run visual:update` to generate new baseline snapshots
+2. Review the new snapshots in `e2e/__snapshots__/`
+3. Commit the updated snapshots to version control
+4. CI will use these baselines for future visual regression checks
+
+### Type Checking and Linting
+
+```bash
+# Type check with TypeScript
+npm run type-check
+
+# Lint (currently runs type-check)
+npm run lint
+```
+
+### Building
+
+```bash
+# Build the library
+npm run build
+
+# Build in watch mode
+npm run build:watch
+```
+
+### CI/CD
+
+This project uses GitHub Actions for continuous integration. The CI pipeline runs on every push and pull request:
+
+- **Lint and Type Check:** Validates code quality and type safety
+- **Unit Tests:** Runs unit tests with coverage reporting (Node 18 & 20)
+- **Integration Tests:** Runs e2e tests with Playwright
+- **Visual Tests:** Compares visual snapshots against baselines
+- **Build:** Ensures the library builds successfully
+
+Coverage reports are uploaded to Codecov, and test artifacts (screenshots, reports) are available for failed runs.
+
+### Test Coverage
+
+The project maintains these coverage thresholds:
+- **Lines:** 70%
+- **Functions:** 70%
+- **Branches:** 70%
+- **Statements:** 70%
+
+Run `npm run test:coverage` to generate a detailed coverage report in the `coverage/` directory.
+
+
