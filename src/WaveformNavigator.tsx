@@ -193,6 +193,7 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 					onMouseMove={onCanvasMove} 
 					onMouseLeave={onCanvasLeave} 
 					className="waveform-canvas" 
+					tabIndex={-1}
 				/>
 
 				{hoverX !== null && (
