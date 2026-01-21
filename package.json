@@ -21,6 +21,20 @@
   },
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KHeavyy/waveform-navigator.git"
+  },
+  "homepage": "https://github.com/KHeavyy/waveform-navigator#readme",
+  "bugs": {
+    "url": "https://github.com/KHeavyy/waveform-navigator/issues"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "sideEffects": [
     "*.css"
   ],
@@ -30,8 +44,11 @@
   },
   "scripts": {
     "test": "echo \"No tests configured\" && exit 0",
-    "build": "vite build && vite build --mode worker",
+    "clean": "rimraf dist",
+    "build": "npm run clean && vite build && vite build --mode worker",
     "build:watch": "vite build --watch",
+    "type-check": "tsc --noEmit",
+    "prepublishOnly": "npm run type-check && npm test",
     "prepare": "npm run build",
     "dev": "concurrently \"npm run build:watch\" \"(cd demo && npm run dev)\""
   },
@@ -44,6 +61,7 @@
     "@types/react-dom": "^18.2.7",
     "@vitejs/plugin-react": "^5.1.2",
     "concurrently": "^8.2.0",
+    "rimraf": "^6.1.2",
     "typescript": "^5.1.6",
     "vite": "^7.3.1",
     "vite-plugin-dts": "^4.5.4"

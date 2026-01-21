@@ -14,6 +14,7 @@ npm install waveform-navigator
 import React from 'react'
 import ReactDOM from 'react-dom'
 import WaveformNavigator from 'waveform-navigator'
+import 'waveform-navigator/styles.css' // Don't forget to import styles!
 
 function App(){
   // `audio` can be a URL string or a `File` object (from an `<input type="file"/>`).
@@ -22,6 +23,15 @@ function App(){
 }
 
 ReactDOM.render(<App/>, document.getElementById('root'))
+```
+
+### TypeScript Support
+
+The package includes full TypeScript type definitions. Types are automatically available when you import the component:
+
+```tsx
+import WaveformNavigator from 'waveform-navigator'
+import type { WaveformNavigatorProps } from 'waveform-navigator'
 ```
 
 ## API Reference
@@ -423,31 +433,51 @@ The build process generates the following files in `dist/`:
 - **`peaks.worker.js`** - Compiled Web Worker script (for custom hosting scenarios)
 - **Source maps** - For debugging (`.map` files)
 
-### CSS Import
-
-The component requires styles to be imported separately:
-
-```jsx
-import WaveformNavigator from 'waveform-navigator'
-import 'waveform-navigator/styles.css'
-```
-
-Some bundlers may auto-inject styles, but it's recommended to import explicitly for clarity.
-
 ### Package Exports
 
-The package uses the modern `exports` field for proper ESM/CJS support:
+The package uses the modern `exports` field for proper ESM/CJS support and TypeScript types:
 
 ```json
 {
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./styles.css": "./dist/styles.css"
   }
 }
+```
+
+This configuration ensures that:
+- **ESM consumers** (modern bundlers, Node.js with `"type": "module"`) get the `.mjs` file
+- **CJS consumers** (older Node.js, some bundlers) get the `.cjs` file
+- **TypeScript users** get proper type definitions automatically
+- **Bundlers** can perform optimal tree-shaking (package is marked with `"sideEffects": ["*.css"]`)
+
+### Available Import Patterns
+
+```jsx
+// Default import (recommended)
+import WaveformNavigator from 'waveform-navigator'
+
+// Named import also available
+import { WaveformNavigator } from 'waveform-navigator'
+
+// Import styles
+import 'waveform-navigator/styles.css'
+
+// TypeScript types
+import type { WaveformNavigatorProps } from 'waveform-navigator'
 ```
 
 ### Publishing
@@ -455,15 +485,43 @@ The package uses the modern `exports` field for proper ESM/CJS support:
 Before publishing to npm:
 
 1. Ensure all changes are committed
-2. Update version in `package.json`
+2. Update version in `package.json` (e.g., `npm version patch/minor/major`)
 3. Run `npm run build` to create fresh build outputs
 4. Run `npm publish`
 
-The `prepare` script automatically runs the build before publishing, ensuring the latest code is always published.
+The package includes automated safeguards:
+- The `prepare` script automatically runs the build before publishing, ensuring the latest code is always published
+- The `prepublishOnly` script runs type-checking and tests before allowing a publish, preventing broken releases
+
+### Available Scripts
+
+```bash
+# Build the library (cleans dist, builds main library + worker)
+npm run build
+
+# Clean build artifacts
+npm run clean
+
+# Type-check without emitting files
+npm run type-check
+
+# Run tests
+npm test
+
+# Build in watch mode (useful during development)
+npm run build:watch
+
+# Run demo app alongside watch mode
+npm run dev
+```
 
 ### Development Setup
 
 To work on this package:
+
+**Prerequisites:**
+- Node.js 20+ (required for development dependencies)
+- The package itself supports Node.js 14+ for consumers
 
 ```bash
 # Install dependencies

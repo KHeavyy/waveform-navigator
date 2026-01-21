@@ -45,7 +45,10 @@ export default defineConfig(({ mode }) => {
           preserveModules: false,
           // Assets will be emitted to the dist root
           assetFileNames: (assetInfo) => {
-            if (assetInfo.name === 'style.css') return 'styles.css'
+            // Rename CSS bundle to styles.css for clearer imports
+            // Note: This library only has one CSS file (src/styles.css), so renaming
+            // all CSS outputs to styles.css is intentional and safe
+            if (assetInfo.name?.endsWith('.css')) return 'styles.css'
             return assetInfo.name || '[name][extname]'
           }
         }
