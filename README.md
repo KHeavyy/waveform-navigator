@@ -647,7 +647,7 @@ Safari and iOS have special restrictions for audio playback to prevent unwanted 
 
 1. **User Gesture Requirement:** On Safari (especially iOS), audio playback and AudioContext must be initiated by a user gesture (click, tap, etc.). The browser will block playback that starts without user interaction.
 
-2. **AudioContext Suspended State:** When you create an AudioContext on iOS Safari, it starts in a "suspended" state and must be resumed by a user action:
+2. **AudioContext Suspended State:** When you create an AudioContext on iOS Safari outside of a user gesture context, it will typically start in a "suspended" state. You should always check its state before attempting to resume it:
 
    ```jsx
    function App() {
