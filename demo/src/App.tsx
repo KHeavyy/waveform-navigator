@@ -120,7 +120,7 @@ export default function App() {
 				</p>
 			</div>
 			
-			<div style={{ width: containerWidth, border: '2px dashed #ccc', transition: 'width 0.3s' }}>
+			<div style={{ width: containerWidth, transition: 'width 0.3s' }}>
 				<WaveformNavigator 
 					audio={demoAudioPath} 
 					width={900} 
