@@ -68,16 +68,12 @@ export function useWaveformCanvas({
 		const canvas = canvasRef.current;
 		if (!canvas) return;
 		
-		// Sync canvas size before drawing to ensure proper scaling
-		syncCanvasSize(canvas, width, height);
-		
 		const ctx = canvas.getContext('2d');
 		if (!ctx) return;
 
 		const dur = durationRef.current;
 		const playedRatio = dur > 0 ? time / dur : 0;
-		const renderedWidth = canvas.getBoundingClientRect().width || width;
-		const playedWidth = Math.max(0, Math.min(1, playedRatio)) * renderedWidth;
+		const playedWidth = Math.max(0, Math.min(1, playedRatio)) * width;
 
 		// Clear canvas using device pixels (reset transform)
 		ctx.save();
