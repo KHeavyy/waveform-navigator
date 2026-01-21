@@ -45,7 +45,8 @@ export default defineConfig(({ mode }) => {
           preserveModules: false,
           // Assets will be emitted to the dist root
           assetFileNames: (assetInfo) => {
-            if (assetInfo.name === 'style.css') return 'styles.css'
+            // Rename the generated CSS file to styles.css
+            if (assetInfo.name === 'style.css' || assetInfo.name?.endsWith('.css')) return 'styles.css'
             return assetInfo.name || '[name][extname]'
           }
         }
