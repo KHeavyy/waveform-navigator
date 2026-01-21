@@ -164,3 +164,4 @@ function App() {
 - For remote audio URLs, ensure CORS is enabled to allow waveform decoding.
 - In controlled mode, the component will sync the audio element's currentTime when `controlledCurrentTime` changes (with a threshold of 0.01 seconds to avoid feedback loops).
 - The `onCurrentTimeChange` callback is only fired in uncontrolled mode (when `controlledCurrentTime` is undefined).
+- **Canvas is HiDPI-aware.** The component automatically renders sharp waveforms on Retina displays and high-DPI devices (devicePixelRatio > 1). No extra work required from the consumer.

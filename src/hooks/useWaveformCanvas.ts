@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { syncCanvasSize } from '../utils';
 
 interface UseWaveformCanvasProps {
 	width: number;
@@ -35,6 +36,7 @@ export function useWaveformCanvas({
 }: UseWaveformCanvasProps): UseWaveformCanvasReturn {
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const rafRef = useRef<number | null>(null);
+	const dprRef = useRef<number>(1);
 	
 	// Use refs for frequently changing values to avoid recreating RAF loop
 	const currentTimeRef = useRef(currentTime);
@@ -48,16 +50,13 @@ export function useWaveformCanvas({
 		peaksRef.current = peaks;
 	}, [currentTime, duration, peaks]);
 
-	// Initialize canvas
+	// Initialize canvas with HiDPI support
 	useEffect(() => {
 		const canvas = canvasRef.current;
 		if (!canvas) return;
 		
-		const dpr = window.devicePixelRatio || 1;
-		canvas.width = Math.floor(width * dpr);
-		canvas.height = Math.floor(height * dpr);
-		canvas.style.width = `${width}px`;
-		canvas.style.height = `${height}px`;
+		// Sync canvas size with devicePixelRatio and store DPR
+		dprRef.current = syncCanvasSize(canvas, width, height);
 		
 		// Redraw after canvas resize to prevent blank canvas
 		if (peaks && !isPlaying) {
@@ -69,32 +68,29 @@ export function useWaveformCanvas({
 	function drawWaveform(peaksArr: Float32Array, time: number) {
 		const canvas = canvasRef.current;
 		if (!canvas) return;
+		
 		const ctx = canvas.getContext('2d');
 		if (!ctx) return;
 
-		const dpr = window.devicePixelRatio || 1;
 		const dur = durationRef.current;
 		const playedRatio = dur > 0 ? time / dur : 0;
-		const renderedWidth = canvas.getBoundingClientRect().width || width;
-		const playedWidth = Math.max(0, Math.min(1, playedRatio)) * renderedWidth;
+		const playedWidth = Math.max(0, Math.min(1, playedRatio)) * width;
 
-		// Clear and reset transform
-		ctx.save();
+		// Clear canvas using device pixels (reset transform)
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
-		ctx.restore();
 		
-		// Reapply scaling for device pixel ratio
-		ctx.save();
-		ctx.scale(dpr, dpr);
+		// Re-apply DPR transform for logical pixel drawing
+		const dpr = dprRef.current;
+		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-		// Draw background
+		// Draw background (using logical coordinates)
 		if (backgroundColor && backgroundColor !== 'transparent') {
 			ctx.fillStyle = backgroundColor;
-			ctx.fillRect(0, 0, renderedWidth, height);
+			ctx.fillRect(0, 0, width, height);
 		}
 
-		// Draw base waveform bars
+		// Draw base waveform bars (using logical coordinates)
 		for (let i = 0; i < peaksArr.length; i++) {
 			const x = i * (barWidth + gap);
 			const w = barWidth;
@@ -104,7 +100,7 @@ export function useWaveformCanvas({
 			ctx.fillRect(x, y, w, h);
 		}
 
-		// Draw progress overlay
+		// Draw progress overlay (using logical coordinates)
 		for (let i = 0; i < peaksArr.length; i++) {
 			const x = i * (barWidth + gap);
 			const w = barWidth;
@@ -120,12 +116,10 @@ export function useWaveformCanvas({
 			}
 		}
 
-		// Draw playhead
+		// Draw playhead (using logical coordinates)
 		const px = playedWidth;
 		ctx.fillStyle = playheadColor;
 		ctx.fillRect(px - 1, 0, 2, height);
-		
-		ctx.restore();
 	}
 
 	// Smooth progress updates while playing using requestAnimationFrame
