@@ -64,7 +64,12 @@ export function useWaveformCanvas({
 		
 		// Initialize canvas context with willReadFrequently hint for optimal ImageData operations
 		if (!ctxRef.current) {
-			ctxRef.current = canvas.getContext('2d', { willReadFrequently: true });
+			const context = canvas.getContext('2d', { willReadFrequently: true });
+			if (!context) {
+				console.warn('Failed to get 2D context for waveform canvas');
+				return;
+			}
+			ctxRef.current = context;
 		}
 		
 		// Sync canvas size with devicePixelRatio and store DPR
@@ -192,7 +197,7 @@ export function useWaveformCanvas({
 				rafRef.current = null;
 			}
 		};
-	}, [isPlaying, peaks, progressColor, playheadColor]);
+	}, [isPlaying, peaks, progressColor, playheadColor, currentTime]);
 
 	return {
 		canvasRef
