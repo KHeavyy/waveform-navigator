@@ -23,6 +23,10 @@ export function useWaveformData({
 	const audioCtxRef = useRef<AudioContext | null>(null);
 	const workerRef = useRef<Worker | null>(null);
 	const onPeaksComputedRef = useRef(onPeaksComputed);
+	const audioBufferRef = useRef<Float32Array | null>(null);
+	const lastWidthRef = useRef<number | null>(null);
+	const lastBarWidthRef = useRef<number | null>(null);
+	const lastGapRef = useRef<number | null>(null);
 
 	useEffect(() => {
 		onPeaksComputedRef.current = onPeaksComputed;
@@ -61,6 +65,7 @@ export function useWaveformData({
 	useEffect(() => {
 		if (!audio) {
 			setPeaks(null);
+			audioBufferRef.current = null;
 			return;
 		}
 
@@ -90,8 +95,12 @@ export function useWaveformData({
 				const decoded = await ac.decodeAudioData(arrayBuffer.slice(0));
 				const channelData = decoded.numberOfChannels > 0 ? decoded.getChannelData(0) : null;
 
-				// Compute peaks
+				// Store the audio buffer for resampling
 				if (channelData) {
+					audioBufferRef.current = channelData;
+					lastWidthRef.current = width;
+					lastBarWidthRef.current = barWidth;
+					lastGapRef.current = gap;
 					computePeaks(channelData);
 				}
 			} catch (err) {
@@ -100,7 +109,24 @@ export function useWaveformData({
 		};
 
 		loadArrayBuffer();
-	}, [audio, width, barWidth, gap]);
+	}, [audio]);
+
+	// Recompute peaks when width, barWidth, or gap changes (without re-fetching audio)
+	useEffect(() => {
+		if (audioBufferRef.current) {
+			// Only recompute if dimensions actually changed (with threshold for sub-pixel changes)
+			const widthChanged = Math.abs(width - (lastWidthRef.current || 0)) > 1;
+			const barWidthChanged = barWidth !== lastBarWidthRef.current;
+			const gapChanged = gap !== lastGapRef.current;
+			
+			if (widthChanged || barWidthChanged || gapChanged) {
+				lastWidthRef.current = width;
+				lastBarWidthRef.current = barWidth;
+				lastGapRef.current = gap;
+				computePeaks(audioBufferRef.current);
+			}
+		}
+	}, [width, barWidth, gap]);
 
 	function computePeaks(channelData: Float32Array) {
 		const slot = Math.max(1, Math.floor(width / (barWidth + gap)));

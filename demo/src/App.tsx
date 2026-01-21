@@ -15,6 +15,10 @@ export default function App() {
 	const [duration, setDuration] = useState(0)
 	const [currentTime, setCurrentTime] = useState(0)
 	const [peaksReady, setPeaksReady] = useState(false)
+	
+	// Demo responsive mode
+	const [responsiveEnabled, setResponsiveEnabled] = useState(true)
+	const [containerWidth, setContainerWidth] = useState(900)
 
 	return (
 		<div style={{ padding: 24 }}>
@@ -85,11 +89,43 @@ export default function App() {
 				}}>1.5x Speed</button>
 			</div>
 			
-			<div style={{ width: 900 }}>
+			{/* Responsive mode demo */}
+			<div style={{ marginBottom: 12, padding: 12, backgroundColor: '#e8f8e8', borderRadius: 4 }}>
+				<h3>Responsive Mode Demo</h3>
+				<label>
+					<input 
+						type="checkbox" 
+						checked={responsiveEnabled} 
+						onChange={(e) => setResponsiveEnabled(e.target.checked)}
+					/>
+					Enable Responsive Mode (default: true)
+				</label>
+				<div style={{ marginTop: 8 }}>
+					<label>
+						Container Width: {containerWidth}px
+						<input 
+							type="range" 
+							min="300" 
+							max="1200" 
+							value={containerWidth}
+							onChange={(e) => setContainerWidth(Number(e.target.value))}
+							style={{ marginLeft: 8, width: 300 }}
+						/>
+					</label>
+				</div>
+				<p style={{ fontSize: 12, marginTop: 8 }}>
+					{responsiveEnabled 
+						? '✅ Waveform will automatically resize to match container width' 
+						: '⚠️ Waveform uses fixed width prop (900px)'}
+				</p>
+			</div>
+			
+			<div style={{ width: containerWidth, transition: 'width 0.3s' }}>
 				<WaveformNavigator 
 					audio={demoAudioPath} 
 					width={900} 
 					height={140}
+					responsive={responsiveEnabled}
 					controlledCurrentTime={useControlled ? controlledTime : undefined}
 					onCurrentTimeChange={(time) => {
 						setControlledTime(time)

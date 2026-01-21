@@ -31,9 +31,14 @@ ReactDOM.render(<App/>, document.getElementById('root'))
 #### Basic Props
 
 - **`audio`** (string | File | null | undefined): The audio source - can be a URL string or a File object from an `<input type="file"/>`.
-- **`width`** (number, default: 800): Width of the waveform canvas in pixels.
+- **`width`** (number, default: 800): Width of the waveform canvas in pixels. When `responsive` is enabled, this serves as the fallback width.
 - **`height`** (number, default: 120): Height of the waveform canvas in pixels.
 - **`className`** (string, default: ''): Additional CSS class name for the container.
+
+#### Responsive Props
+
+- **`responsive`** (boolean, default: true): Enable automatic resizing to match container width using ResizeObserver. When enabled, the waveform automatically adjusts the number of bars and resamples peaks when the container is resized.
+- **`responsiveDebounceMs`** (number, default: 150): Debounce delay in milliseconds for resize events. Higher values reduce recomputation frequency during continuous resizing.
 
 #### Visual Customization Props
 
@@ -158,6 +163,58 @@ function App() {
 }
 ```
 
+### Responsive Mode (Default)
+
+The component automatically adapts to container width changes:
+
+```jsx
+function App() {
+  return (
+    <div style={{ width: '100%', maxWidth: 1200 }}>
+      <WaveformNavigator 
+        audio="/path/to/audio.mp3"
+        height={140}
+        // responsive is true by default
+      />
+    </div>
+  );
+}
+```
+
+To disable responsive behavior and use fixed width:
+
+```jsx
+function App() {
+  return (
+    <div style={{ width: 900 }}>
+      <WaveformNavigator 
+        audio="/path/to/audio.mp3"
+        width={900}
+        height={140}
+        responsive={false}
+      />
+    </div>
+  );
+}
+```
+
+Customize debounce delay for responsive resizing:
+
+```jsx
+function App() {
+  return (
+    <div style={{ width: '100%' }}>
+      <WaveformNavigator 
+        audio="/path/to/audio.mp3"
+        height={140}
+        responsive={true}
+        responsiveDebounceMs={200} // Wait 200ms before recomputing
+      />
+    </div>
+  );
+}
+```
+
 ## Notes
 
 - This package expects a modern browser with `AudioContext` support.
@@ -165,3 +222,6 @@ function App() {
 - In controlled mode, the component will sync the audio element's currentTime when `controlledCurrentTime` changes (with a threshold of 0.01 seconds to avoid feedback loops).
 - The `onCurrentTimeChange` callback is only fired in uncontrolled mode (when `controlledCurrentTime` is undefined).
 - **Canvas is HiDPI-aware.** The component automatically renders sharp waveforms on Retina displays and high-DPI devices (devicePixelRatio > 1). No extra work required from the consumer.
+- **Responsive by default.** The component uses `ResizeObserver` to automatically adjust to container width changes. When the container is resized, the waveform recomputes peaks from the cached audio buffer without re-fetching the audio file.
+- **Fallback for older browsers.** If `ResizeObserver` is not available (older browsers), a console warning is logged and the component falls back to using the fixed `width` prop.
+- **Performance.** Peak resampling on resize is debounced (default 150ms) to avoid excessive computation during continuous resizing. The audio buffer is cached in memory to enable fast resampling without re-decoding.
