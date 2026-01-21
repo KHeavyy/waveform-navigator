@@ -81,52 +81,9 @@ export function useWaveformCanvas({
 	}, [width, height]);
 
 	/**
-	 * Draw and cache the base (static) waveform as ImageData.
-	 * This optimization avoids redrawing all bars on every progress update.
-	 * Called once when peaks change or canvas resizes.
-	 */
-	function drawBaseWaveform(peaksArr: Float32Array) {
-		const canvas = canvasRef.current;
-		if (!canvas) return;
-		
-		const ctx = ctxRef.current;
-		if (!ctx) return;
-
-		// Clear canvas using device pixels (reset transform)
-		ctx.setTransform(1, 0, 0, 1, 0, 0);
-		ctx.clearRect(0, 0, canvas.width, canvas.height);
-		
-		// Re-apply DPR transform for logical pixel drawing
-		const dpr = dprRef.current;
-		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-		// Draw background (using logical coordinates)
-		if (backgroundColor && backgroundColor !== 'transparent') {
-			ctx.fillStyle = backgroundColor;
-			ctx.fillRect(0, 0, width, height);
-		}
-
-		// Draw base waveform bars (using logical coordinates)
-		for (let i = 0; i < peaksArr.length; i++) {
-			const x = i * (barWidth + gap);
-			const w = barWidth;
-			const h = peaksArr[i] * (height * 0.95);
-			const y = (height / 2) - h / 2;
-			ctx.fillStyle = barColor;
-			ctx.fillRect(x, y, w, h);
-		}
-
-		// Cache the base waveform as ImageData for fast restoration
-		// Reset transform to capture device pixels correctly
-		ctx.setTransform(1, 0, 0, 1, 0, 0);
-		baseWaveformCache.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
-		// Restore DPR transform
-		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-	}
-
-	/**
 	 * Draw waveform with progress overlay.
 	 * Uses cached base waveform (ImageData) and only draws progress bars + playhead.
+	 * Builds and caches the base waveform on first render or after cache invalidation.
 	 * Called on every frame during playback via requestAnimationFrame.
 	 */
 	function drawWaveform(peaksArr: Float32Array, time: number) {
@@ -139,6 +96,7 @@ export function useWaveformCanvas({
 		const dur = durationRef.current;
 		const playedRatio = dur > 0 ? time / dur : 0;
 		const playedWidth = Math.max(0, Math.min(1, playedRatio)) * width;
+		const dpr = dprRef.current;
 
 		// Restore cached base waveform for optimal performance
 		// This avoids redrawing all base bars on every frame
@@ -147,15 +105,13 @@ export function useWaveformCanvas({
 			ctx.putImageData(baseWaveformCache.current, 0, 0);
 			
 			// Re-apply DPR transform for logical pixel drawing
-			const dpr = dprRef.current;
 			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 		} else {
-			// Fallback: draw and cache base waveform if cache doesn't exist
+			// Build and cache base waveform if cache doesn't exist
 			// This ensures cache is built on first render or after invalidation
 			ctx.setTransform(1, 0, 0, 1, 0, 0);
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
 			
-			const dpr = dprRef.current;
 			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
 			if (backgroundColor && backgroundColor !== 'transparent') {
