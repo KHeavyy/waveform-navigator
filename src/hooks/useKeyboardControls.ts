@@ -1,4 +1,4 @@
-import React from 'react';
+import { useCallback } from 'react';
 
 export interface UseKeyboardControlsProps {
 	duration: number;
@@ -19,7 +19,7 @@ export function useKeyboardControls({
 	seekTo,
 	togglePlay
 }: UseKeyboardControlsProps) {
-	const onKeyDown = React.useCallback(
+	const onKeyDown = useCallback(
 		(e: React.KeyboardEvent<HTMLDivElement>) => {
 			if (disableKeyboardControls) return;
 
