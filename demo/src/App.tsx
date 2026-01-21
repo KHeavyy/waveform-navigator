@@ -15,6 +15,7 @@ export default function App() {
 	const [duration, setDuration] = useState(0)
 	const [currentTime, setCurrentTime] = useState(0)
 	const [peaksReady, setPeaksReady] = useState(false)
+	const [error, setError] = useState<string | null>(null)
 	
 	// Demo responsive mode
 	const [responsiveEnabled, setResponsiveEnabled] = useState(true)
@@ -22,6 +23,9 @@ export default function App() {
 	
 	// Demo worker mode
 	const [forceMainThread, setForceMainThread] = useState(false)
+	
+	// Demo error simulation
+	const [testAudioPath, setTestAudioPath] = useState(demoAudioPath)
 
 	return (
 		<div style={{ padding: 24 }}>
@@ -39,6 +43,9 @@ export default function App() {
 				<p><strong>Current Time:</strong> {currentTime.toFixed(2)}s</p>
 				<p><strong>Peaks Ready:</strong> {peaksReady ? 'Yes' : 'No'}</p>
 				<p><strong>Mode:</strong> {useControlled ? 'Controlled' : 'Uncontrolled'}</p>
+				{error && (
+					<p><strong style={{ color: '#dc2626' }}>Error:</strong> {error}</p>
+				)}
 			</div>
 			
 			{/* Controlled mode controls */}
@@ -141,9 +148,48 @@ export default function App() {
 				</p>
 			</div>
 			
+			{/* Error handling demo */}
+			<div style={{ marginBottom: 12, padding: 12, backgroundColor: '#ffe8e8', borderRadius: 4 }}>
+				<h3>Error Handling Demo</h3>
+				<p style={{ fontSize: 14, marginBottom: 8 }}>Test error scenarios by loading invalid audio:</p>
+				<button 
+					onClick={() => {
+						setError(null)
+						setPeaksReady(false)
+						setTestAudioPath(demoAudioPath)
+					}}
+					style={{ marginRight: 8, marginBottom: 8 }}
+				>
+					✅ Load Valid Audio
+				</button>
+				<button 
+					onClick={() => {
+						setError(null)
+						setPeaksReady(false)
+						setTestAudioPath('/nonexistent/file.mp3')
+					}}
+					style={{ marginRight: 8, marginBottom: 8 }}
+				>
+					❌ Test 404 Error
+				</button>
+				<button 
+					onClick={() => {
+						setError(null)
+						setPeaksReady(false)
+						setTestAudioPath('https://cors-test.example.com/audio.mp3')
+					}}
+					style={{ marginBottom: 8 }}
+				>
+					❌ Test CORS Error
+				</button>
+				<p style={{ fontSize: 12, marginTop: 8 }}>
+					When an error occurs, the component displays an error overlay and calls the onError callback.
+				</p>
+			</div>
+			
 			<div style={{ width: containerWidth, transition: 'width 0.3s' }}>
 				<WaveformNavigator 
-					audio={demoAudioPath} 
+					audio={testAudioPath} 
 					width={900} 
 					height={140}
 					responsive={responsiveEnabled}
@@ -156,11 +202,19 @@ export default function App() {
 					onPlay={() => setPlayState('playing')}
 					onPause={() => setPlayState('paused')}
 					onEnded={() => setPlayState('ended')}
-					onLoaded={(dur) => setDuration(dur)}
+					onLoaded={(dur) => {
+						setDuration(dur)
+						setError(null) // Clear error on successful load
+					}}
 					onTimeUpdate={(time) => setCurrentTime(time)}
 					onPeaksComputed={(peaks) => {
 						console.log('Peaks computed:', peaks.length, 'bars')
 						setPeaksReady(true)
+					}}
+					onError={(err, type) => {
+						console.error(`${type} error:`, err.message)
+						setError(err.message)
+						setPeaksReady(false)
 					}}
 				/>
 			</div>

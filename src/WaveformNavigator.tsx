@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './styles.css';
 import { useAudioPlayer } from './hooks/useAudioPlayer';
 import { useWaveformData } from './hooks/useWaveformData';
@@ -80,6 +80,11 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 	const [hoverX, setHoverX] = useState<number | null>(null);
 	const [hoverTime, setHoverTime] = useState<number | null>(null);
 	const [errorState, setErrorState] = useState<{ message: string; type: 'audio' | 'waveform' } | null>(null);
+
+	// Clear error state when audio prop changes
+	useEffect(() => {
+		setErrorState(null);
+	}, [audio]);
 
 	// Use responsive width hook when responsive mode is enabled
 	const { width: responsiveWidth, containerRef } = useResponsiveWidth({
