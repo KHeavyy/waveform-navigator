@@ -180,10 +180,11 @@ export default function App() {
 					}}
 					style={{ marginBottom: 8 }}
 				>
-					❌ Test CORS Error
+					❌ Test CORS Error (Example)
 				</button>
 				<p style={{ fontSize: 12, marginTop: 8 }}>
 					When an error occurs, the component displays an error overlay and calls the onError callback.
+					Note: The CORS test button uses an example URL for demonstration purposes.
 				</p>
 			</div>
 			

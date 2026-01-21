@@ -132,18 +132,20 @@ export function useWaveformData({
 				} catch (decodeError: any) {
 					throw new Error(`Failed to decode audio data: ${decodeError.message || 'Unknown error'}`);
 				}
-			} catch (err: any) {
+			} catch (err: unknown) {
 				console.warn('Failed to load audio for waveform:', err);
 				// Create a more user-friendly error message
 				let errorMessage = 'Failed to load waveform';
-				if (err.message?.includes('fetch')) {
-					errorMessage = 'Network error: Unable to fetch audio file';
-				} else if (err.message?.includes('CORS') || err.message?.includes('cors')) {
-					errorMessage = 'CORS error: Audio file cannot be loaded due to cross-origin restrictions';
-				} else if (err.message?.includes('decode')) {
-					errorMessage = 'Audio decode error: File format may be unsupported or corrupted';
-				} else if (err.message) {
-					errorMessage = err.message;
+				if (err instanceof Error) {
+					if (err.message?.includes('fetch')) {
+						errorMessage = 'Network error: Unable to fetch audio file';
+					} else if (err.message?.includes('CORS') || err.message?.includes('cors')) {
+						errorMessage = 'CORS error: Audio file cannot be loaded due to cross-origin restrictions';
+					} else if (err.message?.includes('decode')) {
+						errorMessage = 'Audio decode error: File format may be unsupported or corrupted';
+					} else if (err.message) {
+						errorMessage = err.message;
+					}
 				}
 				onErrorRef.current?.(new Error(errorMessage));
 			}

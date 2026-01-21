@@ -132,6 +132,9 @@ export function useAudioPlayer({
 					case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
 						errorMessage = 'Audio format not supported or CORS error';
 						break;
+					default:
+						errorMessage = 'Unknown audio error occurred';
+						break;
 				}
 				onErrorRef.current?.(new Error(errorMessage));
 			}
