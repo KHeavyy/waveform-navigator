@@ -118,7 +118,7 @@ export function useAudioPlayer({
 		const onErrorEvent = () => {
 			const error = el.error;
 			if (error) {
-				let errorMessage = 'Failed to load audio';
+				let errorMessage: string;
 				switch (error.code) {
 					case MediaError.MEDIA_ERR_ABORTED:
 						errorMessage = 'Audio loading was aborted';
