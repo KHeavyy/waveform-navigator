@@ -38,6 +38,11 @@ export interface WaveformNavigatorProps {
 	onLoaded?: (duration: number) => void;
 	onTimeUpdate?: (currentTime: number) => void;
 	onPeaksComputed?: (peaks: Float32Array) => void;
+	// accessibility props
+	keyboardSmallStep?: number;
+	keyboardLargeStep?: number;
+	disableKeyboardControls?: boolean;
+	ariaLabel?: string;
 }
 
 const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
@@ -63,7 +68,11 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 	onEnded,
 	onLoaded,
 	onTimeUpdate,
-	onPeaksComputed
+	onPeaksComputed,
+	keyboardSmallStep = 5,
+	keyboardLargeStep,
+	disableKeyboardControls = false,
+	ariaLabel = 'Audio waveform seek bar'
 }) => {
 	const [hoverX, setHoverX] = useState<number | null>(null);
 	const [hoverTime, setHoverTime] = useState<number | null>(null);
@@ -152,24 +161,89 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 		setHoverTime(null);
 	}
 
+	// Keyboard navigation handler
+	function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+		if (disableKeyboardControls) return;
+
+		// Calculate large step as 10% of duration if not provided
+		const largeStep = keyboardLargeStep ?? duration * 0.1;
+		
+		let handled = false;
+
+		switch (e.key) {
+			case 'ArrowLeft':
+				// Small seek backward
+				seek(-keyboardSmallStep);
+				handled = true;
+				break;
+			case 'ArrowRight':
+				// Small seek forward
+				seek(keyboardSmallStep);
+				handled = true;
+				break;
+			case 'PageUp':
+				// Large seek backward
+				seek(-largeStep);
+				handled = true;
+				break;
+			case 'PageDown':
+				// Large seek forward
+				seek(largeStep);
+				handled = true;
+				break;
+			case 'Home':
+				// Jump to start
+				seekTo(0);
+				handled = true;
+				break;
+			case 'End':
+				// Jump to end
+				seekTo(duration);
+				handled = true;
+				break;
+			case ' ':
+			case 'Enter':
+				// Toggle play/pause
+				togglePlay();
+				handled = true;
+				break;
+		}
+
+		if (handled) {
+			e.preventDefault();
+		}
+	}
+
 	return (
 		<div ref={containerRef} className={`waveform-navigator ${className}`}>
-			<canvas 
-				ref={canvasRef} 
-				onClick={onCanvasClick} 
-				onMouseMove={onCanvasMove} 
-				onMouseLeave={onCanvasLeave} 
-				className="waveform-canvas" 
-			/>
+			<div 
+				className="waveform-interactive"
+				role="slider"
+				aria-label={ariaLabel}
+				aria-valuemin={0}
+				aria-valuemax={duration || 100}
+				aria-valuenow={displayTime}
+				aria-valuetext={`${formatTime(displayTime)} of ${formatTime(duration)}`}
+				tabIndex={0}
+				onKeyDown={onKeyDown}
+			>
+				<canvas 
+					ref={canvasRef} 
+					onClick={onCanvasClick} 
+					onMouseMove={onCanvasMove} 
+					onMouseLeave={onCanvasLeave} 
+					className="waveform-canvas" 
+				/>
 
-			{hoverX !== null && (
-				<>
-					<div className="hover-line" style={{ left: `${hoverX}px` }} />
-					<div className="hover-tooltip" style={{ left: `${hoverX}px` }}>
-						{hoverTime !== null ? formatTime(hoverTime) : ''}
-					</div>
-				</>
-			)}
+				{hoverX !== null && (
+					<>
+						<div className="hover-line" style={{ left: `${hoverX}px` }} />
+						<div className="hover-tooltip" style={{ left: `${hoverX}px` }}>
+							{hoverTime !== null ? formatTime(hoverTime) : ''}
+						</div>
+					</>
+				)}
+			</div>
 
 			<WaveformControls
 				isPlaying={isPlaying}
