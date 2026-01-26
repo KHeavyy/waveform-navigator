@@ -32,7 +32,12 @@
 	height: 4px;
 	-webkit-appearance: none;
 	appearance: none;
-	background: transparent;
+	background: linear-gradient(to right, 
+		var(--volume-fill-color, #111827) 0%, 
+		var(--volume-fill-color, #111827) var(--volume-percent, 100%), 
+		#e5e7eb var(--volume-percent, 100%), 
+		#e5e7eb 100%);
+	border-radius: 2px;
 	cursor: pointer;
 	outline: none;
 }
@@ -40,11 +45,7 @@
 /* Webkit/Blink browsers (Chrome, Safari, Edge) - Track */
 .controls .vol-range::-webkit-slider-track {
 	height: 4px;
-	background: linear-gradient(to right, 
-		var(--volume-fill-color, #111827) 0%, 
-		var(--volume-fill-color, #111827) var(--volume-percent, 100%), 
-		#e5e7eb var(--volume-percent, 100%), 
-		#e5e7eb 100%);
+	background: transparent;
 	border-radius: 2px;
 }
 
@@ -83,6 +84,7 @@
 	border-radius: 50%;
 	background: var(--volume-fill-color, #111827);
 	cursor: pointer;
+}
 }
 
 /* Hover timestamp and vertical line */
