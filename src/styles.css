@@ -27,7 +27,62 @@
 .controls .right{ display:flex; align-items:center; gap:8px }
 .controls .speaker{ display:flex; align-items:center; justify-content:center; padding:6px; background:transparent; border:none; cursor:pointer; border-radius:6px }
 .controls .speaker:hover{ background:rgba(15,23,42,0.04) }
-.controls .vol-range{ width:140px }
+.controls .vol-range{ 
+	width:140px;
+	-webkit-appearance: none;
+	appearance: none;
+	background: transparent;
+	cursor: pointer;
+}
+
+/* Webkit/Blink browsers (Chrome, Safari, Edge) */
+.controls .vol-range::-webkit-slider-track {
+	height: 4px;
+	background: #e5e7eb;
+	border-radius: 2px;
+}
+
+.controls .vol-range::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 14px;
+	height: 14px;
+	border-radius: 50%;
+	background: var(--volume-fill-color, #111827);
+	cursor: pointer;
+	margin-top: -5px;
+}
+
+/* Firefox */
+.controls .vol-range::-moz-range-track {
+	height: 4px;
+	background: #e5e7eb;
+	border-radius: 2px;
+}
+
+.controls .vol-range::-moz-range-thumb {
+	width: 14px;
+	height: 14px;
+	border: none;
+	border-radius: 50%;
+	background: var(--volume-fill-color, #111827);
+	cursor: pointer;
+}
+
+/* Create the filled portion effect using a gradient */
+.controls .vol-range::-webkit-slider-track {
+	background: linear-gradient(to right, 
+		var(--volume-fill-color, #111827) 0%, 
+		var(--volume-fill-color, #111827) var(--volume-percent, 100%), 
+		#e5e7eb var(--volume-percent, 100%), 
+		#e5e7eb 100%);
+}
+
+.controls .vol-range::-moz-range-progress {
+	height: 4px;
+	background: var(--volume-fill-color, #111827);
+	border-radius: 2px;
+}
 
 /* Hover timestamp and vertical line */
 .waveform-navigator{ position: relative }

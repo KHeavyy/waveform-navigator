@@ -178,7 +178,8 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 					onChange={(e) => onVolumeChange(Number(e.target.value))} 
 					aria-label="volume"
 					style={{
-						'--volume-fill-color': volumeSliderFillColor
+						'--volume-fill-color': volumeSliderFillColor,
+						'--volume-percent': `${volume * 100}%`
 					} as React.CSSProperties}
 				/>
 			</div>
