@@ -185,7 +185,7 @@ export default function App() {
 			
 			{/* Ref forwarding and minimal UI demo */}
 			<div style={{ marginBottom: 12, padding: 12, backgroundColor: '#e8e8f8', borderRadius: 4 }}>
-				<h3>Programmatic Control & Minimal UI Demo (NEW)</h3>
+				<h3>Programmatic Control & Minimal UI Demo</h3>
 				<div style={{ marginBottom: 8 }}>
 					<label>
 						<input 

@@ -21,9 +21,8 @@
 .controls .center{ display:flex; gap:14px; align-items:center; justify-content:center }
 .controls .ctrl{ background:transparent; border:none; border-radius:8px; padding:8px; cursor:pointer; display:flex; align-items:center; justify-content:center }
 .controls .ctrl:hover{ background:rgba(15,23,42,0.04) }
-.controls .play{ background:#111827; width:56px; height:56px; border-radius:9999px; display:inline-flex; align-items:center; justify-content:center; box-shadow: 0 6px 18px rgba(17,24,39,0.12); border:none; cursor:pointer }
-.controls .play svg path, .controls .play svg rect{ fill:#fff }
-.controls .rewind, .controls .forward{ width:44px; height:44px; border-radius:10px; background:#fff; box-shadow: 0 1px 2px rgba(16,24,40,0.04); border:1px solid #e6e9ef }
+.controls .play{ width:56px; height:56px; border-radius:9999px; display:inline-flex; align-items:center; justify-content:center; box-shadow: 0 6px 18px rgba(17,24,39,0.12); border:none; cursor:pointer }
+.controls .rewind, .controls .forward{ width:44px; height:44px; border-radius:10px; box-shadow: 0 1px 2px rgba(16,24,40,0.04); border:1px solid #e6e9ef }
 .controls .right{ display:flex; align-items:center; gap:8px }
 .controls .speaker{ display:flex; align-items:center; justify-content:center; padding:6px; background:transparent; border:none; cursor:pointer; border-radius:6px }
 .controls .speaker:hover{ background:rgba(15,23,42,0.04) }
