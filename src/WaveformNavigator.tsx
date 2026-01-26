@@ -237,7 +237,7 @@ const WaveformNavigator = React.forwardRef<WaveformNavigatorHandle, WaveformNavi
 			// Resume any suspended AudioContext (needed for Safari/iOS)
 			// This creates a temporary AudioContext to trigger user activation
 			// which enables audio playback across the page
-			const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+			const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext as typeof AudioContext | undefined;
 			if (!AudioContextClass) return;
 			
 			try {
@@ -249,7 +249,9 @@ const WaveformNavigator = React.forwardRef<WaveformNavigatorHandle, WaveformNavi
 			} catch (error) {
 				// Silently fail if AudioContext creation fails
 				// This is a best-effort attempt to enable audio
-				console.warn('Failed to resume AudioContext:', error);
+				if (process.env.NODE_ENV === 'development') {
+					console.warn('Failed to resume AudioContext:', error);
+				}
 			}
 		}
 	}), [seekTo, audioRef]);
