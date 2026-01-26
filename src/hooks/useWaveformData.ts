@@ -25,7 +25,7 @@ export function useWaveformData({
 	workerUrl,
 	forceMainThread,
 	onPeaksComputed,
-	onError
+	onError,
 }: UseWaveformDataProps): UseWaveformDataReturn {
 	const [peaks, setPeaks] = useState<Float32Array | null>(null);
 	const audioCtxRef = useRef<AudioContext | null>(null);
@@ -46,7 +46,7 @@ export function useWaveformData({
 	useEffect(() => {
 		const worker = createPeaksWorker({ workerUrl, forceMainThread });
 		workerRef.current = worker;
-		
+
 		if (worker) {
 			worker.onmessage = (ev: MessageEvent) => {
 				const msg = ev.data;
@@ -91,7 +91,10 @@ export function useWaveformData({
 		const loadArrayBuffer = async () => {
 			try {
 				// Close previous AudioContext if it exists
-				if (audioCtxRef.current && typeof audioCtxRef.current.close === 'function') {
+				if (
+					audioCtxRef.current &&
+					typeof audioCtxRef.current.close === 'function'
+				) {
 					await audioCtxRef.current.close();
 					audioCtxRef.current = null;
 				}
@@ -100,7 +103,9 @@ export function useWaveformData({
 				if (typeof audio === 'string') {
 					const resp = await fetch(audio, { mode: 'cors' });
 					if (!resp.ok) {
-						throw new Error(`Failed to fetch audio: ${resp.status} ${resp.statusText}`);
+						throw new Error(
+							`Failed to fetch audio: ${resp.status} ${resp.statusText}`
+						);
 					}
 					arrayBuffer = await resp.arrayBuffer();
 				} else if (audio instanceof File) {
@@ -110,16 +115,18 @@ export function useWaveformData({
 					return;
 				}
 
-				const AudioContextClass: any = (window as any).AudioContext || (window as any).webkitAudioContext;
+				const AudioContextClass: any =
+					(window as any).AudioContext || (window as any).webkitAudioContext;
 				if (!AudioContextClass) {
 					throw new Error('AudioContext not supported in this browser');
 				}
 				const ac: AudioContext = new AudioContextClass();
 				audioCtxRef.current = ac;
-				
+
 				try {
 					const decoded = await ac.decodeAudioData(arrayBuffer.slice(0));
-					const channelData = decoded.numberOfChannels > 0 ? decoded.getChannelData(0) : null;
+					const channelData =
+						decoded.numberOfChannels > 0 ? decoded.getChannelData(0) : null;
 
 					// Store the audio buffer for resampling
 					if (channelData) {
@@ -130,7 +137,9 @@ export function useWaveformData({
 						computePeaks(channelData);
 					}
 				} catch (decodeError: any) {
-					throw new Error(`Failed to decode audio data: ${decodeError.message || 'Unknown error'}`);
+					throw new Error(
+						`Failed to decode audio data: ${decodeError.message || 'Unknown error'}`
+					);
 				}
 			} catch (err: unknown) {
 				console.warn('Failed to load audio for waveform:', err);
@@ -141,12 +150,14 @@ export function useWaveformData({
 					// Our custom fetch error message
 					if (msg.startsWith('Failed to fetch audio:')) {
 						errorMessage = 'Network error: Unable to fetch audio file';
-					// Browser's native fetch error (typically CORS or network issues)
+						// Browser's native fetch error (typically CORS or network issues)
 					} else if (err.name === 'TypeError' && msg.includes('fetch')) {
-						errorMessage = 'Network error: Unable to fetch audio file. This may be due to CORS restrictions or network issues.';
-					// Decode-related errors: match our custom decode prefix
+						errorMessage =
+							'Network error: Unable to fetch audio file. This may be due to CORS restrictions or network issues.';
+						// Decode-related errors: match our custom decode prefix
 					} else if (msg.startsWith('Failed to decode audio data')) {
-						errorMessage = 'Audio decode error: File format may be unsupported or corrupted';
+						errorMessage =
+							'Audio decode error: File format may be unsupported or corrupted';
 					} else {
 						errorMessage = msg;
 					}
@@ -165,7 +176,7 @@ export function useWaveformData({
 			const widthChanged = Math.abs(width - (lastWidthRef.current || 0)) > 1;
 			const barWidthChanged = barWidth !== lastBarWidthRef.current;
 			const gapChanged = gap !== lastGapRef.current;
-			
+
 			if (widthChanged || barWidthChanged || gapChanged) {
 				lastWidthRef.current = width;
 				lastBarWidthRef.current = barWidth;
@@ -181,7 +192,7 @@ export function useWaveformData({
 			channelData,
 			width,
 			barWidth,
-			gap
+			gap,
 		});
 
 		// Set initial peaks for immediate display
@@ -193,23 +204,29 @@ export function useWaveformData({
 			try {
 				// Transfer a copy of the buffer to avoid losing the original data
 				const channelCopy = new Float32Array(channelData);
-				workerRef.current.postMessage({
-					type: 'compute',
-					channelBuffer: channelCopy.buffer,
-					channelLength: channelCopy.length,
-					width,
-					barWidth,
-					gap,
-					chunkSize: 262144
-				}, [channelCopy.buffer]);
+				workerRef.current.postMessage(
+					{
+						type: 'compute',
+						channelBuffer: channelCopy.buffer,
+						channelLength: channelCopy.length,
+						width,
+						barWidth,
+						gap,
+						chunkSize: 262144,
+					},
+					[channelCopy.buffer]
+				);
 			} catch (err) {
 				// Fallback peaks are already set above, so this is fine
-				console.warn('[WaveformNavigator] Worker postMessage failed, using main-thread peaks:', err);
+				console.warn(
+					'[WaveformNavigator] Worker postMessage failed, using main-thread peaks:',
+					err
+				);
 			}
 		}
 	}
 
 	return {
-		peaks
+		peaks,
 	};
 }

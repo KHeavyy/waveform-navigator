@@ -25,7 +25,14 @@ self.onmessage = (ev: MessageEvent) => {
 
 				// stream partial peaks back so UI can show progressive waveform
 				const peaksCopy = peaks.slice();
-				(self as any).postMessage({ type: 'progress', peaksBuffer: peaksCopy.buffer, done: end === channelLength }, [peaksCopy.buffer]);
+				(self as any).postMessage(
+					{
+						type: 'progress',
+						peaksBuffer: peaksCopy.buffer,
+						done: end === channelLength,
+					},
+					[peaksCopy.buffer]
+				);
 			}
 			break;
 		}

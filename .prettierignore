@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+demo/node_modules/
+
+# Build outputs
+dist/
+build/
+demo/dist/
+
+# Coverage reports
+coverage/
+
+# Test artifacts
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Logs
+*.log
+
+# IDE
+.idea/
+.vscode/
+
+# Misc
+.DS_Store
+*.tgz

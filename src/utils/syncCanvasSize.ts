@@ -4,9 +4,13 @@
  * transform to map drawing calls to logical pixels.
  * @returns The calculated device pixel ratio
  */
-export function syncCanvasSize(canvas: HTMLCanvasElement, width: number, height: number): number {
+export function syncCanvasSize(
+	canvas: HTMLCanvasElement,
+	width: number,
+	height: number
+): number {
 	const dpr = window.devicePixelRatio || 1;
-	
+
 	// CSS size (logical pixels)
 	canvas.style.width = `${width}px`;
 	canvas.style.height = `${height}px`;
@@ -14,7 +18,7 @@ export function syncCanvasSize(canvas: HTMLCanvasElement, width: number, height:
 	// Backing store size (device pixels) - ensure at least 1px to avoid invalid canvas
 	const pixelWidth = Math.max(1, Math.floor(width * dpr));
 	const pixelHeight = Math.max(1, Math.floor(height * dpr));
-	
+
 	if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
 		canvas.width = pixelWidth;
 		canvas.height = pixelHeight;
@@ -25,6 +29,6 @@ export function syncCanvasSize(canvas: HTMLCanvasElement, width: number, height:
 		// Map drawing calls to logical pixels
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 	}
-	
+
 	return dpr;
 }

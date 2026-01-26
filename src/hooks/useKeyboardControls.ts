@@ -17,7 +17,7 @@ export function useKeyboardControls({
 	disableKeyboardControls,
 	seek,
 	seekTo,
-	togglePlay
+	togglePlay,
 }: UseKeyboardControlsProps) {
 	const onKeyDown = useCallback(
 		(e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -80,7 +80,7 @@ export function useKeyboardControls({
 			keyboardLargeStep,
 			seek,
 			seekTo,
-			togglePlay
+			togglePlay,
 		]
 	);
 
