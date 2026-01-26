@@ -23,6 +23,11 @@ export default defineConfig({
         'demo/',
         'e2e/',
         'src/test/',
+        // Exclude demo-only or integration-only UI files and package entry points
+        'src/components/**',
+        'src/index.ts',
+        'src/styles.css',
+        'src/utils/workerCreation.ts',
         '**/*.test.ts',
         '**/*.test.tsx',
         '**/*.config.ts',

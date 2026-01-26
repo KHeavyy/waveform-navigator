@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useImperativeHandle } from 'react';
 import './styles.css';
 import { useAudioPlayer } from './hooks/useAudioPlayer';
 import { useWaveformData } from './hooks/useWaveformData';
@@ -9,6 +9,13 @@ import { WaveformControls } from './components/WaveformControls';
 import { formatTime } from './utils';
 
 type AudioProp = string | File | null | undefined;
+
+export interface WaveformNavigatorHandle {
+	play: () => Promise<void>;
+	pause: () => void;
+	seek: (time: number) => void;
+	resumeAudioContext: () => Promise<void>;
+}
 
 export interface WaveformNavigatorProps {
 	audio: AudioProp;
@@ -45,9 +52,11 @@ export interface WaveformNavigatorProps {
 	keyboardLargeStep?: number;
 	disableKeyboardControls?: boolean;
 	ariaLabel?: string;
+	// UI control props
+	showControls?: boolean;
 }
 
-const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
+const WaveformNavigator = React.forwardRef<WaveformNavigatorHandle, WaveformNavigatorProps>(({
 	audio,
 	width = 800,
 	height = 120,
@@ -75,8 +84,9 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 	keyboardSmallStep = 5,
 	keyboardLargeStep,
 	disableKeyboardControls = false,
-	ariaLabel = 'Audio waveform seek bar'
-}) => {
+	ariaLabel = 'Audio waveform seek bar',
+	showControls = true
+}, ref) => {
 	const [hoverX, setHoverX] = useState<number | null>(null);
 	const [hoverTime, setHoverTime] = useState<number | null>(null);
 	const [errorState, setErrorState] = useState<{ message: string; type: 'audio' | 'waveform' } | null>(null);
@@ -98,6 +108,7 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 
 	// Use audio player hook
 	const {
+		audioRef,
 		isPlaying,
 		duration,
 		volume,
@@ -195,6 +206,56 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 		togglePlay
 	});
 
+	// Expose imperative methods via ref
+	useImperativeHandle(ref, () => ({
+		play: async () => {
+			const a = audioRef.current;
+			if (!a) return;
+			try {
+				await a.play();
+			} catch (error) {
+				// Re-throw with context about common issues
+				if (error instanceof DOMException) {
+					throw new Error(
+						`Failed to play audio: ${error.message}. ` +
+						'On Safari/iOS, playback must be initiated by a user gesture. ' +
+						'Call resumeAudioContext() first if needed.'
+					);
+				}
+				throw error;
+			}
+		},
+		pause: () => {
+			const a = audioRef.current;
+			if (!a) return;
+			a.pause();
+		},
+		seek: (time: number) => {
+			seekTo(time);
+		},
+		resumeAudioContext: async () => {
+			// Resume any suspended AudioContext (needed for Safari/iOS)
+			// This creates a temporary AudioContext to trigger user activation
+			// which enables audio playback across the page
+			const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext as typeof AudioContext | undefined;
+			if (!AudioContextClass) return;
+			
+			try {
+				const tempCtx = new AudioContextClass();
+				if (tempCtx.state === 'suspended') {
+					await tempCtx.resume();
+				}
+				await tempCtx.close();
+			} catch (error) {
+				// Silently fail if AudioContext creation fails
+				// This is a best-effort attempt to enable audio
+				if (process.env.NODE_ENV === 'development') {
+					console.warn('Failed to resume AudioContext:', error);
+				}
+			}
+		}
+	}), [seekTo, audioRef]);
+
 	return (
 		<div ref={containerRef} className={`waveform-navigator ${className}`}>
 			<div 
@@ -235,18 +296,23 @@ const WaveformNavigator: React.FC<WaveformNavigatorProps> = ({
 				)}
 			</div>
 
-			<WaveformControls
-				isPlaying={isPlaying}
-				displayTime={displayTime}
-				duration={duration}
-				volume={volume}
-				onTogglePlay={togglePlay}
-				onSeek={seek}
-				onVolumeChange={setVolume}
-			/>
+			{showControls && (
+				<WaveformControls
+					isPlaying={isPlaying}
+					displayTime={displayTime}
+					duration={duration}
+					volume={volume}
+					onTogglePlay={togglePlay}
+					onSeek={seek}
+					onVolumeChange={setVolume}
+				/>
+			)}
 		</div>
 	);
-};
+})
+
+// Add display name for React DevTools
+WaveformNavigator.displayName = 'WaveformNavigator';
 
 export default WaveformNavigator;
 export { WaveformNavigator };
