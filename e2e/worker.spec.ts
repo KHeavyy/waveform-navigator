@@ -13,8 +13,8 @@ test.describe('Web Worker Integration', () => {
     const canvas = page.locator('canvas').first()
     await expect(canvas).toBeVisible({ timeout: 10000 })
     
-    // Wait for peaks to be computed
-    await page.waitForTimeout(2000)
+    // Wait for peaks to be computed and base waveform to be drawn
+    await page.waitForFunction(() => (window as any).__waveformReady === true, { timeout: 20000 })
     
     // Check that peaks were computed (canvas should have content)
     const boundingBox = await canvas.boundingBox()
@@ -39,8 +39,8 @@ test.describe('Web Worker Integration', () => {
     if (checkboxCount > 0) {
       await mainThreadCheckbox.check()
       
-      // Wait for waveform to reload
-      await page.waitForTimeout(1000)
+      // Wait for waveform to reload and be ready
+      await page.waitForFunction(() => (window as any).__waveformReady === true, { timeout: 15000 })
       
       // Verify waveform still renders
       const canvas = page.locator('canvas').first()
@@ -58,7 +58,7 @@ test.describe('Web Worker Integration', () => {
     // Wait for initial audio to load
     const canvas = page.locator('canvas').first()
     await expect(canvas).toBeVisible({ timeout: 10000 })
-    await page.waitForTimeout(1500)
+    await page.waitForFunction(() => (window as any).__waveformReady === true, { timeout: 15000 })
     
     // Take screenshot of initial waveform
     const screenshot1 = await canvas.screenshot()
@@ -83,8 +83,8 @@ test.describe('Web Worker Integration', () => {
     const canvas = page.locator('canvas').first()
     await expect(canvas).toBeVisible({ timeout: 10000 })
     
-    // Wait for peaks computation
-    await page.waitForTimeout(2000)
+    // Wait for peaks computation (and base waveform draw)
+    await page.waitForFunction(() => (window as any).__waveformReady === true, { timeout: 20000 })
     
     // Should have logged peaks computation
     expect(peaksMessages.length).toBeGreaterThan(0)
@@ -99,8 +99,8 @@ test.describe('Web Worker Integration', () => {
     
     await page.goto('/')
     
-    // Wait for page to load
-    await page.waitForTimeout(3000)
+    // Wait for page to load and waveform ready flag (if available)
+    await page.waitForFunction(() => (window as any).__waveformReady === true, { timeout: 20000 })
     
     // Should not have any uncaught errors related to worker
     const workerErrors = errors.filter(e => 

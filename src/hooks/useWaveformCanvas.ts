@@ -38,6 +38,9 @@ export function useWaveformCanvas({
 	const rafRef = useRef<number | null>(null);
 	const dprRef = useRef<number>(1);
 	
+	// Whether we've signaled that the waveform has been drawn at least once
+	const readyDispatchedRef = useRef<boolean>(false);
+
 	// Cache the base waveform as ImageData for performance optimization
 	// This avoids redrawing all bars on every progress update
 	const baseWaveformCache = useRef<ImageData | null>(null);
@@ -137,6 +140,18 @@ export function useWaveformCanvas({
 			ctx.setTransform(1, 0, 0, 1, 0, 0);
 			baseWaveformCache.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
 			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+			// Dispatch a readiness event once the waveform has been drawn and cached
+			if (!readyDispatchedRef.current) {
+				readyDispatchedRef.current = true;
+				try {
+					;(window as any).__waveformReady = true;
+					window.dispatchEvent(new Event('waveform-ready'));
+				} catch (err) {
+					// Silence any environment errors (e.g., non-window global)
+					console.warn('Could not dispatch waveform-ready event', err);
+				}
+			}
 		}
 
 		// Draw progress overlay (using logical coordinates)
@@ -164,6 +179,8 @@ export function useWaveformCanvas({
 	// Invalidate cache when base waveform properties change
 	useEffect(() => {
 		baseWaveformCache.current = null;
+		// Allow readiness event to fire again after cache change
+		readyDispatchedRef.current = false;
 	}, [peaks, barWidth, gap, barColor, backgroundColor]);
 
 	// Smooth progress updates while playing using requestAnimationFrame

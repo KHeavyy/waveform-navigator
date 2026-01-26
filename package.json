@@ -56,7 +56,6 @@
     "build": "npm run clean && vite build && vite build --mode worker",
     "build:watch": "vite build --watch",
     "type-check": "tsc --noEmit",
-
     "prepublishOnly": "npm run type-check && npm test",
     "prepare": "npm run build",
     "dev": "concurrently \"npm run build:watch\" \"(cd demo && npm run dev)\""
@@ -71,6 +70,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
+    "@types/pngjs": "^6.0.5",
     "@types/react": "^18.2.21",
     "@types/react-dom": "^18.2.7",
     "@vitejs/plugin-react": "^5.1.2",
