@@ -405,17 +405,6 @@ export default function App() {
 			</div>
 			
 			{/* Error handling demo */}
-							/>
-						</div>
-					</div>
-				)}
-				<p style={{ fontSize: 12, marginTop: 8, color: '#666' }}>
-					💡 The volume icon dynamically changes based on volume level (muted/low/medium/high). 
-					Click the volume icon to toggle mute/unmute!
-				</p>
-			</div>
-			
-			{/* Error handling demo */}
 			<div style={{ marginBottom: 12, padding: 12, backgroundColor: '#ffe8e8', borderRadius: 4 }}>
 				<h3>Error Handling Demo</h3>
 				<p style={{ fontSize: 14, marginBottom: 8 }}>Test error scenarios by loading invalid audio:</p>
