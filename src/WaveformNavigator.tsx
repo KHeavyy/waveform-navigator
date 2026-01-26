@@ -211,7 +211,19 @@ const WaveformNavigator = React.forwardRef<WaveformNavigatorHandle, WaveformNavi
 		play: async () => {
 			const a = audioRef.current;
 			if (!a) return;
-			await a.play();
+			try {
+				await a.play();
+			} catch (error) {
+				// Re-throw with context about common issues
+				if (error instanceof DOMException) {
+					throw new Error(
+						`Failed to play audio: ${error.message}. ` +
+						'On Safari/iOS, playback must be initiated by a user gesture. ' +
+						'Call resumeAudioContext() first if needed.'
+					);
+				}
+				throw error;
+			}
 		},
 		pause: () => {
 			const a = audioRef.current;
@@ -223,15 +235,22 @@ const WaveformNavigator = React.forwardRef<WaveformNavigatorHandle, WaveformNavi
 		},
 		resumeAudioContext: async () => {
 			// Resume any suspended AudioContext (needed for Safari/iOS)
+			// This creates a temporary AudioContext to trigger user activation
+			// which enables audio playback across the page
 			const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
 			if (!AudioContextClass) return;
 			
-			// Create a temporary context to resume
-			const tempCtx = new AudioContextClass();
-			if (tempCtx.state === 'suspended') {
-				await tempCtx.resume();
+			try {
+				const tempCtx = new AudioContextClass();
+				if (tempCtx.state === 'suspended') {
+					await tempCtx.resume();
+				}
+				await tempCtx.close();
+			} catch (error) {
+				// Silently fail if AudioContext creation fails
+				// This is a best-effort attempt to enable audio
+				console.warn('Failed to resume AudioContext:', error);
 			}
-			await tempCtx.close();
 		}
 	}), [seekTo, audioRef]);
 

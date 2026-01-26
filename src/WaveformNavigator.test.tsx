@@ -56,10 +56,10 @@ describe('WaveformNavigator', () => {
       
       // Check that ref handle has the expected methods
       expect(refHandle).toBeTruthy()
-      expect(refHandle?.play).toBeInstanceOf(Function)
-      expect(refHandle?.pause).toBeInstanceOf(Function)
-      expect(refHandle?.seek).toBeInstanceOf(Function)
-      expect(refHandle?.resumeAudioContext).toBeInstanceOf(Function)
+      expect(refHandle!.play).toBeInstanceOf(Function)
+      expect(refHandle!.pause).toBeInstanceOf(Function)
+      expect(refHandle!.seek).toBeInstanceOf(Function)
+      expect(refHandle!.resumeAudioContext).toBeInstanceOf(Function)
     })
 
     it('can call methods without errors when audio element exists', async () => {
@@ -83,12 +83,12 @@ describe('WaveformNavigator', () => {
       expect(() => refHandle?.seek(10)).not.toThrow()
       
       // play() returns a promise and should be callable
-      const playPromise = refHandle?.play() ?? Promise.resolve()
+      const playPromise = refHandle!.play()
       expect(playPromise).toBeInstanceOf(Promise)
       
       // resumeAudioContext() also returns a promise
       // It may fail in test environment due to AudioContext mock limitations, which is fine
-      const resumePromise = refHandle?.resumeAudioContext() ?? Promise.resolve()
+      const resumePromise = refHandle!.resumeAudioContext()
       expect(resumePromise).toBeInstanceOf(Promise)
     })
   })
