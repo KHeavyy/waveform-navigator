@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { syncCanvasSize } from './syncCanvasSize'
+import { syncCanvasSize } from '../syncCanvasSize'
 
 describe('syncCanvasSize', () => {
   let canvas: HTMLCanvasElement

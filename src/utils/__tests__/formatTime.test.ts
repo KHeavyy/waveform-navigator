@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatTime } from './formatTime'
+import { formatTime } from '../formatTime'
 
 describe('formatTime', () => {
   it('formats zero seconds', () => {

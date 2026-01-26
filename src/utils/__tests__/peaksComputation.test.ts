@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computePeaksFromChannelData } from './peaksComputation'
+import { computePeaksFromChannelData } from '../peaksComputation'
 
 describe('computePeaksFromChannelData', () => {
   it('computes peaks for simple channel data', () => {
