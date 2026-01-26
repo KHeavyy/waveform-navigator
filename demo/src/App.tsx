@@ -188,7 +188,7 @@ export default function App() {
 				</p>
 			</div>
 			
-			<div style={{ width: containerWidth, transition: 'width 0.3s' }}>
+			<div style={{ width: responsiveEnabled ? '100%' : containerWidth, maxWidth: containerWidth, transition: 'width 0.3s' }}>
 				<WaveformNavigator 
 					audio={testAudioPath} 
 					width={900} 

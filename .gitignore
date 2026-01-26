@@ -16,3 +16,9 @@ yarn-error.log*
 .pnp.js
 /.turbo
 *.log
+# Test artifacts
+/test-results/
+/playwright-report/
+/playwright/.cache/
+# Visual regression snapshots are committed for comparison
+# /e2e/__snapshots__/
