@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { formatTime } from '../utils';
 
 /**
@@ -73,7 +73,7 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 					<line x1="22" y1="8" x2="17" y2="13" stroke={volumeIconColor} strokeWidth="2" strokeLinecap="round" />
 				</svg>
 			);
-		} else if (volume < 0.33) {
+		} else if (volume < 0.5) {
 			// Low volume icon
 			return (
 				<svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -81,20 +81,12 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 					<path d="M15.54 8.46a5 5 0 0 1 0 7.07" stroke={volumeIconColor} strokeWidth="2" strokeLinecap="round" />
 				</svg>
 			);
-		} else if (volume < 0.66) {
-			// Medium volume icon
-			return (
-				<svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">
-					<path d="M5 9v6h4l5 4V5L9 9H5z" fill={volumeIconColor} />
-					<path d="M15.54 8.46a5 5 0 0 1 0 7.07M18.36 5.64a9 9 0 0 1 0 12.73" stroke={volumeIconColor} strokeWidth="2" strokeLinecap="round" />
-				</svg>
-			);
 		} else {
 			// High volume icon
 			return (
 				<svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">
 					<path d="M5 9v6h4l5 4V5L9 9H5z" fill={volumeIconColor} />
-					<path d="M15.54 8.46a5 5 0 0 1 0 7.07M18.36 5.64a9 9 0 0 1 0 12.73M21 3a13 13 0 0 1 0 18" stroke={volumeIconColor} strokeWidth="2" strokeLinecap="round" />
+					<path d="M15.54 8.46a5 5 0 0 1 0 7.07M18.36 5.64a9 9 0 0 1 0 12.73" stroke={volumeIconColor} strokeWidth="2" strokeLinecap="round" />
 				</svg>
 			);
 		}

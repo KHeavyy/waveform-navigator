@@ -58,7 +58,7 @@
 	border-radius: 50%;
 	background: var(--volume-fill-color, #111827);
 	cursor: pointer;
-	margin-top: -4px;
+	margin-top: -1px;
 }
 
 /* Firefox - Track */
@@ -84,7 +84,6 @@
 	border-radius: 50%;
 	background: var(--volume-fill-color, #111827);
 	cursor: pointer;
-}
 }
 
 /* Hover timestamp and vertical line */
