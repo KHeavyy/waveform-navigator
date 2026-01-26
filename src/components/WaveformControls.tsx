@@ -36,19 +36,18 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 	volumeSliderFillColor = '#111827'
 }) => {
 	// Track previous volume for mute/restore functionality
-	const [isMuted, setIsMuted] = useState(false);
 	const previousVolumeRef = useRef(volume);
 
-	// Update previousVolume when volume changes (but not when muting)
+	// Update previousVolume when volume changes to a non-zero value
 	useEffect(() => {
-		if (volume > 0 && !isMuted) {
+		if (volume > 0) {
 			previousVolumeRef.current = volume;
 		}
-	}, [volume, isMuted]);
+	}, [volume]);
 
 	// Determine volume icon based on current volume
 	const getVolumeIcon = () => {
-		if (volume === 0 || isMuted) {
+		if (volume === 0) {
 			// Muted icon
 			return (
 				<svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -86,16 +85,14 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 
 	// Toggle mute/restore volume
 	const handleVolumeIconClick = () => {
-		if (volume === 0 || isMuted) {
+		if (volume === 0) {
 			// Restore previous volume
 			const volumeToRestore = previousVolumeRef.current > 0 ? previousVolumeRef.current : 0.5;
 			onVolumeChange(volumeToRestore);
-			setIsMuted(false);
 		} else {
-			// Mute
+			// Mute - save current volume and set to 0
 			previousVolumeRef.current = volume;
 			onVolumeChange(0);
-			setIsMuted(true);
 		}
 	};
 	return (
@@ -150,7 +147,7 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 				<button 
 					className="speaker" 
 					onClick={handleVolumeIconClick}
-					aria-label={volume === 0 || isMuted ? 'unmute' : 'mute'}
+					aria-label={volume === 0 ? 'unmute' : 'mute'}
 				>
 					{getVolumeIcon()}
 				</button>
