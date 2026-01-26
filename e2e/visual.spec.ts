@@ -51,7 +51,7 @@ test.describe('Visual Regression Tests', () => {
         diff.data,
         width,
         height,
-        { threshold: 0.1 }
+        { threshold: THRESHOLD }
       )
       
       const diffPercentage = (numDiffPixels / (width * height)) * 100

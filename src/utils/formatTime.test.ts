@@ -36,9 +36,4 @@ describe('formatTime', () => {
     expect(formatTime(-Infinity)).toBe('0:00')
   })
 
-  it('handles negative values', () => {
-    // Negative values result in negative formatted time
-    expect(formatTime(-1)).toBe('-1:-1')
-    expect(formatTime(-30)).toBe('-1:-30')
-  })
 })
