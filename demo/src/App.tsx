@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react'
 import WaveformNavigator from '../../src'
-import type { WaveformNavigatorHandle } from '../../src'
+import type { WaveformNavigatorHandle, WaveformNavigatorStyles } from '../../src'
 
 export default function App() {
 	const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -31,6 +31,23 @@ export default function App() {
 	
 	// Demo ref forwarding and showControls
 	const [showControls, setShowControls] = useState(true)
+	
+	// Demo style customization
+	const [customStyles, setCustomStyles] = useState(false)
+	const [customStylesConfig, setCustomStylesConfig] = useState<WaveformNavigatorStyles>({
+		barColor: '#2b6ef6',
+		progressColor: '#0747a6',
+		backgroundColor: 'transparent',
+		playheadColor: '#ff4d4f',
+		playButtonColor: '#111827',
+		playIconColor: '#fff',
+		rewindButtonColor: '#fff',
+		rewindIconColor: '#111827',
+		forwardButtonColor: '#fff',
+		forwardIconColor: '#111827',
+		volumeSliderFillColor: '#111827',
+		volumeIconColor: '#374151'
+	})
 
 	const handleProgrammaticPlay = async () => {
 		await waveformRef.current?.resumeAudioContext()
@@ -221,6 +238,172 @@ export default function App() {
 				)}
 			</div>
 			
+			{/* Style customization demo */}
+			<div style={{ marginBottom: 12, padding: 12, backgroundColor: '#f0e8f8', borderRadius: 4 }}>
+				<h3>🎨 Style Customization Demo (styles prop)</h3>
+				<div style={{ marginBottom: 8 }}>
+					<label>
+						<input 
+							type="checkbox" 
+							checked={customStyles} 
+							onChange={(e) => setCustomStyles(e.target.checked)}
+						/>
+						Enable Custom Styles
+					</label>
+					<p style={{ fontSize: 12, marginTop: 4 }}>
+						{customStyles 
+							? '🎨 Custom styles applied via styles prop' 
+							: '⚪ Using default styles'}
+					</p>
+				</div>
+				{customStyles && (
+					<div>
+						<p style={{ fontSize: 13, marginBottom: 12, fontWeight: 500 }}>
+							Waveform Colors:
+						</p>
+						<div style={{ marginBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+							<div>
+								<label style={{ display: 'block', fontSize: 11, marginBottom: 4 }}>
+									Bar Color:
+								</label>
+								<input 
+									type="color" 
+									value={customStylesConfig.barColor}
+									onChange={(e) => setCustomStylesConfig({...customStylesConfig, barColor: e.target.value})}
+									style={{ width: '100%', height: 32, cursor: 'pointer' }}
+								/>
+							</div>
+							<div>
+								<label style={{ display: 'block', fontSize: 11, marginBottom: 4 }}>
+									Progress Color:
+								</label>
+								<input 
+									type="color" 
+									value={customStylesConfig.progressColor}
+									onChange={(e) => setCustomStylesConfig({...customStylesConfig, progressColor: e.target.value})}
+									style={{ width: '100%', height: 32, cursor: 'pointer' }}
+								/>
+							</div>
+							<div>
+								<label style={{ display: 'block', fontSize: 11, marginBottom: 4 }}>
+									Playhead Color:
+								</label>
+								<input 
+									type="color" 
+									value={customStylesConfig.playheadColor}
+									onChange={(e) => setCustomStylesConfig({...customStylesConfig, playheadColor: e.target.value})}
+									style={{ width: '100%', height: 32, cursor: 'pointer' }}
+								/>
+							</div>
+						</div>
+						
+						<p style={{ fontSize: 13, marginBottom: 12, fontWeight: 500 }}>
+							Control Button Colors:
+						</p>
+						<div style={{ marginBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+							<div>
+								<label style={{ display: 'block', fontSize: 11, marginBottom: 4 }}>
+									Play Button:
+								</label>
+								<input 
+									type="color" 
+									value={customStylesConfig.playButtonColor}
+									onChange={(e) => setCustomStylesConfig({...customStylesConfig, playButtonColor: e.target.value})}
+									style={{ width: '100%', height: 32, cursor: 'pointer' }}
+								/>
+							</div>
+							<div>
+								<label style={{ display: 'block', fontSize: 11, marginBottom: 4 }}>
+									Play Icon:
+								</label>
+								<input 
+									type="color" 
+									value={customStylesConfig.playIconColor}
+									onChange={(e) => setCustomStylesConfig({...customStylesConfig, playIconColor: e.target.value})}
+									style={{ width: '100%', height: 32, cursor: 'pointer' }}
+								/>
+							</div>
+							<div>
+								<label style={{ display: 'block', fontSize: 11, marginBottom: 4 }}>
+									Rewind Button:
+								</label>
+								<input 
+									type="color" 
+									value={customStylesConfig.rewindButtonColor}
+									onChange={(e) => setCustomStylesConfig({...customStylesConfig, rewindButtonColor: e.target.value})}
+									style={{ width: '100%', height: 32, cursor: 'pointer' }}
+								/>
+							</div>
+							<div>
+								<label style={{ display: 'block', fontSize: 11, marginBottom: 4 }}>
+									Rewind Icon:
+								</label>
+								<input 
+									type="color" 
+									value={customStylesConfig.rewindIconColor}
+									onChange={(e) => setCustomStylesConfig({...customStylesConfig, rewindIconColor: e.target.value})}
+									style={{ width: '100%', height: 32, cursor: 'pointer' }}
+								/>
+							</div>
+							<div>
+								<label style={{ display: 'block', fontSize: 11, marginBottom: 4 }}>
+									Forward Button:
+								</label>
+								<input 
+									type="color" 
+									value={customStylesConfig.forwardButtonColor}
+									onChange={(e) => setCustomStylesConfig({...customStylesConfig, forwardButtonColor: e.target.value})}
+									style={{ width: '100%', height: 32, cursor: 'pointer' }}
+								/>
+							</div>
+							<div>
+								<label style={{ display: 'block', fontSize: 11, marginBottom: 4 }}>
+									Forward Icon:
+								</label>
+								<input 
+									type="color" 
+									value={customStylesConfig.forwardIconColor}
+									onChange={(e) => setCustomStylesConfig({...customStylesConfig, forwardIconColor: e.target.value})}
+									style={{ width: '100%', height: 32, cursor: 'pointer' }}
+								/>
+							</div>
+						</div>
+						
+						<p style={{ fontSize: 13, marginBottom: 12, fontWeight: 500 }}>
+							Volume Control Colors:
+						</p>
+						<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+							<div>
+								<label style={{ display: 'block', fontSize: 11, marginBottom: 4 }}>
+									Slider Fill:
+								</label>
+								<input 
+									type="color" 
+									value={customStylesConfig.volumeSliderFillColor}
+									onChange={(e) => setCustomStylesConfig({...customStylesConfig, volumeSliderFillColor: e.target.value})}
+									style={{ width: '100%', height: 32, cursor: 'pointer' }}
+								/>
+							</div>
+							<div>
+								<label style={{ display: 'block', fontSize: 11, marginBottom: 4 }}>
+									Volume Icon:
+								</label>
+								<input 
+									type="color" 
+									value={customStylesConfig.volumeIconColor}
+									onChange={(e) => setCustomStylesConfig({...customStylesConfig, volumeIconColor: e.target.value})}
+									style={{ width: '100%', height: 32, cursor: 'pointer' }}
+								/>
+							</div>
+						</div>
+					</div>
+				)}
+				<p style={{ fontSize: 12, marginTop: 12, color: '#666' }}>
+					💡 The volume icon dynamically changes based on volume level (muted/low/medium/high). 
+					Click the volume icon to toggle mute/unmute!
+				</p>
+			</div>
+			
 			{/* Error handling demo */}
 			<div style={{ marginBottom: 12, padding: 12, backgroundColor: '#ffe8e8', borderRadius: 4 }}>
 				<h3>Error Handling Demo</h3>
@@ -292,6 +475,7 @@ export default function App() {
 						setError(err.message)
 						setPeaksReady(false)
 					}}
+					styles={customStyles ? customStylesConfig : undefined}
 				/>
 			</div>
 		</div>
