@@ -81,7 +81,7 @@ The `styles` prop accepts an object with the following optional properties:
 
 **Volume Control Colors:**
 - `volumeSliderFillColor` (string, default: '#111827'): Color of the volume slider fill and thumb.
-- `volumeIconColor` (string, default: '#374151'): Color of the volume icon. The icon dynamically changes based on volume level (muted, low, medium, high).
+- `volumeIconColor` (string, default: '#374151'): Color of the volume icon. The icon dynamically changes based on volume level (muted, low, high).
 
 **Example:**
 ```tsx
