@@ -64,6 +64,18 @@ import type { WaveformNavigatorProps } from 'waveform-navigator'
 - **`backgroundColor`** (string, default: 'transparent'): Background color of the waveform canvas.
 - **`playheadColor`** (string, default: '#ff4d4f'): Color of the playhead indicator.
 
+#### Control Color Customization Props
+
+Customize the appearance of playback controls (play, rewind, forward buttons, and volume slider):
+
+- **`playButtonColor`** (string, default: '#111827'): Background color of the play/pause button.
+- **`playIconColor`** (string, default: '#fff'): Color of the play/pause icon.
+- **`rewindButtonColor`** (string, default: '#fff'): Background color of the rewind button.
+- **`rewindIconColor`** (string, default: '#111827'): Color of the rewind icon.
+- **`forwardButtonColor`** (string, default: '#fff'): Background color of the forward button.
+- **`forwardIconColor`** (string, default: '#111827'): Color of the forward icon.
+- **`volumeSliderFillColor`** (string, default: '#111827'): Color of the volume slider fill and thumb.
+
 #### Controlled Props
 
 The component supports both controlled and uncontrolled modes for playback position:
@@ -187,6 +199,42 @@ function App() {
   );
 }
 ```
+
+### Custom Control Colors
+
+Customize the appearance of playback controls to match your app's theme:
+
+```tsx
+function App() {
+  return (
+    <div style={{ width: '100%', maxWidth: 1200 }}>
+      <WaveformNavigator 
+        audio="/path/to/audio.mp3"
+        // Waveform colors
+        barColor="#8b5cf6"
+        progressColor="#6d28d9"
+        playheadColor="#ec4899"
+        // Control colors
+        playButtonColor="#7c3aed"
+        playIconColor="#fff"
+        rewindButtonColor="#f3f4f6"
+        rewindIconColor="#6b7280"
+        forwardButtonColor="#f3f4f6"
+        forwardIconColor="#6b7280"
+        volumeSliderFillColor="#7c3aed"
+      />
+    </div>
+  );
+}
+```
+
+**Note:** The volume icon dynamically changes based on the volume level:
+- **Muted** (volume = 0): Shows a muted speaker icon with a slash
+- **Low** (volume < 33%): Shows a speaker with one sound wave
+- **Medium** (volume < 66%): Shows a speaker with two sound waves
+- **High** (volume ≥ 66%): Shows a speaker with three sound waves
+
+Clicking the volume icon toggles mute/unmute, automatically restoring the previous volume level when unmuted.
 
 ### Combining Ref Control with Event Callbacks
 

@@ -31,6 +31,11 @@ export default function App() {
 	
 	// Demo ref forwarding and showControls
 	const [showControls, setShowControls] = useState(true)
+	
+	// Demo color customization
+	const [customColors, setCustomColors] = useState(false)
+	const [playButtonColor, setPlayButtonColor] = useState('#111827')
+	const [volumeSliderFillColor, setVolumeSliderFillColor] = useState('#111827')
 
 	const handleProgrammaticPlay = async () => {
 		await waveformRef.current?.resumeAudioContext()
@@ -221,6 +226,56 @@ export default function App() {
 				)}
 			</div>
 			
+			{/* Color customization demo */}
+			<div style={{ marginBottom: 12, padding: 12, backgroundColor: '#f0e8f8', borderRadius: 4 }}>
+				<h3>🎨 Control Color Customization Demo (NEW)</h3>
+				<div style={{ marginBottom: 8 }}>
+					<label>
+						<input 
+							type="checkbox" 
+							checked={customColors} 
+							onChange={(e) => setCustomColors(e.target.checked)}
+						/>
+						Enable Custom Colors
+					</label>
+					<p style={{ fontSize: 12, marginTop: 4 }}>
+						{customColors 
+							? '🎨 Custom colors applied to controls' 
+							: '⚪ Using default control colors'}
+					</p>
+				</div>
+				{customColors && (
+					<div style={{ marginTop: 12, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+						<div>
+							<label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>
+								Play Button Color:
+							</label>
+							<input 
+								type="color" 
+								value={playButtonColor}
+								onChange={(e) => setPlayButtonColor(e.target.value)}
+								style={{ cursor: 'pointer' }}
+							/>
+						</div>
+						<div>
+							<label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>
+								Volume Slider Fill:
+							</label>
+							<input 
+								type="color" 
+								value={volumeSliderFillColor}
+								onChange={(e) => setVolumeSliderFillColor(e.target.value)}
+								style={{ cursor: 'pointer' }}
+							/>
+						</div>
+					</div>
+				)}
+				<p style={{ fontSize: 12, marginTop: 8, color: '#666' }}>
+					💡 The volume icon dynamically changes based on volume level (muted/low/medium/high). 
+					Click the volume icon to toggle mute/unmute!
+				</p>
+			</div>
+			
 			{/* Error handling demo */}
 			<div style={{ marginBottom: 12, padding: 12, backgroundColor: '#ffe8e8', borderRadius: 4 }}>
 				<h3>Error Handling Demo</h3>
@@ -292,6 +347,10 @@ export default function App() {
 						setError(err.message)
 						setPeaksReady(false)
 					}}
+					{...(customColors && {
+						playButtonColor,
+						volumeSliderFillColor
+					})}
 				/>
 			</div>
 		</div>
