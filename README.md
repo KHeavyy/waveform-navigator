@@ -89,7 +89,147 @@ The component supports both controlled and uncontrolled modes for playback posit
 - **`disableKeyboardControls`** (boolean, default: false): Disable built-in keyboard navigation. Set to `true` if you want to implement custom keyboard handling.
 - **`ariaLabel`** (string, default: 'Audio waveform seek bar'): Accessible label for the waveform control, announced to screen readers.
 
+#### UI Control Props
+
+- **`showControls`** (boolean, default: true): Show or hide the built-in playback controls. Set to `false` to display only the waveform, useful when implementing custom controls or minimal UI. When hidden, you can control playback programmatically using the component ref.
+
+### Programmatic Control (Ref Forwarding)
+
+The component supports ref forwarding to expose imperative methods for programmatic control. This is useful for implementing custom UI controls or controlling playback from parent components.
+
+#### Ref Handle Type
+
+```tsx
+import type { WaveformNavigatorHandle } from 'waveform-navigator';
+
+interface WaveformNavigatorHandle {
+  play: () => Promise<void>;
+  pause: () => void;
+  seek: (time: number) => void;
+  resumeAudioContext: () => Promise<void>;
+}
+```
+
+#### Methods
+
+- **`play()`**: Start or resume audio playback. Returns a Promise that resolves when playback starts.
+- **`pause()`**: Pause audio playback.
+- **`seek(time)`**: Seek to a specific time in seconds.
+- **`resumeAudioContext()`**: Resume any suspended AudioContext (required for Safari/iOS before playing audio). Returns a Promise that resolves when the context is resumed.
+
 ## Usage Examples
+
+### Programmatic Control with Custom UI
+
+Control playback from parent component without showing built-in controls:
+
+```tsx
+import { useRef } from 'react';
+import WaveformNavigator from 'waveform-navigator';
+import type { WaveformNavigatorHandle } from 'waveform-navigator';
+import 'waveform-navigator/styles.css';
+
+function App() {
+  const waveformRef = useRef<WaveformNavigatorHandle>(null);
+  
+  const handlePlay = async () => {
+    // Resume AudioContext first (required for Safari/iOS)
+    await waveformRef.current?.resumeAudioContext();
+    await waveformRef.current?.play();
+  };
+  
+  const handlePause = () => {
+    waveformRef.current?.pause();
+  };
+  
+  const handleSeekTo30 = () => {
+    waveformRef.current?.seek(30);
+  };
+  
+  return (
+    <div>
+      <WaveformNavigator 
+        ref={waveformRef}
+        audio="/path/to/audio.mp3"
+        width={900}
+        height={140}
+        showControls={false}  // Hide built-in controls
+      />
+      
+      {/* Custom controls */}
+      <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+        <button onClick={handlePlay}>Play</button>
+        <button onClick={handlePause}>Pause</button>
+        <button onClick={handleSeekTo30}>Jump to 30s</button>
+      </div>
+    </div>
+  );
+}
+```
+
+### Minimal Waveform-Only UI
+
+Display only the waveform for visualization purposes:
+
+```tsx
+function App() {
+  return (
+    <div style={{ width: '100%', maxWidth: 1200 }}>
+      <WaveformNavigator 
+        audio="/path/to/audio.mp3"
+        height={80}
+        showControls={false}
+        barColor="#38bdf8"
+        progressColor="#0284c7"
+        playheadColor="#f43f5e"
+      />
+    </div>
+  );
+}
+```
+
+### Combining Ref Control with Event Callbacks
+
+```tsx
+function App() {
+  const waveformRef = useRef<WaveformNavigatorHandle>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  
+  const togglePlayback = async () => {
+    if (isPlaying) {
+      waveformRef.current?.pause();
+    } else {
+      await waveformRef.current?.resumeAudioContext();
+      await waveformRef.current?.play();
+    }
+  };
+  
+  return (
+    <div>
+      <WaveformNavigator 
+        ref={waveformRef}
+        audio="/path/to/audio.mp3"
+        width={900}
+        height={140}
+        showControls={false}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onTimeUpdate={setCurrentTime}
+      />
+      
+      <div style={{ marginTop: 16 }}>
+        <button onClick={togglePlayback}>
+          {isPlaying ? 'Pause' : 'Play'}
+        </button>
+        <span style={{ marginLeft: 16 }}>
+          Current time: {currentTime.toFixed(2)}s
+        </span>
+      </div>
+    </div>
+  );
+}
+```
 
 ### Uncontrolled Mode (Default)
 
