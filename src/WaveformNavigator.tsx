@@ -17,6 +17,28 @@ export interface WaveformNavigatorHandle {
 	resumeAudioContext: () => Promise<void>;
 }
 
+/**
+ * Style configuration for WaveformNavigator appearance.
+ * All color and visual properties can be customized via this object.
+ */
+export interface WaveformNavigatorStyles {
+	// Waveform visual styles
+	barColor?: string;
+	progressColor?: string;
+	backgroundColor?: string;
+	playheadColor?: string;
+	// Control button styles
+	playButtonColor?: string;
+	playIconColor?: string;
+	rewindButtonColor?: string;
+	rewindIconColor?: string;
+	forwardButtonColor?: string;
+	forwardIconColor?: string;
+	// Volume control styles
+	volumeSliderFillColor?: string;
+	volumeIconColor?: string;
+}
+
 export interface WaveformNavigatorProps {
 	audio: AudioProp;
 	width?: number;
@@ -25,18 +47,12 @@ export interface WaveformNavigatorProps {
 	// visual customizations
 	barWidth?: number;
 	gap?: number;
-	barColor?: string;
-	progressColor?: string;
-	backgroundColor?: string;
-	playheadColor?: string;
-	// control color customizations
-	playButtonColor?: string;
-	playIconColor?: string;
-	rewindButtonColor?: string;
-	rewindIconColor?: string;
-	forwardButtonColor?: string;
-	forwardIconColor?: string;
-	volumeSliderFillColor?: string;
+	/**
+	 * Style configuration object for colors and visual customization.
+	 * Provides a centralized way to configure all visual aspects.
+	 * Example: styles={{ barColor: '#2b6ef6', playButtonColor: '#000' }}
+	 */
+	styles?: WaveformNavigatorStyles;
 	// responsive props
 	responsive?: boolean;
 	responsiveDebounceMs?: number;
@@ -71,17 +87,7 @@ const WaveformNavigator = React.forwardRef<WaveformNavigatorHandle, WaveformNavi
 	className = '',
 	barWidth = 3,
 	gap = 2,
-	barColor = '#2b6ef6',
-	progressColor = '#0747a6',
-	backgroundColor = 'transparent',
-	playheadColor = '#ff4d4f',
-	playButtonColor,
-	playIconColor,
-	rewindButtonColor,
-	rewindIconColor,
-	forwardButtonColor,
-	forwardIconColor,
-	volumeSliderFillColor,
+	styles = {},
 	responsive = true,
 	responsiveDebounceMs = 150,
 	workerUrl,
@@ -105,6 +111,22 @@ const WaveformNavigator = React.forwardRef<WaveformNavigatorHandle, WaveformNavi
 	const [hoverX, setHoverX] = useState<number | null>(null);
 	const [hoverTime, setHoverTime] = useState<number | null>(null);
 	const [errorState, setErrorState] = useState<{ message: string; type: 'audio' | 'waveform' } | null>(null);
+
+	// Extract style values with defaults
+	const {
+		barColor = '#2b6ef6',
+		progressColor = '#0747a6',
+		backgroundColor = 'transparent',
+		playheadColor = '#ff4d4f',
+		playButtonColor = '#111827',
+		playIconColor = '#fff',
+		rewindButtonColor = '#fff',
+		rewindIconColor = '#111827',
+		forwardButtonColor = '#fff',
+		forwardIconColor = '#111827',
+		volumeSliderFillColor = '#111827',
+		volumeIconColor = '#374151'
+	} = styles;
 
 	// Clear error state when audio prop changes
 	useEffect(() => {
@@ -320,13 +342,16 @@ const WaveformNavigator = React.forwardRef<WaveformNavigatorHandle, WaveformNavi
 					onTogglePlay={togglePlay}
 					onSeek={seek}
 					onVolumeChange={setVolume}
-					playButtonColor={playButtonColor}
-					playIconColor={playIconColor}
-					rewindButtonColor={rewindButtonColor}
-					rewindIconColor={rewindIconColor}
-					forwardButtonColor={forwardButtonColor}
-					forwardIconColor={forwardIconColor}
-					volumeSliderFillColor={volumeSliderFillColor}
+					styles={{
+						playButtonColor,
+						playIconColor,
+						rewindButtonColor,
+						rewindIconColor,
+						forwardButtonColor,
+						forwardIconColor,
+						volumeSliderFillColor,
+						volumeIconColor
+					}}
 				/>
 			)}
 		</div>

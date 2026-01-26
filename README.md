@@ -59,22 +59,46 @@ import type { WaveformNavigatorProps } from 'waveform-navigator'
 
 - **`barWidth`** (number, default: 3): Width of each waveform bar in pixels.
 - **`gap`** (number, default: 2): Gap between waveform bars in pixels.
-- **`barColor`** (string, default: '#2b6ef6'): Color of the waveform bars.
-- **`progressColor`** (string, default: '#0747a6'): Color of the played portion of the waveform.
-- **`backgroundColor`** (string, default: 'transparent'): Background color of the waveform canvas.
-- **`playheadColor`** (string, default: '#ff4d4f'): Color of the playhead indicator.
+- **`styles`** (WaveformNavigatorStyles | undefined): A centralized style configuration object for customizing all visual aspects of the waveform and controls. Provides a clean way to configure colors without needing individual props for each element.
 
-#### Control Color Customization Props
+##### WaveformNavigatorStyles Interface
 
-Customize the appearance of playback controls (play, rewind, forward buttons, and volume slider):
+The `styles` prop accepts an object with the following optional properties:
 
-- **`playButtonColor`** (string, default: '#111827'): Background color of the play/pause button.
-- **`playIconColor`** (string, default: '#fff'): Color of the play/pause icon.
-- **`rewindButtonColor`** (string, default: '#fff'): Background color of the rewind button.
-- **`rewindIconColor`** (string, default: '#111827'): Color of the rewind icon.
-- **`forwardButtonColor`** (string, default: '#fff'): Background color of the forward button.
-- **`forwardIconColor`** (string, default: '#111827'): Color of the forward icon.
-- **`volumeSliderFillColor`** (string, default: '#111827'): Color of the volume slider fill and thumb.
+**Waveform Colors:**
+- `barColor` (string, default: '#2b6ef6'): Color of the waveform bars.
+- `progressColor` (string, default: '#0747a6'): Color of the played portion of the waveform.
+- `backgroundColor` (string, default: 'transparent'): Background color of the waveform canvas.
+- `playheadColor` (string, default: '#ff4d4f'): Color of the playhead indicator.
+
+**Control Button Colors:**
+- `playButtonColor` (string, default: '#111827'): Background color of the play/pause button.
+- `playIconColor` (string, default: '#fff'): Color of the play/pause icon.
+- `rewindButtonColor` (string, default: '#fff'): Background color of the rewind button.
+- `rewindIconColor` (string, default: '#111827'): Color of the rewind icon.
+- `forwardButtonColor` (string, default: '#fff'): Background color of the forward button.
+- `forwardIconColor` (string, default: '#111827'): Color of the forward icon.
+
+**Volume Control Colors:**
+- `volumeSliderFillColor` (string, default: '#111827'): Color of the volume slider fill and thumb.
+- `volumeIconColor` (string, default: '#374151'): Color of the volume icon. The icon dynamically changes based on volume level (muted, low, medium, high).
+
+**Example:**
+```tsx
+<WaveformNavigator 
+  audio="/audio.mp3"
+  styles={{
+    barColor: '#8b5cf6',
+    progressColor: '#6d28d9',
+    playheadColor: '#ec4899',
+    playButtonColor: '#7c3aed',
+    playIconColor: '#fff',
+    volumeSliderFillColor: '#7c3aed'
+  }}
+/>
+```
+
+**Note:** The volume icon is clickable and will toggle mute/unmute. When unmuted, it automatically restores the previous volume level.
 
 #### Controlled Props
 
@@ -191,18 +215,20 @@ function App() {
         audio="/path/to/audio.mp3"
         height={80}
         showControls={false}
-        barColor="#38bdf8"
-        progressColor="#0284c7"
-        playheadColor="#f43f5e"
+        styles={{
+          barColor: "#38bdf8",
+          progressColor: "#0284c7",
+          playheadColor: "#f43f5e"
+        }}
       />
     </div>
   );
 }
 ```
 
-### Custom Control Colors
+### Custom Styled Controls
 
-Customize the appearance of playback controls to match your app's theme:
+Customize the appearance of the waveform and playback controls:
 
 ```tsx
 function App() {
@@ -210,31 +236,35 @@ function App() {
     <div style={{ width: '100%', maxWidth: 1200 }}>
       <WaveformNavigator 
         audio="/path/to/audio.mp3"
-        // Waveform colors
-        barColor="#8b5cf6"
-        progressColor="#6d28d9"
-        playheadColor="#ec4899"
-        // Control colors
-        playButtonColor="#7c3aed"
-        playIconColor="#fff"
-        rewindButtonColor="#f3f4f6"
-        rewindIconColor="#6b7280"
-        forwardButtonColor="#f3f4f6"
-        forwardIconColor="#6b7280"
-        volumeSliderFillColor="#7c3aed"
+        styles={{
+          // Waveform colors
+          barColor: '#8b5cf6',
+          progressColor: '#6d28d9',
+          playheadColor: '#ec4899',
+          // Control button colors
+          playButtonColor: '#7c3aed',
+          playIconColor: '#fff',
+          rewindButtonColor: '#f3f4f6',
+          rewindIconColor: '#6b7280',
+          forwardButtonColor: '#f3f4f6',
+          forwardIconColor: '#6b7280',
+          // Volume control colors
+          volumeSliderFillColor: '#7c3aed',
+          volumeIconColor: '#6b7280'
+        }}
       />
     </div>
   );
 }
 ```
 
-**Note:** The volume icon dynamically changes based on the volume level:
-- **Muted** (volume = 0): Shows a muted speaker icon with a slash
-- **Low** (volume < 33%): Shows a speaker with one sound wave
-- **Medium** (volume < 66%): Shows a speaker with two sound waves
-- **High** (volume ≥ 66%): Shows a speaker with three sound waves
+**Note:** The volume icon automatically changes based on the volume level:
+- **Muted** (0%): Speaker with slash
+- **Low** (< 33%): Speaker with one sound wave
+- **Medium** (< 66%): Speaker with two sound waves
+- **High** (≥ 66%): Speaker with three sound waves
 
-Clicking the volume icon toggles mute/unmute, automatically restoring the previous volume level when unmuted.
+Click the volume icon to toggle mute/unmute. When unmuted, it restores the previous volume level.
 
 ### Combining Ref Control with Event Callbacks
 

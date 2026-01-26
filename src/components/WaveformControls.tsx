@@ -1,6 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { formatTime } from '../utils';
 
+/**
+ * Style configuration for WaveformControls appearance.
+ */
+export interface WaveformControlsStyles {
+	playButtonColor?: string;
+	playIconColor?: string;
+	rewindButtonColor?: string;
+	rewindIconColor?: string;
+	forwardButtonColor?: string;
+	forwardIconColor?: string;
+	volumeSliderFillColor?: string;
+	volumeIconColor?: string;
+}
+
 export interface WaveformControlsProps {
 	isPlaying: boolean;
 	displayTime: number;
@@ -9,14 +23,11 @@ export interface WaveformControlsProps {
 	onTogglePlay: () => void;
 	onSeek: (delta: number) => void;
 	onVolumeChange: (volume: number) => void;
-	// Color customization props
-	playButtonColor?: string;
-	playIconColor?: string;
-	rewindButtonColor?: string;
-	rewindIconColor?: string;
-	forwardButtonColor?: string;
-	forwardIconColor?: string;
-	volumeSliderFillColor?: string;
+	/**
+	 * Style configuration object for control colors.
+	 * Example: styles={{ playButtonColor: '#000', volumeSliderFillColor: '#f00' }}
+	 */
+	styles?: WaveformControlsStyles;
 }
 
 export const WaveformControls: React.FC<WaveformControlsProps> = ({
@@ -27,14 +38,20 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 	onTogglePlay,
 	onSeek,
 	onVolumeChange,
-	playButtonColor = '#111827',
-	playIconColor = '#fff',
-	rewindButtonColor = '#fff',
-	rewindIconColor = '#111827',
-	forwardButtonColor = '#fff',
-	forwardIconColor = '#111827',
-	volumeSliderFillColor = '#111827'
+	styles = {}
 }) => {
+	// Extract style values with defaults
+	const {
+		playButtonColor = '#111827',
+		playIconColor = '#fff',
+		rewindButtonColor = '#fff',
+		rewindIconColor = '#111827',
+		forwardButtonColor = '#fff',
+		forwardIconColor = '#111827',
+		volumeSliderFillColor = '#111827',
+		volumeIconColor = '#374151'
+	} = styles;
+
 	// Track previous volume for mute/restore functionality
 	const previousVolumeRef = useRef(volume);
 
@@ -51,33 +68,33 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 			// Muted icon
 			return (
 				<svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">
-					<path d="M5 9v6h4l5 4V5L9 9H5z" fill="#374151" />
-					<line x1="17" y1="8" x2="22" y2="13" stroke="#374151" strokeWidth="2" strokeLinecap="round" />
-					<line x1="22" y1="8" x2="17" y2="13" stroke="#374151" strokeWidth="2" strokeLinecap="round" />
+					<path d="M5 9v6h4l5 4V5L9 9H5z" fill={volumeIconColor} />
+					<line x1="17" y1="8" x2="22" y2="13" stroke={volumeIconColor} strokeWidth="2" strokeLinecap="round" />
+					<line x1="22" y1="8" x2="17" y2="13" stroke={volumeIconColor} strokeWidth="2" strokeLinecap="round" />
 				</svg>
 			);
 		} else if (volume < 0.33) {
 			// Low volume icon
 			return (
 				<svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">
-					<path d="M5 9v6h4l5 4V5L9 9H5z" fill="#374151" />
-					<path d="M15.54 8.46a5 5 0 0 1 0 7.07" stroke="#374151" strokeWidth="2" strokeLinecap="round" />
+					<path d="M5 9v6h4l5 4V5L9 9H5z" fill={volumeIconColor} />
+					<path d="M15.54 8.46a5 5 0 0 1 0 7.07" stroke={volumeIconColor} strokeWidth="2" strokeLinecap="round" />
 				</svg>
 			);
 		} else if (volume < 0.66) {
 			// Medium volume icon
 			return (
 				<svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">
-					<path d="M5 9v6h4l5 4V5L9 9H5z" fill="#374151" />
-					<path d="M15.54 8.46a5 5 0 0 1 0 7.07M18.36 5.64a9 9 0 0 1 0 12.73" stroke="#374151" strokeWidth="2" strokeLinecap="round" />
+					<path d="M5 9v6h4l5 4V5L9 9H5z" fill={volumeIconColor} />
+					<path d="M15.54 8.46a5 5 0 0 1 0 7.07M18.36 5.64a9 9 0 0 1 0 12.73" stroke={volumeIconColor} strokeWidth="2" strokeLinecap="round" />
 				</svg>
 			);
 		} else {
 			// High volume icon
 			return (
 				<svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">
-					<path d="M5 9v6h4l5 4V5L9 9H5z" fill="#374151" />
-					<path d="M15.54 8.46a5 5 0 0 1 0 7.07M18.36 5.64a9 9 0 0 1 0 12.73M21 3a13 13 0 0 1 0 18" stroke="#374151" strokeWidth="2" strokeLinecap="round" />
+					<path d="M5 9v6h4l5 4V5L9 9H5z" fill={volumeIconColor} />
+					<path d="M15.54 8.46a5 5 0 0 1 0 7.07M18.36 5.64a9 9 0 0 1 0 12.73M21 3a13 13 0 0 1 0 18" stroke={volumeIconColor} strokeWidth="2" strokeLinecap="round" />
 				</svg>
 			);
 		}
@@ -161,8 +178,7 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 					onChange={(e) => onVolumeChange(Number(e.target.value))} 
 					aria-label="volume"
 					style={{
-						'--volume-fill-color': volumeSliderFillColor,
-						'--volume-percent': `${volume * 100}%`
+						'--volume-fill-color': volumeSliderFillColor
 					} as React.CSSProperties}
 				/>
 			</div>
