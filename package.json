@@ -56,6 +56,7 @@
     "build": "npm run clean && vite build && vite build --mode worker",
     "build:watch": "vite build --watch",
     "type-check": "tsc --noEmit",
+    "lint": "npm run type-check",
     "prepublishOnly": "npm run type-check && npm test",
     "prepare": "npm run build",
     "dev": "concurrently \"npm run build:watch\" \"(cd demo && npm run dev)\""

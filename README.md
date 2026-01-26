@@ -820,7 +820,7 @@ npm run build:watch
 This project uses GitHub Actions for continuous integration. The CI pipeline runs on every push and pull request:
 
 - **Lint and Type Check:** Validates code quality and type safety
-- **Unit Tests:** Runs unit tests with coverage reporting (Node 18 & 20)
+- **Unit Tests:** Runs unit tests with coverage reporting (Node 20)
 - **Integration Tests:** Runs e2e tests with Playwright
 - **Visual Tests:** Compares visual snapshots against baselines
 - **Build:** Ensures the library builds successfully
