@@ -1,6 +1,6 @@
 import React from 'react'
 import { render, fireEvent, waitFor } from '@testing-library/react'
-import { vi } from 'vitest'
+import { vi, describe, afterEach, expect, it } from 'vitest'
 
 import WaveformNavigator from '../WaveformNavigator'
 

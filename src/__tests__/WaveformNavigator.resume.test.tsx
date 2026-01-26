@@ -1,6 +1,6 @@
 import React, { useRef } from 'react'
 import { render } from '@testing-library/react'
-import { vi } from 'vitest'
+import { vi, describe, it, expect } from 'vitest'
 import WaveformNavigator from '../WaveformNavigator'
 
 describe('WaveformNavigator resumeAudioContext', () => {
