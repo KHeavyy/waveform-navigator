@@ -29,59 +29,60 @@
 .controls .speaker:hover{ background:rgba(15,23,42,0.04) }
 .controls .vol-range{ 
 	width:140px;
+	height: 4px;
 	-webkit-appearance: none;
 	appearance: none;
 	background: transparent;
 	cursor: pointer;
+	outline: none;
 }
 
-/* Webkit/Blink browsers (Chrome, Safari, Edge) */
+/* Webkit/Blink browsers (Chrome, Safari, Edge) - Track */
 .controls .vol-range::-webkit-slider-track {
 	height: 4px;
-	background: #e5e7eb;
-	border-radius: 2px;
-}
-
-.controls .vol-range::-webkit-slider-thumb {
-	-webkit-appearance: none;
-	appearance: none;
-	width: 14px;
-	height: 14px;
-	border-radius: 50%;
-	background: var(--volume-fill-color, #111827);
-	cursor: pointer;
-	margin-top: -5px;
-}
-
-/* Firefox */
-.controls .vol-range::-moz-range-track {
-	height: 4px;
-	background: #e5e7eb;
-	border-radius: 2px;
-}
-
-.controls .vol-range::-moz-range-thumb {
-	width: 14px;
-	height: 14px;
-	border: none;
-	border-radius: 50%;
-	background: var(--volume-fill-color, #111827);
-	cursor: pointer;
-}
-
-/* Create the filled portion effect using a gradient */
-.controls .vol-range::-webkit-slider-track {
 	background: linear-gradient(to right, 
 		var(--volume-fill-color, #111827) 0%, 
 		var(--volume-fill-color, #111827) var(--volume-percent, 100%), 
 		#e5e7eb var(--volume-percent, 100%), 
 		#e5e7eb 100%);
+	border-radius: 2px;
 }
 
+/* Webkit/Blink browsers - Thumb */
+.controls .vol-range::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	background: var(--volume-fill-color, #111827);
+	cursor: pointer;
+	margin-top: -4px;
+}
+
+/* Firefox - Track */
+.controls .vol-range::-moz-range-track {
+	height: 4px;
+	background: #e5e7eb;
+	border-radius: 2px;
+	border: none;
+}
+
+/* Firefox - Progress (filled portion) */
 .controls .vol-range::-moz-range-progress {
 	height: 4px;
 	background: var(--volume-fill-color, #111827);
 	border-radius: 2px;
+}
+
+/* Firefox - Thumb */
+.controls .vol-range::-moz-range-thumb {
+	width: 12px;
+	height: 12px;
+	border: none;
+	border-radius: 50%;
+	background: var(--volume-fill-color, #111827);
+	cursor: pointer;
 }
 
 /* Hover timestamp and vertical line */
