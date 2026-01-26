@@ -17,16 +17,157 @@
 .waveform-canvas{ display:block; width:100%; height:120px; cursor: pointer; border-radius:8px; box-shadow: 0 6px 18px rgba(16,24,40,0.06); background: transparent; }
 .controls{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px }
 .controls .left{ min-width:160px }
-.controls .time{ color:#374151; font-size:0.95rem }
+.controls .time{ color:#374151; font-size:0.95rem; font-weight: 500; }
 .controls .center{ display:flex; gap:14px; align-items:center; justify-content:center }
-.controls .ctrl{ background:transparent; border:none; border-radius:8px; padding:8px; cursor:pointer; display:flex; align-items:center; justify-content:center }
-.controls .ctrl:hover{ background:rgba(15,23,42,0.04) }
-.controls .play{ background:#111827; width:56px; height:56px; border-radius:9999px; display:inline-flex; align-items:center; justify-content:center; box-shadow: 0 6px 18px rgba(17,24,39,0.12); border:none; cursor:pointer }
+.controls .ctrl{ 
+	background:transparent; 
+	border:none; 
+	border-radius:10px; 
+	padding:8px; 
+	cursor:pointer; 
+	display:flex; 
+	align-items:center; 
+	justify-content:center;
+	transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.controls .ctrl:hover{ 
+	background:rgba(15,23,42,0.06);
+	transform: scale(1.05);
+}
+.controls .ctrl:active{ 
+	transform: scale(0.98);
+}
+.controls .play{ 
+	background:#111827; 
+	width:56px; 
+	height:56px; 
+	border-radius:9999px; 
+	display:inline-flex; 
+	align-items:center; 
+	justify-content:center; 
+	box-shadow: 0 8px 24px rgba(17,24,39,0.15), 0 2px 6px rgba(17,24,39,0.1); 
+	border:none; 
+	cursor:pointer;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.controls .play:hover{
+	box-shadow: 0 12px 32px rgba(17,24,39,0.2), 0 4px 8px rgba(17,24,39,0.12);
+	transform: scale(1.08);
+}
+.controls .play:active{
+	transform: scale(1.02);
+}
 .controls .play svg path, .controls .play svg rect{ fill:#fff }
-.controls .rewind, .controls .forward{ width:44px; height:44px; border-radius:10px; background:#fff; box-shadow: 0 1px 2px rgba(16,24,40,0.04); border:1px solid #e6e9ef }
+.controls .rewind, .controls .forward{ 
+	width:44px; 
+	height:44px; 
+	border-radius:10px; 
+	background:#fff; 
+	box-shadow: 0 2px 8px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04); 
+	border:1px solid #e5e7eb;
+	transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.controls .rewind:hover, .controls .forward:hover{
+	box-shadow: 0 4px 12px rgba(16,24,40,0.1), 0 2px 4px rgba(16,24,40,0.06);
+	border-color: #d1d5db;
+}
 .controls .right{ display:flex; align-items:center; gap:8px }
-.controls .speaker{ display:flex; align-items:center; justify-content:center; padding:6px }
-.controls .vol-range{ width:140px }
+.controls .speaker{ 
+	display:flex; 
+	align-items:center; 
+	justify-content:center; 
+	padding:6px;
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	border-radius: 6px;
+	transition: all 0.2s ease;
+}
+.controls .speaker:hover{
+	background: rgba(15,23,42,0.04);
+}
+.controls .speaker:active{
+	transform: scale(0.95);
+}
+.controls .vol-range{ 
+	width:140px;
+	height: 6px;
+	-webkit-appearance: none;
+	appearance: none;
+	background: transparent;
+	outline: none;
+	border-radius: 10px;
+}
+
+/* Volume slider track */
+.controls .vol-range::-webkit-slider-runnable-track {
+	width: 100%;
+	height: 6px;
+	cursor: pointer;
+	background: linear-gradient(to right, 
+		var(--volume-fill-color, #111827) 0%, 
+		var(--volume-fill-color, #111827) var(--volume-percent, 50%), 
+		#e5e7eb var(--volume-percent, 50%), 
+		#e5e7eb 100%);
+	border-radius: 10px;
+	transition: background 0.15s ease;
+}
+
+.controls .vol-range::-moz-range-track {
+	width: 100%;
+	height: 6px;
+	cursor: pointer;
+	background: #e5e7eb;
+	border-radius: 10px;
+}
+
+.controls .vol-range::-moz-range-progress {
+	height: 6px;
+	background: var(--volume-fill-color, #111827);
+	border-radius: 10px;
+}
+
+/* Volume slider thumb */
+.controls .vol-range::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 16px;
+	height: 16px;
+	background: var(--volume-fill-color, #111827);
+	cursor: pointer;
+	border-radius: 50%;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+	transition: all 0.2s ease;
+}
+
+.controls .vol-range::-moz-range-thumb {
+	width: 16px;
+	height: 16px;
+	background: var(--volume-fill-color, #111827);
+	cursor: pointer;
+	border: none;
+	border-radius: 50%;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+	transition: all 0.2s ease;
+}
+
+.controls .vol-range:hover::-webkit-slider-thumb {
+	transform: scale(1.2);
+	box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+}
+
+.controls .vol-range:hover::-moz-range-thumb {
+	transform: scale(1.2);
+	box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+}
+
+.controls .vol-range:active::-webkit-slider-thumb {
+	transform: scale(1.1);
+}
+
+.controls .vol-range:active::-moz-range-thumb {
+	transform: scale(1.1);
+}
 
 /* Hover timestamp and vertical line */
 .waveform-navigator{ position: relative }

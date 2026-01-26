@@ -29,6 +29,14 @@ export interface WaveformNavigatorProps {
 	progressColor?: string;
 	backgroundColor?: string;
 	playheadColor?: string;
+	// control color customizations
+	playButtonColor?: string;
+	playIconColor?: string;
+	rewindButtonColor?: string;
+	rewindIconColor?: string;
+	forwardButtonColor?: string;
+	forwardIconColor?: string;
+	volumeSliderFillColor?: string;
 	// responsive props
 	responsive?: boolean;
 	responsiveDebounceMs?: number;
@@ -67,6 +75,13 @@ const WaveformNavigator = React.forwardRef<WaveformNavigatorHandle, WaveformNavi
 	progressColor = '#0747a6',
 	backgroundColor = 'transparent',
 	playheadColor = '#ff4d4f',
+	playButtonColor,
+	playIconColor,
+	rewindButtonColor,
+	rewindIconColor,
+	forwardButtonColor,
+	forwardIconColor,
+	volumeSliderFillColor,
 	responsive = true,
 	responsiveDebounceMs = 150,
 	workerUrl,
@@ -305,6 +320,13 @@ const WaveformNavigator = React.forwardRef<WaveformNavigatorHandle, WaveformNavi
 					onTogglePlay={togglePlay}
 					onSeek={seek}
 					onVolumeChange={setVolume}
+					playButtonColor={playButtonColor}
+					playIconColor={playIconColor}
+					rewindButtonColor={rewindButtonColor}
+					rewindIconColor={rewindIconColor}
+					forwardButtonColor={forwardButtonColor}
+					forwardIconColor={forwardIconColor}
+					volumeSliderFillColor={volumeSliderFillColor}
 				/>
 			)}
 		</div>
