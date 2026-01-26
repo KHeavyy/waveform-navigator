@@ -1,8 +1,10 @@
 import React, { useRef, useState } from 'react'
 import WaveformNavigator from '../../src'
+import type { WaveformNavigatorHandle } from '../../src'
 
 export default function App() {
 	const audioRef = useRef<HTMLAudioElement | null>(null)
+	const waveformRef = useRef<WaveformNavigatorHandle>(null)
 	// Hardcoded demo audio path (served from demo/media/Demo.mp3)
 	const demoAudioPath = '/media/Demo.mp3'
 	
@@ -26,6 +28,22 @@ export default function App() {
 	
 	// Demo error simulation
 	const [testAudioPath, setTestAudioPath] = useState(demoAudioPath)
+	
+	// Demo ref forwarding and showControls
+	const [showControls, setShowControls] = useState(true)
+
+	const handleProgrammaticPlay = async () => {
+		await waveformRef.current?.resumeAudioContext()
+		await waveformRef.current?.play()
+	}
+
+	const handleProgrammaticPause = () => {
+		waveformRef.current?.pause()
+	}
+
+	const handleProgrammaticSeek = (time: number) => {
+		waveformRef.current?.seek(time)
+	}
 
 	return (
 		<div style={{ padding: 24 }}>
@@ -148,6 +166,61 @@ export default function App() {
 				</p>
 			</div>
 			
+			{/* Ref forwarding and minimal UI demo */}
+			<div style={{ marginBottom: 12, padding: 12, backgroundColor: '#e8e8f8', borderRadius: 4 }}>
+				<h3>Programmatic Control & Minimal UI Demo (NEW)</h3>
+				<div style={{ marginBottom: 8 }}>
+					<label>
+						<input 
+							type="checkbox" 
+							checked={showControls} 
+							onChange={(e) => setShowControls(e.target.checked)}
+						/>
+						Show Built-in Controls
+					</label>
+					<p style={{ fontSize: 12, marginTop: 4 }}>
+						{showControls 
+							? '✅ Showing built-in playback controls' 
+							: '⚠️ Controls hidden - use programmatic control below'}
+					</p>
+				</div>
+				{!showControls && (
+					<div style={{ marginTop: 12 }}>
+						<p style={{ fontSize: 14, marginBottom: 8 }}><strong>Custom Controls (using ref):</strong></p>
+						<button 
+							onClick={handleProgrammaticPlay}
+							style={{ marginRight: 8, marginBottom: 8 }}
+						>
+							▶️ Play (Programmatic)
+						</button>
+						<button 
+							onClick={handleProgrammaticPause}
+							style={{ marginRight: 8, marginBottom: 8 }}
+						>
+							⏸ Pause (Programmatic)
+						</button>
+						<button 
+							onClick={() => handleProgrammaticSeek(0)}
+							style={{ marginRight: 8, marginBottom: 8 }}
+						>
+							⏮ Seek to 0s
+						</button>
+						<button 
+							onClick={() => handleProgrammaticSeek(15)}
+							style={{ marginRight: 8, marginBottom: 8 }}
+						>
+							Seek to 15s
+						</button>
+						<button 
+							onClick={() => handleProgrammaticSeek(30)}
+							style={{ marginBottom: 8 }}
+						>
+							⏭ Seek to 30s
+						</button>
+					</div>
+				)}
+			</div>
+			
 			{/* Error handling demo */}
 			<div style={{ marginBottom: 12, padding: 12, backgroundColor: '#ffe8e8', borderRadius: 4 }}>
 				<h3>Error Handling Demo</h3>
@@ -190,11 +263,13 @@ export default function App() {
 			
 			<div style={{ width: responsiveEnabled ? '100%' : containerWidth, maxWidth: containerWidth, transition: 'width 0.3s' }}>
 				<WaveformNavigator 
+					ref={waveformRef}
 					audio={testAudioPath} 
 					width={900} 
 					height={140}
 					responsive={responsiveEnabled}
 					forceMainThread={forceMainThread}
+					showControls={showControls}
 					controlledCurrentTime={useControlled ? controlledTime : undefined}
 					onCurrentTimeChange={(time) => {
 						setControlledTime(time)
