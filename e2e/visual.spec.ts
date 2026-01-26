@@ -10,7 +10,7 @@ import path from 'path'
  */
 
 const SNAPSHOT_DIR = path.join(__dirname, '__snapshots__')
-const THRESHOLD = 0.1 // 10% difference threshold
+const THRESHOLD = 10 // 10% difference threshold
 
 // Ensure snapshot directory exists
 if (!fs.existsSync(SNAPSHOT_DIR)) {
@@ -51,7 +51,7 @@ test.describe('Visual Regression Tests', () => {
         diff.data,
         width,
         height,
-        { threshold: THRESHOLD }
+        { threshold: 0.1 } // pixelmatch threshold is 0-1 scale
       )
       
       const diffPercentage = (numDiffPixels / (width * height)) * 100

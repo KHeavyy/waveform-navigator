@@ -26,7 +26,7 @@ export default defineConfig({
         '**/*.test.ts',
         '**/*.test.tsx',
         '**/*.config.ts',
-        'src/peaks.worker.ts' // Worker tested separately
+        'src/peaks.worker.ts' // Worker tested via e2e in browser environment
       ],
       thresholds: {
         lines: 70,

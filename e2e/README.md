@@ -60,12 +60,4 @@ CI will fail if visual changes are detected without updated baselines.
 
 ## Test Fixtures
 
-The `fixtures/` directory contains:
-- `test-audio.wav` - A 2-second 440Hz sine wave for testing
-- `generate-test-audio.js` - Script to regenerate test audio
-
-To regenerate test audio:
-```bash
-cd e2e/fixtures
-node generate-test-audio.js
-```
+The e2e tests use the demo application's audio file (`demo/media/Demo.mp3`) which is automatically served by the dev server configured in `playwright.config.ts`. This ensures tests use the same audio file as the demo, making them more realistic and easier to maintain.
