@@ -40,7 +40,7 @@ export function useAudioPlayer({
 	onEnded,
 	onLoaded,
 	onTimeUpdate,
-	onError
+	onError,
 }: UseAudioPlayerProps): UseAudioPlayerReturn {
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 	const objectUrlRef = useRef<string | null>(null);
@@ -67,7 +67,15 @@ export function useAudioPlayer({
 		onTimeUpdateRef.current = onTimeUpdate;
 		onCurrentTimeChangeRef.current = onCurrentTimeChange;
 		onErrorRef.current = onError;
-	}, [onPlay, onPause, onEnded, onLoaded, onTimeUpdate, onCurrentTimeChange, onError]);
+	}, [
+		onPlay,
+		onPause,
+		onEnded,
+		onLoaded,
+		onTimeUpdate,
+		onCurrentTimeChange,
+		onError,
+	]);
 
 	// Determine if component is in controlled mode
 	const isControlled = controlledCurrentTime !== undefined;
@@ -83,7 +91,7 @@ export function useAudioPlayer({
 		el.preload = 'auto';
 		el.crossOrigin = 'anonymous';
 		audioRef.current = el;
-		
+
 		// Expose audio element via ref if provided
 		if (audioElementRef) {
 			audioElementRef.current = el;
@@ -101,7 +109,7 @@ export function useAudioPlayer({
 			const time = el.currentTime;
 			setCurrentTime(time);
 			onTimeUpdateRef.current?.(time);
-			
+
 			// Call onCurrentTimeChange for uncontrolled mode
 			if (!isControlledRef.current) {
 				onCurrentTimeChangeRef.current?.(time);
@@ -162,8 +170,8 @@ export function useAudioPlayer({
 				audioElementRef.current = null;
 			}
 		};
-	// audioElementRef is intentionally excluded from deps to avoid recreating audio element
-	// eslint-disable-next-line react-hooks/exhaustive-deps
+		// audioElementRef is intentionally excluded from deps to avoid recreating audio element
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	// Set audio source when `audio` prop changes
@@ -202,25 +210,32 @@ export function useAudioPlayer({
 		if (isControlled && audioRef.current && controlledCurrentTime !== undefined) {
 			const audio = audioRef.current;
 			// Only update if there's a significant difference to avoid feedback loop
-			if (Math.abs(audio.currentTime - controlledCurrentTime) > CONTROLLED_TIME_THRESHOLD) {
+			if (
+				Math.abs(audio.currentTime - controlledCurrentTime) >
+				CONTROLLED_TIME_THRESHOLD
+			) {
 				audio.currentTime = controlledCurrentTime;
 			}
 		}
 	}, [controlledCurrentTime, isControlled]);
 
 	// Use controlled time when provided, otherwise use internal state
-	const displayTime = isControlled && controlledCurrentTime !== undefined ? controlledCurrentTime : currentTime;
+	const displayTime =
+		isControlled && controlledCurrentTime !== undefined
+			? controlledCurrentTime
+			: currentTime;
 
 	function togglePlay() {
 		const a = audioRef.current;
 		if (!a) return;
-		if (a.paused) a.play(); else a.pause();
+		if (a.paused) a.play();
+		else a.pause();
 	}
 
 	function seek(delta: number) {
 		const a = audioRef.current;
 		if (!a) return;
-		const newTime = Math.max(0, Math.min((a.duration || 0), a.currentTime + delta));
+		const newTime = Math.max(0, Math.min(a.duration || 0, a.currentTime + delta));
 		seekTo(newTime);
 	}
 
@@ -247,6 +262,6 @@ export function useAudioPlayer({
 		seek,
 		seekTo,
 		isControlled,
-		displayTime
+		displayTime,
 	};
 }

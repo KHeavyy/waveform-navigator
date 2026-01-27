@@ -11,7 +11,9 @@ npm-debug.log*
 yarn-error.log*
 *.tgz
 .idea/
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 /.pnp
 .pnp.js
 /.turbo

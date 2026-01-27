@@ -34,6 +34,7 @@ npm run visual:update
 ## Test Coverage
 
 ### Integration Tests (`waveform.spec.ts`)
+
 - Audio loading and waveform rendering
 - Device pixel ratio handling (DPR 1 and 2)
 - Play/pause controls
@@ -43,6 +44,7 @@ npm run visual:update
 - Time formatting display
 
 ### Visual Tests (`visual.spec.ts`)
+
 - Waveform snapshot comparisons
 - Multi-DPR rendering consistency
 - Responsive width handling

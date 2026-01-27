@@ -32,27 +32,27 @@ export function useWaveformCanvas({
 	peaks,
 	currentTime,
 	duration,
-	isPlaying
+	isPlaying,
 }: UseWaveformCanvasProps): UseWaveformCanvasReturn {
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const rafRef = useRef<number | null>(null);
 	const dprRef = useRef<number>(1);
-	
+
 	// Whether we've signaled that the waveform has been drawn at least once
 	const readyDispatchedRef = useRef<boolean>(false);
 
 	// Cache the base waveform as ImageData for performance optimization
 	// This avoids redrawing all bars on every progress update
 	const baseWaveformCache = useRef<ImageData | null>(null);
-	
+
 	// Cache the canvas context with willReadFrequently hint for optimal getImageData performance
 	const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
-	
+
 	// Use refs for frequently changing values to avoid recreating RAF loop
 	const currentTimeRef = useRef(currentTime);
 	const durationRef = useRef(duration);
 	const peaksRef = useRef(peaks);
-	
+
 	// Keep refs updated
 	useEffect(() => {
 		currentTimeRef.current = currentTime;
@@ -64,7 +64,7 @@ export function useWaveformCanvas({
 	useEffect(() => {
 		const canvas = canvasRef.current;
 		if (!canvas) return;
-		
+
 		// Initialize canvas context with willReadFrequently hint for optimal ImageData operations
 		if (!ctxRef.current) {
 			const context = canvas.getContext('2d', { willReadFrequently: true });
@@ -74,13 +74,13 @@ export function useWaveformCanvas({
 			}
 			ctxRef.current = context;
 		}
-		
+
 		// Sync canvas size with devicePixelRatio and store DPR
 		dprRef.current = syncCanvasSize(canvas, width, height);
-		
+
 		// Invalidate cache on resize since canvas dimensions changed
 		baseWaveformCache.current = null;
-		
+
 		// Redraw after canvas resize to prevent blank canvas
 		// drawWaveform will handle building the cache via fallback if needed
 		if (peaks && !isPlaying) {
@@ -97,7 +97,7 @@ export function useWaveformCanvas({
 	function drawWaveform(peaksArr: Float32Array, time: number) {
 		const canvas = canvasRef.current;
 		if (!canvas) return;
-		
+
 		const ctx = ctxRef.current;
 		if (!ctx) return;
 
@@ -111,7 +111,7 @@ export function useWaveformCanvas({
 		if (baseWaveformCache.current) {
 			ctx.setTransform(1, 0, 0, 1, 0, 0);
 			ctx.putImageData(baseWaveformCache.current, 0, 0);
-			
+
 			// Re-apply DPR transform for logical pixel drawing
 			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 		} else {
@@ -119,7 +119,7 @@ export function useWaveformCanvas({
 			// This ensures cache is built on first render or after invalidation
 			ctx.setTransform(1, 0, 0, 1, 0, 0);
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
-			
+
 			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
 			if (backgroundColor && backgroundColor !== 'transparent') {
@@ -131,21 +131,26 @@ export function useWaveformCanvas({
 				const x = i * (barWidth + gap);
 				const w = barWidth;
 				const h = peaksArr[i] * (height * 0.95);
-				const y = (height / 2) - h / 2;
+				const y = height / 2 - h / 2;
 				ctx.fillStyle = barColor;
 				ctx.fillRect(x, y, w, h);
 			}
-			
+
 			// Cache the newly drawn base waveform
 			ctx.setTransform(1, 0, 0, 1, 0, 0);
-			baseWaveformCache.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
+			baseWaveformCache.current = ctx.getImageData(
+				0,
+				0,
+				canvas.width,
+				canvas.height
+			);
 			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
 			// Dispatch a readiness event once the waveform has been drawn and cached
 			if (!readyDispatchedRef.current) {
 				readyDispatchedRef.current = true;
 				try {
-					;(window as any).__waveformReady = true;
+					(window as any).__waveformReady = true;
 					window.dispatchEvent(new Event('waveform-ready'));
 				} catch (err) {
 					// Silence any environment errors (e.g., non-window global)
@@ -159,7 +164,7 @@ export function useWaveformCanvas({
 			const x = i * (barWidth + gap);
 			const w = barWidth;
 			const h = peaksArr[i] * (height * 0.95);
-			const y = (height / 2) - h / 2;
+			const y = height / 2 - h / 2;
 			if (x + w <= playedWidth) {
 				ctx.fillStyle = progressColor;
 				ctx.fillRect(x, y, w, h);
@@ -217,6 +222,6 @@ export function useWaveformCanvas({
 	}, [isPlaying, peaks, progressColor, playheadColor, currentTime]);
 
 	return {
-		canvasRef
+		canvasRef,
 	};
 }

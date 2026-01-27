@@ -21,7 +21,7 @@ interface UseResponsiveWidthReturn {
 export function useResponsiveWidth({
 	responsive,
 	debounceMs = 150,
-	fallbackWidth = 800
+	fallbackWidth = 800,
 }: UseResponsiveWidthProps): UseResponsiveWidthReturn {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [width, setWidth] = useState<number>(fallbackWidth);
@@ -41,7 +41,9 @@ export function useResponsiveWidth({
 
 		// Check if ResizeObserver is available
 		if (typeof ResizeObserver === 'undefined') {
-			console.warn('ResizeObserver not available. Responsive width will not work. Consider using the width prop instead.');
+			console.warn(
+				'ResizeObserver not available. Responsive width will not work. Consider using the width prop instead.'
+			);
 			return;
 		}
 
@@ -67,7 +69,7 @@ export function useResponsiveWidth({
 				if (!entry) return;
 
 				const newWidth = Math.floor(entry.contentRect.width || 0);
-				
+
 				// Only update if width is valid and different from current width
 				if (newWidth > 0 && newWidth !== currentWidthRef.current) {
 					// Clear any existing debounce timer
@@ -104,6 +106,6 @@ export function useResponsiveWidth({
 
 	return {
 		width,
-		containerRef
+		containerRef,
 	};
 }

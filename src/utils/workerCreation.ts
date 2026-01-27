@@ -18,18 +18,24 @@ export interface WorkerCreationOptions {
  * Attempts to create a Web Worker. Returns null if worker creation fails
  * or is not supported, allowing caller to fall back to main-thread computation.
  */
-export function createPeaksWorker(options: WorkerCreationOptions = {}): Worker | null {
+export function createPeaksWorker(
+	options: WorkerCreationOptions = {}
+): Worker | null {
 	const { workerUrl, forceMainThread } = options;
 
 	// If main-thread is forced, return null immediately
 	if (forceMainThread) {
-		console.info('[WaveformNavigator] Main-thread mode forced, skipping worker creation');
+		console.info(
+			'[WaveformNavigator] Main-thread mode forced, skipping worker creation'
+		);
 		return null;
 	}
 
 	// Check if Worker is supported
 	if (typeof Worker === 'undefined') {
-		console.warn('[WaveformNavigator] Web Workers not supported in this environment');
+		console.warn(
+			'[WaveformNavigator] Web Workers not supported in this environment'
+		);
 		return null;
 	}
 
@@ -50,7 +56,10 @@ export function createPeaksWorker(options: WorkerCreationOptions = {}): Worker |
 
 		return worker;
 	} catch (err) {
-		console.warn('[WaveformNavigator] Worker creation failed, falling back to main thread:', err);
+		console.warn(
+			'[WaveformNavigator] Worker creation failed, falling back to main thread:',
+			err
+		);
 		return null;
 	}
 }

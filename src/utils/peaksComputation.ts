@@ -22,7 +22,7 @@ export function computePeaksFromChannelData({
 	channelData,
 	width,
 	barWidth,
-	gap
+	gap,
 }: PeaksComputationParams): PeaksComputationResult {
 	const slot = Math.max(1, Math.floor(width / (barWidth + gap)));
 	const samplesPerSlot = Math.floor(channelData.length / slot) || 1;
