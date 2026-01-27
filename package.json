@@ -19,7 +19,7 @@
 		"./styles.css": "./dist/styles.css",
 		"./package.json": "./package.json"
 	},
-	"author": "",
+	"author": "KHeavyy",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
@@ -59,7 +59,7 @@
 		"lint": "npm run type-check",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
-		"prepublishOnly": "npm run type-check && npm test",
+		"prepublishOnly": "npm run build && npm run type-check && npm test",
 		"prepare": "npm run build",
 		"dev": "concurrently \"npm run build:watch\" \"(cd demo && npm run dev)\""
 	},
