@@ -118,6 +118,12 @@ jobs:
       - name: Publish to NPM
         run: npm publish --provenance --access public
 
+      - name: Push tags to repository
+        run: |
+          git push --follow-tags
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Generate changelog
         id: changelog
         run: |
@@ -142,12 +148,6 @@ jobs:
           gh release create v${{ steps.bump-version.outputs.new_version }} \
             --title "Release v${{ steps.bump-version.outputs.new_version }}" \
             --notes-file /tmp/changelog.txt
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Push tags to repository
-        run: |
-          git push --follow-tags
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
