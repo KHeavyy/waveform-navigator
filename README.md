@@ -269,9 +269,8 @@ function App() {
 **Note:** The volume icon automatically changes based on the volume level:
 
 - **Muted** (0%): Speaker with slash
-- **Low** (< 33%): Speaker with one sound wave
-- **Medium** (< 66%): Speaker with two sound waves
-- **High** (≥ 66%): Speaker with three sound waves
+- **Low** (< 50%): Speaker with one sound wave
+- **High** (>50%): Speaker with two sound waves
 
 Click the volume icon to toggle mute/unmute. When unmuted, it restores the previous volume level.
 
