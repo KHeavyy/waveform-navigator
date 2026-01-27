@@ -1,9 +1,6 @@
 name: Publish to NPM
 
 on:
-  push:
-    branches:
-      - main
   workflow_run:
     workflows: ["CI"]
     types:
@@ -88,7 +85,7 @@ jobs:
           echo "$COMMITS"
           
           # Check for breaking changes (major version bump)
-          if echo "$COMMITS" | grep -qiE "^BREAKING CHANGE:|BREAKING CHANGE:"; then
+          if echo "$COMMITS" | grep -qE "BREAKING CHANGE:"; then
             echo "bump_type=major" >> $GITHUB_OUTPUT
             echo "Version bump: MAJOR (breaking changes detected)"
           # Check for features (minor version bump)

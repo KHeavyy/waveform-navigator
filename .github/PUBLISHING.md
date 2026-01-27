@@ -68,7 +68,7 @@ The workflow uses **Semantic Versioning** (semver) based on your commit messages
 
 | Commit Message Pattern | Version Bump | Example |
 |------------------------|--------------|---------|
-| `BREAKING CHANGE:` or `BREAKING CHANGE:` in message | **Major** (1.0.0 → 2.0.0) | Breaking API changes |
+| `BREAKING CHANGE:` anywhere in message | **Major** (1.0.0 → 2.0.0) | Breaking API changes |
 | `feat:` or `feature:` prefix | **Minor** (1.0.0 → 1.1.0) | New features |
 | Any other commit | **Patch** (1.0.0 → 1.0.1) | Bug fixes, docs, etc. |
 
