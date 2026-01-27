@@ -236,16 +236,13 @@ export function useWaveformCanvas({
 				ctx.lineTo(x, y);
 			}
 
-			// If we stopped in the middle, add the playhead position point
+			// If we stopped in the middle, add the playhead position points
 			if (playedWidth < width) {
 				const interpolatedAmplitude = interpolateAmplitude(playedWidth, peaksArr);
 				const topY = midY - (interpolatedAmplitude * scaleY / 2);
 				ctx.lineTo(playedWidth, topY);
-			}
 
-			// Draw the bottom half in reverse
-			if (playedWidth < width) {
-				const interpolatedAmplitude = interpolateAmplitude(playedWidth, peaksArr);
+				// Draw the bottom half in reverse - reuse the interpolated amplitude
 				const bottomY = midY + (interpolatedAmplitude * scaleY / 2);
 				ctx.lineTo(playedWidth, bottomY);
 			}

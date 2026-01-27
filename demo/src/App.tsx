@@ -5,6 +5,12 @@ import type {
 	WaveformNavigatorStyles,
 } from '../../src';
 
+// Display mode descriptions (constants outside component for performance)
+const DISPLAY_MODE_DESCRIPTIONS = {
+	bars: '📊 Bar mode: Traditional visualization with bars and gaps',
+	analog: '📈 Analog mode: Continuous filled waveform (analog style)',
+} as const;
+
 export default function App() {
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 	const waveformRef = useRef<WaveformNavigatorHandle>(null);
@@ -57,12 +63,6 @@ export default function App() {
 
 	// Demo display mode
 	const [displayMode, setDisplayMode] = useState<'bars' | 'analog'>('bars');
-
-	// Display mode descriptions
-	const DISPLAY_MODE_DESCRIPTIONS = {
-		bars: '📊 Bar mode: Traditional visualization with bars and gaps',
-		analog: '📈 Analog mode: Continuous filled waveform (analog style)',
-	};
 
 	const handleProgrammaticPlay = async () => {
 		await waveformRef.current?.resumeAudioContext();
