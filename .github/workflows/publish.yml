@@ -116,12 +116,6 @@ jobs:
       - name: Publish to NPM
         run: npm publish --provenance --access public
 
-      - name: Push tags to repository
-        run: |
-          git push --follow-tags
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Generate changelog
         id: changelog
         run: |
@@ -142,15 +136,18 @@ jobs:
           echo "changelog_summary=Release v${{ steps.bump-version.outputs.new_version }}" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
-        uses: actions/create-release@v1
+        run: |
+          gh release create v${{ steps.bump-version.outputs.new_version }} \
+            --title "Release v${{ steps.bump-version.outputs.new_version }}" \
+            --notes-file /tmp/changelog.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ steps.bump-version.outputs.new_version }}
-          release_name: Release v${{ steps.bump-version.outputs.new_version }}
-          body_path: /tmp/changelog.txt
-          draft: false
-          prerelease: false
+
+      - name: Push tags to repository
+        run: |
+          git push --follow-tags
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publication Summary
         run: |
