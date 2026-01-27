@@ -8,6 +8,7 @@ function TestComponent({ peaks }: any) {
 		height: 20,
 		barWidth: 2,
 		gap: 1,
+		displayMode: 'bars',
 		barColor: '#000',
 		progressColor: '#f00',
 		backgroundColor: 'transparent',

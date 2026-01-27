@@ -6,6 +6,7 @@ interface UseWaveformCanvasProps {
 	height: number;
 	barWidth: number;
 	gap: number;
+	displayMode: 'bars' | 'analog';
 	barColor: string;
 	progressColor: string;
 	backgroundColor: string;
@@ -25,6 +26,7 @@ export function useWaveformCanvas({
 	height,
 	barWidth,
 	gap,
+	displayMode,
 	barColor,
 	progressColor,
 	backgroundColor,
@@ -127,13 +129,45 @@ export function useWaveformCanvas({
 				ctx.fillRect(0, 0, width, height);
 			}
 
-			for (let i = 0; i < peaksArr.length; i++) {
-				const x = i * (barWidth + gap);
-				const w = barWidth;
-				const h = peaksArr[i] * (height * 0.95);
-				const y = height / 2 - h / 2;
+			if (displayMode === 'analog') {
+				// Draw analog waveform (continuous filled waveform)
 				ctx.fillStyle = barColor;
-				ctx.fillRect(x, y, w, h);
+				ctx.beginPath();
+
+				const midY = height / 2;
+				const scaleY = height * 0.95;
+
+				// Start at the left edge
+				ctx.moveTo(0, midY);
+
+				// Draw the top half of the waveform
+				for (let i = 0; i < peaksArr.length; i++) {
+					const x = i * (barWidth + gap);
+					const amplitude = peaksArr[i] * scaleY / 2;
+					const y = midY - amplitude;
+					ctx.lineTo(x, y);
+				}
+
+				// Draw the bottom half in reverse
+				for (let i = peaksArr.length - 1; i >= 0; i--) {
+					const x = i * (barWidth + gap);
+					const amplitude = peaksArr[i] * scaleY / 2;
+					const y = midY + amplitude;
+					ctx.lineTo(x, y);
+				}
+
+				ctx.closePath();
+				ctx.fill();
+			} else {
+				// Draw bar waveform (traditional bars with gaps)
+				for (let i = 0; i < peaksArr.length; i++) {
+					const x = i * (barWidth + gap);
+					const w = barWidth;
+					const h = peaksArr[i] * (height * 0.95);
+					const y = height / 2 - h / 2;
+					ctx.fillStyle = barColor;
+					ctx.fillRect(x, y, w, h);
+				}
 			}
 
 			// Cache the newly drawn base waveform
@@ -160,18 +194,92 @@ export function useWaveformCanvas({
 		}
 
 		// Draw progress overlay (using logical coordinates)
-		for (let i = 0; i < peaksArr.length; i++) {
-			const x = i * (barWidth + gap);
-			const w = barWidth;
-			const h = peaksArr[i] * (height * 0.95);
-			const y = height / 2 - h / 2;
-			if (x + w <= playedWidth) {
-				ctx.fillStyle = progressColor;
-				ctx.fillRect(x, y, w, h);
-			} else if (x < playedWidth) {
-				const partial = Math.max(0, playedWidth - x);
-				ctx.fillStyle = progressColor;
-				ctx.fillRect(x, y, partial, h);
+		if (displayMode === 'analog') {
+			// For analog mode, draw a filled polygon for the progress portion
+			ctx.fillStyle = progressColor;
+			ctx.beginPath();
+
+			const midY = height / 2;
+			const scaleY = height * 0.95;
+
+			// Start at the left edge
+			ctx.moveTo(0, midY);
+
+			// Draw the top half up to the played position
+			for (let i = 0; i < peaksArr.length; i++) {
+				const x = i * (barWidth + gap);
+				if (x > playedWidth) break;
+				const amplitude = peaksArr[i] * scaleY / 2;
+				const y = midY - amplitude;
+				ctx.lineTo(x, y);
+			}
+
+			// If we stopped in the middle, add the playhead position point
+			if (playedWidth < width) {
+				// Interpolate the amplitude at the playhead position
+				const playedIndex = playedWidth / (barWidth + gap);
+				const lowerIndex = Math.floor(playedIndex);
+				const upperIndex = Math.ceil(playedIndex);
+				const fraction = playedIndex - lowerIndex;
+				
+				let interpolatedAmplitude = 0;
+				if (upperIndex < peaksArr.length) {
+					const lowerAmp = peaksArr[lowerIndex] || 0;
+					const upperAmp = peaksArr[upperIndex] || 0;
+					interpolatedAmplitude = lowerAmp + (upperAmp - lowerAmp) * fraction;
+				} else if (lowerIndex < peaksArr.length) {
+					interpolatedAmplitude = peaksArr[lowerIndex];
+				}
+
+				const topY = midY - (interpolatedAmplitude * scaleY / 2);
+				ctx.lineTo(playedWidth, topY);
+			}
+
+			// Draw the bottom half in reverse
+			if (playedWidth < width) {
+				// Start from the playhead position on the bottom
+				const playedIndex = playedWidth / (barWidth + gap);
+				const lowerIndex = Math.floor(playedIndex);
+				const upperIndex = Math.ceil(playedIndex);
+				const fraction = playedIndex - lowerIndex;
+				
+				let interpolatedAmplitude = 0;
+				if (upperIndex < peaksArr.length) {
+					const lowerAmp = peaksArr[lowerIndex] || 0;
+					const upperAmp = peaksArr[upperIndex] || 0;
+					interpolatedAmplitude = lowerAmp + (upperAmp - lowerAmp) * fraction;
+				} else if (lowerIndex < peaksArr.length) {
+					interpolatedAmplitude = peaksArr[lowerIndex];
+				}
+
+				const bottomY = midY + (interpolatedAmplitude * scaleY / 2);
+				ctx.lineTo(playedWidth, bottomY);
+			}
+
+			for (let i = Math.min(peaksArr.length - 1, Math.floor(playedWidth / (barWidth + gap))); i >= 0; i--) {
+				const x = i * (barWidth + gap);
+				const amplitude = peaksArr[i] * scaleY / 2;
+				const y = midY + amplitude;
+				ctx.lineTo(x, y);
+			}
+
+			ctx.closePath();
+			ctx.fill();
+		} else {
+			// For bar mode, draw progress bars
+			for (let i = 0; i < peaksArr.length; i++) {
+				const x = i * (barWidth + gap);
+				const w = barWidth;
+				const h = peaksArr[i] * (height * 0.95);
+				const y = height / 2 - h / 2;
+				if (x + w <= playedWidth) {
+					ctx.fillStyle = progressColor;
+					ctx.fillRect(x, y, w, h);
+				} else if (x < playedWidth) {
+					const partial = Math.max(0, playedWidth - x);
+					ctx.fillStyle = progressColor;
+					ctx.fillRect(x, y, partial, h);
+				}
 			}
 		}
 
@@ -186,7 +294,7 @@ export function useWaveformCanvas({
 		baseWaveformCache.current = null;
 		// Allow readiness event to fire again after cache change
 		readyDispatchedRef.current = false;
-	}, [peaks, barWidth, gap, barColor, backgroundColor]);
+	}, [peaks, barWidth, gap, displayMode, barColor, backgroundColor]);
 
 	// Smooth progress updates while playing using requestAnimationFrame
 	useEffect(() => {

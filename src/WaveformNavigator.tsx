@@ -48,6 +48,12 @@ export interface WaveformNavigatorProps {
 	barWidth?: number;
 	gap?: number;
 	/**
+	 * Display mode for the waveform visualization.
+	 * - 'bars': Traditional bar visualization with gaps between bars (default)
+	 * - 'analog': Continuous filled waveform visualization (analog style)
+	 */
+	displayMode?: 'bars' | 'analog';
+	/**
 	 * Style configuration object for colors and visual customization.
 	 * Provides a centralized way to configure all visual aspects.
 	 * Example: styles={{ barColor: '#2b6ef6', playButtonColor: '#000' }}
@@ -92,6 +98,7 @@ const WaveformNavigator = React.forwardRef<
 			className = '',
 			barWidth = 3,
 			gap = 2,
+			displayMode = 'bars',
 			styles = {},
 			responsive = true,
 			responsiveDebounceMs = 150,
@@ -207,6 +214,7 @@ const WaveformNavigator = React.forwardRef<
 			height,
 			barWidth,
 			gap,
+			displayMode,
 			barColor,
 			progressColor,
 			backgroundColor,
