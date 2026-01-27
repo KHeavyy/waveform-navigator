@@ -13,6 +13,7 @@ yarn-error.log*
 .idea/
 .vscode/*
 !.vscode/settings.json
+!.vscode/extensions.json
 /.pnp
 .pnp.js
 /.turbo
