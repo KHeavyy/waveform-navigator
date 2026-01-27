@@ -125,7 +125,7 @@
 	border-radius: 2px;
 }
 
-/* Webkit/Blink browsers - Thumb */
+/* Webkit/Blink browsers - Thumb (slider)*/
 .controls .vol-range::-webkit-slider-thumb {
 	-webkit-appearance: none;
 	appearance: none;
