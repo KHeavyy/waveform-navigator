@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, waitFor } from '@testing-library/react';
-import { vi, describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 // Basic peaks so drawing loops run small
 const peaks = new Float32Array([0.5, 0.3, 0.7]);

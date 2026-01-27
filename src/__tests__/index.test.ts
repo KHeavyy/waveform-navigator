@@ -1,5 +1,5 @@
 import * as pkg from '../index';
-import { vi, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 describe('package entry', () => {
 	it('exports default and named exports', () => {

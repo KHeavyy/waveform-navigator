@@ -110,11 +110,6 @@ test.describe('WaveformNavigator Integration Tests', () => {
 		const canvas = page.locator('canvas').first();
 		await expect(canvas).toBeVisible({ timeout: 10000 });
 
-		// Get initial width
-		const initialWidth = await canvas.evaluate(
-			(el: HTMLCanvasElement) => el.width
-		);
-
 		// Resize viewport
 		await page.setViewportSize({ width: 600, height: 800 });
 

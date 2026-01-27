@@ -361,9 +361,9 @@ function App() {
 
 ### Accessing the Audio Element
 
-```jsx
+```tsx
 function App() {
-	const audioRef = useRef < HTMLAudioElement > null;
+	const audioRef = useRef<HTMLAudioElement | null>(null);
 
 	const handleCustomControl = () => {
 		if (audioRef.current) {
@@ -415,9 +415,9 @@ function App() {
 
 The component provides comprehensive error handling for common failure scenarios:
 
-```jsx
+```tsx
 function App() {
-	const [error, setError] = (useState < string) | (null > null);
+	const [error, setError] = useState<string | null>(null);
 
 	return (
 		<div>

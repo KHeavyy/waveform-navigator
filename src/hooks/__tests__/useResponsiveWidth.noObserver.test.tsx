@@ -1,5 +1,5 @@
 import { render } from '@testing-library/react';
-import { vi, describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 describe('useResponsiveWidth with no ResizeObserver', () => {
 	it('returns fallback width when ResizeObserver is unavailable', async () => {

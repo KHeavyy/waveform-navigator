@@ -10,16 +10,8 @@ describe('useAudioPlayer', () => {
 		const onTimeUpdate = vi.fn();
 
 		function TestComponent() {
-			const {
-				audioRef,
-				isPlaying,
-				duration,
-				currentTime,
-				setVolume,
-				togglePlay,
-				seekTo,
-				displayTime,
-			} = useAudioPlayer({ audio: '/test.mp3', onPlay, onPause, onTimeUpdate });
+			const { audioRef, isPlaying, duration, currentTime, displayTime } =
+				useAudioPlayer({ audio: '/test.mp3', onPlay, onPause, onTimeUpdate });
 
 			React.useEffect(() => {
 				// Expose the audio element for the test to access
@@ -66,7 +58,7 @@ describe('useAudioPlayer', () => {
 	it('supports controlled mode and seekTo notifies parent', async () => {
 		const onCurrentTimeChange = vi.fn();
 		function TestComponent() {
-			const { audioRef, seekTo, isControlled, displayTime } = useAudioPlayer({
+			const { isControlled, displayTime } = useAudioPlayer({
 				audio: '/test.mp3',
 				controlledCurrentTime: 1.5,
 				onCurrentTimeChange,
