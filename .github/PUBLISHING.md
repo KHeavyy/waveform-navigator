@@ -4,44 +4,54 @@ This document explains how the automated NPM publishing workflow works and how t
 
 ## Overview
 
-The `waveform-navigator` package uses an automated publishing workflow that triggers whenever changes are merged to the `main` branch. The workflow automatically:
+The `waveform-navigator` package uses an automated publishing workflow that triggers whenever changes are merged to the `main` branch. The workflow uses **NPM Trusted Publishing with OIDC** for secure, token-free authentication.
+
+### Workflow Features
 
 1. ✅ Waits for all CI checks to pass
 2. 🏗️ Builds the package
 3. 📊 Determines the version bump type based on commit messages
-4. 📦 Publishes to NPM
+4. 📦 Publishes to NPM with cryptographic provenance
 5. 🏷️ Creates a git tag
 6. 📝 Creates a GitHub release
+
+### Why OIDC Trusted Publishing?
+
+- 🔒 **No token management** - No need to create, rotate, or secure long-lived tokens
+- 🔐 **Enhanced security** - Uses short-lived credentials generated per-publish
+- 📜 **Automatic provenance** - Every publish includes cryptographic proof of origin
+- ✅ **Supply chain transparency** - Verifiable build environment and source
+- 🚀 **Future-proof** - NPM's recommended approach (classic tokens are deprecated)
 
 ## Setup Instructions
 
 ### Prerequisites
 
 1. You must be a maintainer of the `waveform-navigator` NPM package
-2. You need admin access to the GitHub repository to add secrets
+2. You need admin access to the GitHub repository
+3. You need access to configure the NPM package settings
 
-### Step 1: Create an NPM Access Token
+### Step 1: Configure NPM Trusted Publishing
+
+The workflow uses **OIDC (OpenID Connect) Trusted Publishing** for secure, token-free authentication with NPM. This is NPM's recommended approach and provides automatic cryptographic provenance.
 
 1. Log in to [npmjs.com](https://www.npmjs.com)
-2. Click on your profile picture → **Access Tokens**
-3. Click **Generate New Token** → **Classic Token**
-4. Select **Automation** as the token type
-5. Give it a descriptive name like `waveform-navigator-github-actions`
-6. Click **Generate Token**
-7. **Copy the token immediately** - you won't be able to see it again!
+2. Navigate to your package: `waveform-navigator`
+3. Go to **Settings** → **Publishing Access**
+4. Click **Add Trusted Publisher**
+5. Configure the GitHub Actions publisher:
+   - **Provider**: GitHub Actions
+   - **Repository Owner**: `KHeavyy`
+   - **Repository Name**: `waveform-navigator`
+   - **Workflow File**: `publish.yml`
+   - **Environment** (optional): Leave blank (or specify if using deployment environments)
+6. Click **Add Publisher**
 
-### Step 2: Add NPM Token to GitHub Secrets
-
-1. Go to the GitHub repository: https://github.com/KHeavyy/waveform-navigator
-2. Navigate to **Settings** → **Secrets and variables** → **Actions**
-3. Click **New repository secret**
-4. Name: `NPM_TOKEN`
-5. Value: Paste the NPM access token you copied in Step 1
-6. Click **Add secret**
-
-### Step 3: Verify Setup
+### Step 2: Verify Setup
 
 The workflow is now ready! Next time you merge changes to `main`, the automated publishing will trigger.
+
+**No secrets or tokens needed!** The workflow authenticates automatically using OIDC.
 
 ## How to Trigger a Release
 
@@ -142,24 +152,18 @@ The workflow verifies these files exist before publishing:
 
 ## Troubleshooting
 
-### Publishing Fails with "401 Unauthorized"
+### Publishing Fails with "401 Unauthorized" or "403 Forbidden"
 
-**Problem:** NPM authentication failed
-
-**Solution:**
-1. Verify the `NPM_TOKEN` secret exists in GitHub repository settings
-2. Check that the token hasn't expired (NPM tokens can expire)
-3. Ensure the token has "Automation" permissions
-4. Generate a new token and update the GitHub secret
-
-### Publishing Fails with "403 Forbidden"
-
-**Problem:** You don't have permission to publish to the package
+**Problem:** NPM authentication or authorization failed
 
 **Solution:**
-1. Verify you're a maintainer of the `waveform-navigator` package on NPM
-2. Check that the package name in `package.json` is correct
-3. Ensure `publishConfig.access` is set to `"public"` in `package.json`
+1. Verify the **Trusted Publisher** is configured correctly on npmjs.com
+2. Check the repository owner, name, and workflow file match exactly
+3. Ensure you're a maintainer of the `waveform-navigator` package on NPM
+4. Verify the workflow has `id-token: write` permission (already configured)
+5. Check that the package name in `package.json` is correct
+6. Ensure `publishConfig.access` is set to `"public"` in `package.json`
+7. Verify you're running on a GitHub-hosted runner (self-hosted runners don't support OIDC yet)
 
 ### Version Already Exists
 
@@ -238,17 +242,20 @@ npm login
 # 5. Bump version manually
 npm version patch  # or minor, or major
 
-# 6. Publish
-npm publish
+# 6. Publish with provenance
+npm publish --provenance --access public
 
 # 7. Push the version tag
 git push --follow-tags
 ```
 
-**Note:** Manual publishing should be avoided. Fix the workflow instead!
+**Note:** Manual publishing should be avoided. Fix the workflow instead! When publishing manually, you'll use your personal NPM credentials rather than OIDC.
 
 ## Resources
 
+- [NPM Trusted Publishing Documentation](https://docs.npmjs.com/trusted-publishers)
+- [NPM OIDC Announcement](https://github.blog/changelog/2025-07-31-npm-trusted-publishing-with-oidc-is-generally-available/)
+- [NPM Provenance Documentation](https://docs.npmjs.com/generating-provenance-statements)
 - [NPM Publishing Documentation](https://docs.npmjs.com/cli/v10/commands/npm-publish)
 - [Semantic Versioning Specification](https://semver.org/)
 - [Conventional Commits](https://www.conventionalcommits.org/)
