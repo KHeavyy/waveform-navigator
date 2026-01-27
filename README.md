@@ -17,13 +17,13 @@ import WaveformNavigator from 'waveform-navigator';
 import 'waveform-navigator/styles.css'; // Don't forget to import styles!
 
 function App() {
-	// `audio` can be a URL string or a `File` object (from an `<input type="file"/>`).
-	const url = '/path/to/audio.mp3';
-	return (
-		<div style={{ width: 900 }}>
-			<WaveformNavigator audio={url} width={900} height={140} />
-		</div>
-	);
+  // `audio` can be a URL string or a `File` object (from an `<input type="file"/>`).
+  const url = '/path/to/audio.mp3';
+  return (
+    <div style={{ width: 900 }}>
+      <WaveformNavigator audio={url} width={900} height={140} />
+    </div>
+  );
 }
 
 ReactDOM.render(<App />, document.getElementById('root'));
@@ -94,15 +94,15 @@ The `styles` prop accepts an object with the following optional properties:
 
 ```tsx
 <WaveformNavigator
-	audio="/audio.mp3"
-	styles={{
-		barColor: '#8b5cf6',
-		progressColor: '#6d28d9',
-		playheadColor: '#ec4899',
-		playButtonColor: '#7c3aed',
-		playIconColor: '#fff',
-		volumeSliderFillColor: '#7c3aed',
-	}}
+  audio="/audio.mp3"
+  styles={{
+    barColor: '#8b5cf6',
+    progressColor: '#6d28d9',
+    playheadColor: '#ec4899',
+    playButtonColor: '#7c3aed',
+    playIconColor: '#fff',
+    volumeSliderFillColor: '#7c3aed',
+  }}
 />
 ```
 
@@ -147,10 +147,10 @@ The component supports ref forwarding to expose imperative methods for programma
 import type { WaveformNavigatorHandle } from 'waveform-navigator';
 
 interface WaveformNavigatorHandle {
-	play: () => Promise<void>;
-	pause: () => void;
-	seek: (time: number) => void;
-	resumeAudioContext: () => Promise<void>;
+  play: () => Promise<void>;
+  pause: () => void;
+  seek: (time: number) => void;
+  resumeAudioContext: () => Promise<void>;
 }
 ```
 
@@ -174,40 +174,40 @@ import type { WaveformNavigatorHandle } from 'waveform-navigator';
 import 'waveform-navigator/styles.css';
 
 function App() {
-	const waveformRef = useRef<WaveformNavigatorHandle>(null);
+  const waveformRef = useRef<WaveformNavigatorHandle>(null);
 
-	const handlePlay = async () => {
-		// Resume AudioContext first (required for Safari/iOS)
-		await waveformRef.current?.resumeAudioContext();
-		await waveformRef.current?.play();
-	};
+  const handlePlay = async () => {
+    // Resume AudioContext first (required for Safari/iOS)
+    await waveformRef.current?.resumeAudioContext();
+    await waveformRef.current?.play();
+  };
 
-	const handlePause = () => {
-		waveformRef.current?.pause();
-	};
+  const handlePause = () => {
+    waveformRef.current?.pause();
+  };
 
-	const handleSeekTo30 = () => {
-		waveformRef.current?.seek(30);
-	};
+  const handleSeekTo30 = () => {
+    waveformRef.current?.seek(30);
+  };
 
-	return (
-		<div>
-			<WaveformNavigator
-				ref={waveformRef}
-				audio="/path/to/audio.mp3"
-				width={900}
-				height={140}
-				showControls={false} // Hide built-in controls
-			/>
+  return (
+    <div>
+      <WaveformNavigator
+        ref={waveformRef}
+        audio="/path/to/audio.mp3"
+        width={900}
+        height={140}
+        showControls={false} // Hide built-in controls
+      />
 
-			{/* Custom controls */}
-			<div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-				<button onClick={handlePlay}>Play</button>
-				<button onClick={handlePause}>Pause</button>
-				<button onClick={handleSeekTo30}>Jump to 30s</button>
-			</div>
-		</div>
-	);
+      {/* Custom controls */}
+      <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+        <button onClick={handlePlay}>Play</button>
+        <button onClick={handlePause}>Pause</button>
+        <button onClick={handleSeekTo30}>Jump to 30s</button>
+      </div>
+    </div>
+  );
 }
 ```
 
@@ -217,20 +217,20 @@ Display only the waveform for visualization purposes:
 
 ```tsx
 function App() {
-	return (
-		<div style={{ width: '100%', maxWidth: 1200 }}>
-			<WaveformNavigator
-				audio="/path/to/audio.mp3"
-				height={80}
-				showControls={false}
-				styles={{
-					barColor: '#38bdf8',
-					progressColor: '#0284c7',
-					playheadColor: '#f43f5e',
-				}}
-			/>
-		</div>
-	);
+  return (
+    <div style={{ width: '100%', maxWidth: 1200 }}>
+      <WaveformNavigator
+        audio="/path/to/audio.mp3"
+        height={80}
+        showControls={false}
+        styles={{
+          barColor: '#38bdf8',
+          progressColor: '#0284c7',
+          playheadColor: '#f43f5e',
+        }}
+      />
+    </div>
+  );
 }
 ```
 
@@ -240,29 +240,29 @@ Customize the appearance of the waveform and playback controls:
 
 ```tsx
 function App() {
-	return (
-		<div style={{ width: '100%', maxWidth: 1200 }}>
-			<WaveformNavigator
-				audio="/path/to/audio.mp3"
-				styles={{
-					// Waveform colors
-					barColor: '#8b5cf6',
-					progressColor: '#6d28d9',
-					playheadColor: '#ec4899',
-					// Control button colors
-					playButtonColor: '#7c3aed',
-					playIconColor: '#fff',
-					rewindButtonColor: '#f3f4f6',
-					rewindIconColor: '#6b7280',
-					forwardButtonColor: '#f3f4f6',
-					forwardIconColor: '#6b7280',
-					// Volume control colors
-					volumeSliderFillColor: '#7c3aed',
-					volumeIconColor: '#6b7280',
-				}}
-			/>
-		</div>
-	);
+  return (
+    <div style={{ width: '100%', maxWidth: 1200 }}>
+      <WaveformNavigator
+        audio="/path/to/audio.mp3"
+        styles={{
+          // Waveform colors
+          barColor: '#8b5cf6',
+          progressColor: '#6d28d9',
+          playheadColor: '#ec4899',
+          // Control button colors
+          playButtonColor: '#7c3aed',
+          playIconColor: '#fff',
+          rewindButtonColor: '#f3f4f6',
+          rewindIconColor: '#6b7280',
+          forwardButtonColor: '#f3f4f6',
+          forwardIconColor: '#6b7280',
+          // Volume control colors
+          volumeSliderFillColor: '#7c3aed',
+          volumeIconColor: '#6b7280',
+        }}
+      />
+    </div>
+  );
 }
 ```
 
@@ -278,40 +278,40 @@ Click the volume icon to toggle mute/unmute. When unmuted, it restores the previ
 
 ```tsx
 function App() {
-	const waveformRef = useRef<WaveformNavigatorHandle>(null);
-	const [isPlaying, setIsPlaying] = useState(false);
-	const [currentTime, setCurrentTime] = useState(0);
+  const waveformRef = useRef<WaveformNavigatorHandle>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
 
-	const togglePlayback = async () => {
-		if (isPlaying) {
-			waveformRef.current?.pause();
-		} else {
-			await waveformRef.current?.resumeAudioContext();
-			await waveformRef.current?.play();
-		}
-	};
+  const togglePlayback = async () => {
+    if (isPlaying) {
+      waveformRef.current?.pause();
+    } else {
+      await waveformRef.current?.resumeAudioContext();
+      await waveformRef.current?.play();
+    }
+  };
 
-	return (
-		<div>
-			<WaveformNavigator
-				ref={waveformRef}
-				audio="/path/to/audio.mp3"
-				width={900}
-				height={140}
-				showControls={false}
-				onPlay={() => setIsPlaying(true)}
-				onPause={() => setIsPlaying(false)}
-				onTimeUpdate={setCurrentTime}
-			/>
+  return (
+    <div>
+      <WaveformNavigator
+        ref={waveformRef}
+        audio="/path/to/audio.mp3"
+        width={900}
+        height={140}
+        showControls={false}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onTimeUpdate={setCurrentTime}
+      />
 
-			<div style={{ marginTop: 16 }}>
-				<button onClick={togglePlayback}>{isPlaying ? 'Pause' : 'Play'}</button>
-				<span style={{ marginLeft: 16 }}>
-					Current time: {currentTime.toFixed(2)}s
-				</span>
-			</div>
-		</div>
-	);
+      <div style={{ marginTop: 16 }}>
+        <button onClick={togglePlayback}>{isPlaying ? 'Pause' : 'Play'}</button>
+        <span style={{ marginLeft: 16 }}>
+          Current time: {currentTime.toFixed(2)}s
+        </span>
+      </div>
+    </div>
+  );
 }
 ```
 
@@ -321,16 +321,16 @@ The component manages its own playback state:
 
 ```jsx
 function App() {
-	return (
-		<WaveformNavigator
-			audio="/path/to/audio.mp3"
-			width={900}
-			height={140}
-			onPlay={() => console.log('Playing')}
-			onPause={() => console.log('Paused')}
-			onTimeUpdate={(time) => console.log('Current time:', time)}
-		/>
-	);
+  return (
+    <WaveformNavigator
+      audio="/path/to/audio.mp3"
+      width={900}
+      height={140}
+      onPlay={() => console.log('Playing')}
+      onPause={() => console.log('Paused')}
+      onTimeUpdate={(time) => console.log('Current time:', time)}
+    />
+  );
 }
 ```
 
@@ -340,21 +340,21 @@ Parent component manages the playback position:
 
 ```jsx
 function App() {
-	const [currentTime, setCurrentTime] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
 
-	return (
-		<div>
-			<WaveformNavigator
-				audio="/path/to/audio.mp3"
-				width={900}
-				height={140}
-				controlledCurrentTime={currentTime}
-				onCurrentTimeChange={setCurrentTime}
-				onTimeUpdate={(time) => console.log('Time update:', time)}
-			/>
-			<button onClick={() => setCurrentTime(30)}>Jump to 30s</button>
-		</div>
-	);
+  return (
+    <div>
+      <WaveformNavigator
+        audio="/path/to/audio.mp3"
+        width={900}
+        height={140}
+        controlledCurrentTime={currentTime}
+        onCurrentTimeChange={setCurrentTime}
+        onTimeUpdate={(time) => console.log('Time update:', time)}
+      />
+      <button onClick={() => setCurrentTime(30)}>Jump to 30s</button>
+    </div>
+  );
 }
 ```
 
@@ -362,25 +362,25 @@ function App() {
 
 ```tsx
 function App() {
-	const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-	const handleCustomControl = () => {
-		if (audioRef.current) {
-			audioRef.current.playbackRate = 1.5; // Speed up playback
-		}
-	};
+  const handleCustomControl = () => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = 1.5; // Speed up playback
+    }
+  };
 
-	return (
-		<div>
-			<WaveformNavigator
-				audio="/path/to/audio.mp3"
-				width={900}
-				height={140}
-				audioElementRef={audioRef}
-			/>
-			<button onClick={handleCustomControl}>Speed up 1.5x</button>
-		</div>
-	);
+  return (
+    <div>
+      <WaveformNavigator
+        audio="/path/to/audio.mp3"
+        width={900}
+        height={140}
+        audioElementRef={audioRef}
+      />
+      <button onClick={handleCustomControl}>Speed up 1.5x</button>
+    </div>
+  );
 }
 ```
 
@@ -388,25 +388,25 @@ function App() {
 
 ```jsx
 function App() {
-	const [peaksReady, setPeaksReady] = useState(false);
+  const [peaksReady, setPeaksReady] = useState(false);
 
-	return (
-		<div>
-			{!peaksReady && <div>Computing waveform...</div>}
-			<WaveformNavigator
-				audio="/path/to/audio.mp3"
-				width={900}
-				height={140}
-				onPeaksComputed={(peaks) => {
-					console.log('Peaks computed:', peaks.length, 'bars');
-					setPeaksReady(true);
-				}}
-				onLoaded={(duration) => {
-					console.log('Audio loaded, duration:', duration, 'seconds');
-				}}
-			/>
-		</div>
-	);
+  return (
+    <div>
+      {!peaksReady && <div>Computing waveform...</div>}
+      <WaveformNavigator
+        audio="/path/to/audio.mp3"
+        width={900}
+        height={140}
+        onPeaksComputed={(peaks) => {
+          console.log('Peaks computed:', peaks.length, 'bars');
+          setPeaksReady(true);
+        }}
+        onLoaded={(duration) => {
+          console.log('Audio loaded, duration:', duration, 'seconds');
+        }}
+      />
+    </div>
+  );
 }
 ```
 
@@ -416,29 +416,29 @@ The component provides comprehensive error handling for common failure scenarios
 
 ```tsx
 function App() {
-	const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-	return (
-		<div>
-			{error && (
-				<div style={{ color: 'red', padding: 12, marginBottom: 12 }}>
-					Error: {error}
-				</div>
-			)}
-			<WaveformNavigator
-				audio="/path/to/audio.mp3"
-				width={900}
-				height={140}
-				onError={(err, type) => {
-					console.error(`${type} error:`, err.message);
-					setError(err.message);
-				}}
-				onLoaded={() => {
-					setError(null); // Clear error on successful load
-				}}
-			/>
-		</div>
-	);
+  return (
+    <div>
+      {error && (
+        <div style={{ color: 'red', padding: 12, marginBottom: 12 }}>
+          Error: {error}
+        </div>
+      )}
+      <WaveformNavigator
+        audio="/path/to/audio.mp3"
+        width={900}
+        height={140}
+        onError={(err, type) => {
+          console.error(`${type} error:`, err.message);
+          setError(err.message);
+        }}
+        onLoaded={() => {
+          setError(null); // Clear error on successful load
+        }}
+      />
+    </div>
+  );
 }
 ```
 
@@ -462,15 +462,15 @@ The component automatically adapts to container width changes:
 
 ```jsx
 function App() {
-	return (
-		<div style={{ width: '100%', maxWidth: 1200 }}>
-			<WaveformNavigator
-				audio="/path/to/audio.mp3"
-				height={140}
-				// responsive is true by default
-			/>
-		</div>
-	);
+  return (
+    <div style={{ width: '100%', maxWidth: 1200 }}>
+      <WaveformNavigator
+        audio="/path/to/audio.mp3"
+        height={140}
+        // responsive is true by default
+      />
+    </div>
+  );
 }
 ```
 
@@ -478,16 +478,16 @@ To disable responsive behavior and use fixed width:
 
 ```jsx
 function App() {
-	return (
-		<div style={{ width: 900 }}>
-			<WaveformNavigator
-				audio="/path/to/audio.mp3"
-				width={900}
-				height={140}
-				responsive={false}
-			/>
-		</div>
-	);
+  return (
+    <div style={{ width: 900 }}>
+      <WaveformNavigator
+        audio="/path/to/audio.mp3"
+        width={900}
+        height={140}
+        responsive={false}
+      />
+    </div>
+  );
 }
 ```
 
@@ -495,16 +495,16 @@ Customize debounce delay for responsive resizing:
 
 ```jsx
 function App() {
-	return (
-		<div style={{ width: '100%' }}>
-			<WaveformNavigator
-				audio="/path/to/audio.mp3"
-				height={140}
-				responsive={true}
-				responsiveDebounceMs={200} // Wait 200ms before recomputing
-			/>
-		</div>
-	);
+  return (
+    <div style={{ width: '100%' }}>
+      <WaveformNavigator
+        audio="/path/to/audio.mp3"
+        height={140}
+        responsive={true}
+        responsiveDebounceMs={200} // Wait 200ms before recomputing
+      />
+    </div>
+  );
 }
 ```
 
@@ -534,9 +534,9 @@ Vite automatically handles Web Worker bundling with no additional configuration 
 import WaveformNavigator from 'waveform-navigator';
 
 function App() {
-	return (
-		<WaveformNavigator audio="/path/to/audio.mp3" width={900} height={140} />
-	);
+  return (
+    <WaveformNavigator audio="/path/to/audio.mp3" width={900} height={140} />
+  );
 }
 ```
 
@@ -550,9 +550,9 @@ Webpack 5 supports the same syntax as Vite. No additional configuration is requi
 import WaveformNavigator from 'waveform-navigator';
 
 function App() {
-	return (
-		<WaveformNavigator audio="/path/to/audio.mp3" width={900} height={140} />
-	);
+  return (
+    <WaveformNavigator audio="/path/to/audio.mp3" width={900} height={140} />
+  );
 }
 ```
 
@@ -565,15 +565,15 @@ For Rollup, ensure you're using `@rollup/plugin-node-resolve` and your output fo
 import resolve from '@rollup/plugin-node-resolve';
 
 export default {
-	// ... other config
-	plugins: [
-		resolve(),
-		// ... other plugins
-	],
-	output: {
-		format: 'esm', // or 'system'
-		// ...
-	},
+  // ... other config
+  plugins: [
+    resolve(),
+    // ... other plugins
+  ],
+  output: {
+    format: 'esm', // or 'system'
+    // ...
+  },
 };
 ```
 
@@ -585,14 +585,14 @@ In most cases, you don't need to use custom worker hosting. However, if you have
 import WaveformNavigator from 'waveform-navigator';
 
 function App() {
-	return (
-		<WaveformNavigator
-			audio="/path/to/audio.mp3"
-			width={900}
-			height={140}
-			workerUrl="https://cdn.example.com/peaks.worker.js"
-		/>
-	);
+  return (
+    <WaveformNavigator
+      audio="/path/to/audio.mp3"
+      width={900}
+      height={140}
+      workerUrl="https://cdn.example.com/peaks.worker.js"
+    />
+  );
 }
 ```
 
@@ -606,14 +606,14 @@ For debugging or environments where Web Workers are problematic, you can force m
 import WaveformNavigator from 'waveform-navigator';
 
 function App() {
-	return (
-		<WaveformNavigator
-			audio="/path/to/audio.mp3"
-			width={900}
-			height={140}
-			forceMainThread={true}
-		/>
-	);
+  return (
+    <WaveformNavigator
+      audio="/path/to/audio.mp3"
+      width={900}
+      height={140}
+      forceMainThread={true}
+    />
+  );
 }
 ```
 
@@ -664,11 +664,11 @@ The waveform can be focused and controlled entirely via keyboard:
 
 ```jsx
 <WaveformNavigator
-	audio="/audio.mp3"
-	ariaLabel="Podcast episode waveform"
-	keyboardSmallStep={10} // Seek 10 seconds with arrow keys
-	keyboardLargeStep={60} // Seek 60 seconds with PageUp/PageDown
-	disableKeyboardControls={false} // Set true to disable built-in keyboard handling
+  audio="/audio.mp3"
+  ariaLabel="Podcast episode waveform"
+  keyboardSmallStep={10} // Seek 10 seconds with arrow keys
+  keyboardLargeStep={60} // Seek 60 seconds with PageUp/PageDown
+  disableKeyboardControls={false} // Set true to disable built-in keyboard handling
 />
 ```
 
@@ -716,22 +716,22 @@ The package uses the modern `exports` field for proper ESM/CJS support and TypeS
 
 ```json
 {
-	"main": "./dist/index.cjs",
-	"module": "./dist/index.mjs",
-	"types": "./dist/index.d.ts",
-	"exports": {
-		".": {
-			"import": {
-				"types": "./dist/index.d.ts",
-				"default": "./dist/index.mjs"
-			},
-			"require": {
-				"types": "./dist/index.d.ts",
-				"default": "./dist/index.cjs"
-			}
-		},
-		"./styles.css": "./dist/styles.css"
-	}
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./styles.css": "./dist/styles.css"
+  }
 }
 ```
 

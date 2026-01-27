@@ -30,3 +30,9 @@ pnpm-lock.yaml
 # Misc
 .DS_Store
 *.tgz
+
+# Ignore README files formatting on publish (rendering on npmjs prefers spaces)
+README.md
+**/README.md
+readme.md
+**/readme.md
