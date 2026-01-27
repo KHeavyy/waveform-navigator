@@ -2,7 +2,7 @@ name: Publish to NPM
 
 on:
   workflow_run:
-    workflows: ["CI"]
+    workflows: ['CI']
     types:
       - completed
     branches:
@@ -10,9 +10,9 @@ on:
 
 # Required permissions for creating tags, releases, and OIDC publishing
 permissions:
-  contents: write       # For creating and pushing tags
-  id-token: write      # For OIDC token generation (npm trusted publishing)
-  packages: write      # For GitHub Packages (future use)
+  contents: write # For creating and pushing tags
+  id-token: write # For OIDC token generation (npm trusted publishing)
+  packages: write # For GitHub Packages (future use)
 
 jobs:
   publish:
@@ -24,13 +24,13 @@ jobs:
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_branch == 'main'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
-          fetch-depth: 0  # Full git history for version bumping
+          fetch-depth: 0 # Full git history for version bumping
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
@@ -38,7 +38,6 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Configure Git
         run: |
@@ -72,7 +71,7 @@ jobs:
         run: |
           # Get commits since last tag (or all commits if no tags exist)
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          
+
           if [ -z "$LAST_TAG" ]; then
             echo "No previous tags found, using all commits"
             COMMITS=$(git log --pretty=format:"%s" HEAD)
@@ -80,10 +79,10 @@ jobs:
             echo "Last tag: $LAST_TAG"
             COMMITS=$(git log --pretty=format:"%s" ${LAST_TAG}..HEAD)
           fi
-          
+
           echo "Analyzing commits:"
           echo "$COMMITS"
-          
+
           # Check for breaking changes (major version bump)
           if echo "$COMMITS" | grep -qE "BREAKING CHANGE:"; then
             echo "bump_type=major" >> $GITHUB_OUTPUT
@@ -103,13 +102,13 @@ jobs:
         run: |
           BUMP_TYPE="${{ steps.version-bump.outputs.bump_type }}"
           echo "Bumping version: $BUMP_TYPE"
-          
+
           # Bump version and capture the new version
           NEW_VERSION=$(npm version $BUMP_TYPE -m "chore: bump version to %s [skip ci]")
-          
+
           # Remove 'v' prefix if present
           NEW_VERSION=${NEW_VERSION#v}
-          
+
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "New version: $NEW_VERSION"
 
@@ -120,7 +119,7 @@ jobs:
         id: changelog
         run: |
           LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          
+
           if [ -z "$LAST_TAG" ]; then
             echo "First release"
             CHANGELOG=$(git log --pretty=format:"- %s (%h)" HEAD)
@@ -128,10 +127,10 @@ jobs:
             echo "Changes since $LAST_TAG"
             CHANGELOG=$(git log --pretty=format:"- %s (%h)" ${LAST_TAG}..HEAD^)
           fi
-          
+
           # Save changelog to file (handle multiline)
           echo "$CHANGELOG" > /tmp/changelog.txt
-          
+
           # Also output a single line summary
           echo "changelog_summary=Release v${{ steps.bump-version.outputs.new_version }}" >> $GITHUB_OUTPUT
 
