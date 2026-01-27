@@ -58,6 +58,12 @@ export default function App() {
 	// Demo display mode
 	const [displayMode, setDisplayMode] = useState<'bars' | 'analog'>('bars');
 
+	// Display mode descriptions
+	const DISPLAY_MODE_DESCRIPTIONS = {
+		bars: '📊 Bar mode: Traditional visualization with bars and gaps',
+		analog: '📈 Analog mode: Continuous filled waveform (analog style)',
+	};
+
 	const handleProgrammaticPlay = async () => {
 		await waveformRef.current?.resumeAudioContext();
 		await waveformRef.current?.play();
@@ -608,9 +614,7 @@ export default function App() {
 					</button>
 				</div>
 				<p style={{ fontSize: 12, marginTop: 4, color: '#666' }}>
-					{displayMode === 'bars'
-						? '📊 Bar mode: Traditional visualization with bars and gaps'
-						: '📈 Analog mode: Continuous filled waveform (analog style)'}
+					{DISPLAY_MODE_DESCRIPTIONS[displayMode]}
 				</p>
 				<p style={{ fontSize: 12, marginTop: 4, color: '#666' }}>
 					💡 The same color configuration applies to both modes. Try changing colors

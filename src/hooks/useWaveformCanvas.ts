@@ -91,6 +91,28 @@ export function useWaveformCanvas({
 	}, [width, height]);
 
 	/**
+	 * Interpolate amplitude at a given position for smooth progress rendering
+	 */
+	function interpolateAmplitude(
+		position: number,
+		peaksArr: Float32Array
+	): number {
+		const index = position / (barWidth + gap);
+		const lowerIndex = Math.floor(index);
+		const upperIndex = Math.ceil(index);
+		const fraction = index - lowerIndex;
+
+		if (upperIndex < peaksArr.length) {
+			const lowerAmp = peaksArr[lowerIndex] || 0;
+			const upperAmp = peaksArr[upperIndex] || 0;
+			return lowerAmp + (upperAmp - lowerAmp) * fraction;
+		} else if (lowerIndex < peaksArr.length) {
+			return peaksArr[lowerIndex];
+		}
+		return 0;
+	}
+
+	/**
 	 * Draw waveform with progress overlay.
 	 * Uses cached base waveform (ImageData) and only draws progress bars + playhead.
 	 * Builds and caches the base waveform on first render or after cache invalidation.
@@ -216,42 +238,14 @@ export function useWaveformCanvas({
 
 			// If we stopped in the middle, add the playhead position point
 			if (playedWidth < width) {
-				// Interpolate the amplitude at the playhead position
-				const playedIndex = playedWidth / (barWidth + gap);
-				const lowerIndex = Math.floor(playedIndex);
-				const upperIndex = Math.ceil(playedIndex);
-				const fraction = playedIndex - lowerIndex;
-				
-				let interpolatedAmplitude = 0;
-				if (upperIndex < peaksArr.length) {
-					const lowerAmp = peaksArr[lowerIndex] || 0;
-					const upperAmp = peaksArr[upperIndex] || 0;
-					interpolatedAmplitude = lowerAmp + (upperAmp - lowerAmp) * fraction;
-				} else if (lowerIndex < peaksArr.length) {
-					interpolatedAmplitude = peaksArr[lowerIndex];
-				}
-
+				const interpolatedAmplitude = interpolateAmplitude(playedWidth, peaksArr);
 				const topY = midY - (interpolatedAmplitude * scaleY / 2);
 				ctx.lineTo(playedWidth, topY);
 			}
 
 			// Draw the bottom half in reverse
 			if (playedWidth < width) {
-				// Start from the playhead position on the bottom
-				const playedIndex = playedWidth / (barWidth + gap);
-				const lowerIndex = Math.floor(playedIndex);
-				const upperIndex = Math.ceil(playedIndex);
-				const fraction = playedIndex - lowerIndex;
-				
-				let interpolatedAmplitude = 0;
-				if (upperIndex < peaksArr.length) {
-					const lowerAmp = peaksArr[lowerIndex] || 0;
-					const upperAmp = peaksArr[upperIndex] || 0;
-					interpolatedAmplitude = lowerAmp + (upperAmp - lowerAmp) * fraction;
-				} else if (lowerIndex < peaksArr.length) {
-					interpolatedAmplitude = peaksArr[lowerIndex];
-				}
-
+				const interpolatedAmplitude = interpolateAmplitude(playedWidth, peaksArr);
 				const bottomY = midY + (interpolatedAmplitude * scaleY / 2);
 				ctx.lineTo(playedWidth, bottomY);
 			}
