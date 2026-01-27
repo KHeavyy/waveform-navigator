@@ -63,6 +63,9 @@ import type { WaveformNavigatorProps } from 'waveform-navigator';
 
 - **`barWidth`** (number, default: 3): Width of each waveform bar in pixels.
 - **`gap`** (number, default: 2): Gap between waveform bars in pixels.
+- **`displayMode`** ('bars' | 'analog', default: 'bars'): Display mode for the waveform visualization.
+  - `'bars'`: Traditional bar visualization with gaps between bars (default).
+  - `'analog'`: Continuous filled waveform visualization (analog style).
 - **`styles`** (WaveformNavigatorStyles | undefined): A centralized style configuration object for customizing all visual aspects of the waveform and controls. Provides a clean way to configure colors without needing individual props for each element.
 
 ##### WaveformNavigatorStyles Interface
@@ -71,8 +74,8 @@ The `styles` prop accepts an object with the following optional properties:
 
 **Waveform Colors:**
 
-- `barColor` (string, default: '#2b6ef6'): Color of the waveform bars.
-- `progressColor` (string, default: '#0747a6'): Color of the played portion of the waveform.
+- `barColor` (string, default: '#2b6ef6'): Color of the waveform. In 'bars' mode, this is the color of individual bars. In 'analog' mode, this is the color of the filled waveform shape.
+- `progressColor` (string, default: '#0747a6'): Color of the played portion of the waveform. Applies to both 'bars' and 'analog' display modes.
 - `backgroundColor` (string, default: 'transparent'): Background color of the waveform canvas.
 - `playheadColor` (string, default: '#ff4d4f'): Color of the playhead indicator.
 
@@ -273,6 +276,56 @@ function App() {
 - **High** (>50%): Speaker with two sound waves
 
 Click the volume icon to toggle mute/unmute. When unmuted, it restores the previous volume level.
+
+### Analog Waveform Display Mode
+
+Display the waveform in analog (continuous filled) mode instead of bars:
+
+```tsx
+function App() {
+	return (
+		<div style={{ width: '100%', maxWidth: 1200 }}>
+			<WaveformNavigator
+				audio="/path/to/audio.mp3"
+				displayMode="analog"
+				styles={{
+					barColor: '#10b981',
+					progressColor: '#059669',
+					playheadColor: '#ef4444',
+				}}
+			/>
+		</div>
+	);
+}
+```
+
+You can switch between display modes dynamically:
+
+```tsx
+function App() {
+	const [mode, setMode] = useState<'bars' | 'analog'>('bars');
+	
+	return (
+		<div style={{ width: '100%', maxWidth: 1200 }}>
+			<WaveformNavigator
+				audio="/path/to/audio.mp3"
+				displayMode={mode}
+				styles={{
+					barColor: '#3b82f6',
+					progressColor: '#1d4ed8',
+				}}
+			/>
+			
+			<div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+				<button onClick={() => setMode('bars')}>Bar Mode</button>
+				<button onClick={() => setMode('analog')}>Analog Mode</button>
+			</div>
+		</div>
+	);
+}
+```
+
+**Note:** The same color configuration (`barColor` and `progressColor`) is used for both display modes. In analog mode, `barColor` colors the base waveform shape, and `progressColor` colors the played portion.
 
 ### Combining Ref Control with Event Callbacks
 

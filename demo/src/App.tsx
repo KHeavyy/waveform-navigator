@@ -55,6 +55,9 @@ export default function App() {
 			volumeIconColor: '#374151',
 		});
 
+	// Demo display mode
+	const [displayMode, setDisplayMode] = useState<'bars' | 'analog'>('bars');
+
 	const handleProgrammaticPlay = async () => {
 		await waveformRef.current?.resumeAudioContext();
 		await waveformRef.current?.play();
@@ -558,6 +561,63 @@ export default function App() {
 				</p>
 			</div>
 
+			{/* Display mode demo */}
+			<div
+				style={{
+					marginBottom: 12,
+					padding: 12,
+					backgroundColor: '#e8f0f8',
+					borderRadius: 4,
+				}}
+			>
+				<h3>📊 Display Mode Demo</h3>
+				<div style={{ marginBottom: 8 }}>
+					<p style={{ fontSize: 14, marginBottom: 8 }}>
+						Toggle between bar and analog waveform visualization:
+					</p>
+					<button
+						onClick={() => setDisplayMode('bars')}
+						style={{
+							marginRight: 8,
+							marginBottom: 8,
+							padding: '8px 16px',
+							backgroundColor: displayMode === 'bars' ? '#2563eb' : '#e5e7eb',
+							color: displayMode === 'bars' ? '#fff' : '#000',
+							border: 'none',
+							borderRadius: 4,
+							cursor: 'pointer',
+							fontWeight: displayMode === 'bars' ? 'bold' : 'normal',
+						}}
+					>
+						📊 Bar Mode
+					</button>
+					<button
+						onClick={() => setDisplayMode('analog')}
+						style={{
+							marginBottom: 8,
+							padding: '8px 16px',
+							backgroundColor: displayMode === 'analog' ? '#2563eb' : '#e5e7eb',
+							color: displayMode === 'analog' ? '#fff' : '#000',
+							border: 'none',
+							borderRadius: 4,
+							cursor: 'pointer',
+							fontWeight: displayMode === 'analog' ? 'bold' : 'normal',
+						}}
+					>
+						📈 Analog Mode
+					</button>
+				</div>
+				<p style={{ fontSize: 12, marginTop: 4, color: '#666' }}>
+					{displayMode === 'bars'
+						? '📊 Bar mode: Traditional visualization with bars and gaps'
+						: '📈 Analog mode: Continuous filled waveform (analog style)'}
+				</p>
+				<p style={{ fontSize: 12, marginTop: 4, color: '#666' }}>
+					💡 The same color configuration applies to both modes. Try changing colors
+					with custom styles enabled!
+				</p>
+			</div>
+
 			{/* Error handling demo */}
 			<div
 				style={{
@@ -620,6 +680,7 @@ export default function App() {
 					audio={testAudioPath}
 					width={900}
 					height={140}
+					displayMode={displayMode}
 					responsive={responsiveEnabled}
 					forceMainThread={forceMainThread}
 					showControls={showControls}
