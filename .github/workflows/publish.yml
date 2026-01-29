@@ -24,6 +24,10 @@ jobs:
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_branch == 'main'
+    # Ensure only one publish workflow runs at a time to prevent race conditions
+    concurrency:
+      group: publish-${{ github.ref }}
+      cancel-in-progress: false
 
     steps:
       - name: Checkout code
@@ -87,10 +91,10 @@ jobs:
           # Get commits since last tag (or all commits if no tags exist)
           if [ -z "$LATEST_TAG" ]; then
             echo "No previous tags found, analyzing all commits"
-            COMMITS=$(git log --pretty=format:"%s" HEAD)
+            COMMITS=$(git log --pretty=format:"%B" HEAD)
           else
             echo "Analyzing commits since $LATEST_TAG"
-            COMMITS=$(git log --pretty=format:"%s" ${LATEST_TAG}..HEAD)
+            COMMITS=$(git log --pretty=format:"%B" ${LATEST_TAG}..HEAD)
           fi
 
           echo "Commits to analyze:"
@@ -98,7 +102,8 @@ jobs:
 
           # Analyze commits to determine bump type
           # Check for breaking changes (major version bump)
-          if echo "$COMMITS" | grep -qE "BREAKING CHANGE:"; then
+          # Support both "BREAKING CHANGE:" in body/footer and "!" in subject (conventional commits)
+          if echo "$COMMITS" | grep -qE "(BREAKING CHANGE:|^[a-z]+!:)"; then
             BUMP_TYPE="major"
             NEW_VERSION="$((MAJOR + 1)).0.0"
             echo "Version bump: MAJOR (breaking changes detected)"
@@ -117,6 +122,7 @@ jobs:
           echo "bump_type=$BUMP_TYPE" >> $GITHUB_OUTPUT
           echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
           echo "Determined bump type: $BUMP_TYPE (from $CURRENT_VERSION to $NEW_VERSION)"
 
       - name: Bump version
@@ -125,6 +131,13 @@ jobs:
           NEW_VERSION="${{ steps.version-bump.outputs.new_version }}"
           echo "Setting version to: $NEW_VERSION"
 
+          # Check if tag already exists on remote (race condition protection)
+          if git ls-remote --tags origin | grep -q "refs/tags/v$NEW_VERSION$"; then
+            echo "Tag v$NEW_VERSION already exists on remote, skipping publish"
+            echo "tag_exists=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           # Update package.json to the new version (local only, not committed)
           npm version $NEW_VERSION --no-git-tag-version --allow-same-version
 
@@ -132,12 +145,15 @@ jobs:
           git tag v$NEW_VERSION
 
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "tag_exists=false" >> $GITHUB_OUTPUT
           echo "Created tag v$NEW_VERSION"
 
       - name: Publish to NPM
+        if: steps.bump-version.outputs.tag_exists != 'true'
         run: npm publish --provenance --access public
 
       - name: Push tags to repository
+        if: steps.bump-version.outputs.tag_exists != 'true'
         run: |
           git push origin --tags
         env:
@@ -145,16 +161,17 @@ jobs:
 
       - name: Generate changelog
         id: changelog
+        if: steps.bump-version.outputs.tag_exists != 'true'
         run: |
-          # Use the current version (before bump) from the version-bump step
-          CURRENT_VERSION="${{ steps.version-bump.outputs.current_version }}"
+          # Use the latest_tag from the version-bump step to determine if this is first release
+          LATEST_TAG="${{ steps.version-bump.outputs.latest_tag }}"
 
-          if [ -z "$CURRENT_VERSION" ] || [ "$CURRENT_VERSION" == "$(node -p "require('./package.json').version")" ]; then
-            echo "First release or no version history"
+          if [ -z "$LATEST_TAG" ]; then
+            echo "First release - using all commits"
             CHANGELOG=$(git log --pretty=format:"- %s (%h)" HEAD)
           else
-            echo "Changes since v$CURRENT_VERSION"
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" v${CURRENT_VERSION}..HEAD)
+            echo "Changes since $LATEST_TAG"
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" ${LATEST_TAG}..HEAD)
           fi
 
           # Save changelog to file (handle multiline)
@@ -164,6 +181,7 @@ jobs:
           echo "changelog_summary=Release v${{ steps.bump-version.outputs.new_version }}" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
+        if: steps.bump-version.outputs.tag_exists != 'true'
         run: |
           gh release create v${{ steps.bump-version.outputs.new_version }} \
             --title "Release v${{ steps.bump-version.outputs.new_version }}" \
@@ -172,6 +190,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publication Summary
+        if: steps.bump-version.outputs.tag_exists != 'true'
         run: |
           echo "✅ Successfully published waveform-navigator@${{ steps.bump-version.outputs.new_version }} to NPM!"
           echo "📦 Package: https://www.npmjs.com/package/waveform-navigator"
