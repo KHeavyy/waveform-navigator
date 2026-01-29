@@ -175,7 +175,7 @@ By default, markers are rendered as a vertical line spanning the full height of 
 />
 ```
 
-<img src="https://github.com/user-attachments/assets/626c6300-c3ac-4488-bc5c-5518070afa10" alt="Default marker appearance showing three green markers (M1, M2, M3) on the waveform" width="800"/>
+<img src="screenshots/markers-default.png" alt="Default marker appearance showing three green markers (M1, M2, M3) on the waveform" width="800"/>
 
 **Custom Marker Rendering:**
 
@@ -205,7 +205,7 @@ const customMarker = ({ ctx, x, height }: MarkerRenderProps) => {
 />
 ```
 
-<img src="https://github.com/user-attachments/assets/2c6d5192-5b34-40d1-b5e0-70078975240b" alt="Custom marker rendering showing default green markers and a custom red flag-style marker (M2)" width="800"/>
+<img src="screenshots/markers-custom.png" alt="Custom marker rendering showing default green markers and a custom red flag-style marker (M2)" width="800"/>
 
 **Customizing Marker Colors:**
 
