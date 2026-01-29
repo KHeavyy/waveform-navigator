@@ -11,9 +11,9 @@ interface UseWaveformCanvasProps {
 	progressColor: string;
 	backgroundColor: string;
 	playheadColor: string;
-	markerColor: string;
-	markerLabelColor: string;
-	markers: Marker[];
+	markerColor?: string;
+	markerLabelColor?: string;
+	markers?: Marker[];
 	peaks: Float32Array | null;
 	currentTime: number;
 	duration: number;
@@ -33,9 +33,9 @@ export function useWaveformCanvas({
 	progressColor,
 	backgroundColor,
 	playheadColor,
-	markerColor,
-	markerLabelColor,
-	markers,
+	markerColor = '#10b981',
+	markerLabelColor = '#ffffff',
+	markers = [],
 	peaks,
 	currentTime,
 	duration,

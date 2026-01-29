@@ -120,7 +120,10 @@ const WaveformNavigator = React.forwardRef<
 	WaveformNavigatorProps
 >(
 	(
-		{
+		props: WaveformNavigatorProps,
+		ref: React.Ref<WaveformNavigatorHandle>
+	) => {
+		const {
 			audio,
 			width = 800,
 			height = 120,
@@ -148,9 +151,7 @@ const WaveformNavigator = React.forwardRef<
 			disableKeyboardControls = false,
 			ariaLabel = 'Audio waveform seek bar',
 			showControls = true,
-		},
-		ref
-	) => {
+		} = props;
 		const [hoverX, setHoverX] = useState<number | null>(null);
 		const [hoverTime, setHoverTime] = useState<number | null>(null);
 		const [errorState, setErrorState] = useState<{
