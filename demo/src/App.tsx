@@ -3,6 +3,8 @@ import WaveformNavigator from '../../src';
 import type {
 	WaveformNavigatorHandle,
 	WaveformNavigatorStyles,
+	Marker,
+	MarkerRenderProps,
 } from '../../src';
 
 export default function App() {
@@ -54,6 +56,46 @@ export default function App() {
 			volumeSliderFillColor: '#111827',
 			volumeIconColor: '#374151',
 		});
+
+	// Demo markers
+	const [showMarkers, setShowMarkers] = useState(false);
+	const [useCustomMarkers, setUseCustomMarkers] = useState(false);
+
+	// Custom marker rendering function
+	const customMarkerMarkup = ({ ctx, x, height, index }: MarkerRenderProps) => {
+		// Draw a flag-style marker
+		ctx.fillStyle = '#ff6b6b';
+		ctx.beginPath();
+		ctx.moveTo(x, 10);
+		ctx.lineTo(x + 15, 20);
+		ctx.lineTo(x, 30);
+		ctx.closePath();
+		ctx.fill();
+
+		// Draw the pole
+		ctx.fillStyle = '#d63031';
+		ctx.fillRect(x - 1, 10, 2, height - 10);
+
+		// Draw marker number
+		ctx.fillStyle = '#ffffff';
+		ctx.font = '11px sans-serif';
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'middle';
+		ctx.fillText(`${index + 1}`, x + 7.5, 20);
+	};
+
+	// Define markers based on current settings
+	const markers: Marker[] =
+		!showMarkers || duration === 0
+			? []
+			: [
+					{ time: duration * 0.25 },
+					{
+						time: duration * 0.5,
+						...(useCustomMarkers && { markup: customMarkerMarkup }),
+					},
+					{ time: duration * 0.75 },
+				];
 
 	const handleProgrammaticPlay = async () => {
 		await waveformRef.current?.resumeAudioContext();
@@ -558,6 +600,62 @@ export default function App() {
 				</p>
 			</div>
 
+			{/* Markers demo */}
+			<div
+				style={{
+					marginBottom: 12,
+					padding: 12,
+					backgroundColor: '#f0f8ff',
+					borderRadius: 4,
+				}}
+			>
+				<h3>📍 Markers Demo</h3>
+				<div style={{ marginBottom: 8 }}>
+					<label>
+						<input
+							type="checkbox"
+							checked={showMarkers}
+							onChange={(e) => setShowMarkers(e.target.checked)}
+						/>
+						Show Markers
+					</label>
+					<p style={{ fontSize: 12, marginTop: 4 }}>
+						{showMarkers
+							? '✅ Showing markers at 25%, 50%, and 75% of audio duration'
+							: '⚪ Markers hidden'}
+					</p>
+				</div>
+				{showMarkers && (
+					<div style={{ marginTop: 12 }}>
+						<label>
+							<input
+								type="checkbox"
+								checked={useCustomMarkers}
+								onChange={(e) => setUseCustomMarkers(e.target.checked)}
+							/>
+							Use Custom Marker Rendering (for middle marker)
+						</label>
+						<p style={{ fontSize: 12, marginTop: 4 }}>
+							{useCustomMarkers
+								? '🎨 Middle marker uses custom flag-style rendering'
+								: '📍 All markers use default appearance (line + label)'}
+						</p>
+						{useCustomMarkers && (
+							<p style={{ fontSize: 11, marginTop: 8, color: '#666' }}>
+								The custom marker demonstrates how to provide a custom markup
+								function to render markers with your own design. The middle marker
+								(M2) uses a red flag-style appearance.
+							</p>
+						)}
+					</div>
+				)}
+				<p style={{ fontSize: 12, marginTop: 12, color: '#666' }}>
+					💡 Markers can be used to indicate chapters, important moments, or
+					annotations in the audio. You can customize their appearance or provide
+					custom rendering functions.
+				</p>
+			</div>
+
 			{/* Error handling demo */}
 			<div
 				style={{
@@ -623,6 +721,7 @@ export default function App() {
 					responsive={responsiveEnabled}
 					forceMainThread={forceMainThread}
 					showControls={showControls}
+					markers={markers}
 					controlledCurrentTime={useControlled ? controlledTime : undefined}
 					onCurrentTimeChange={(time) => {
 						setControlledTime(time);
