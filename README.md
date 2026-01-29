@@ -10,39 +10,19 @@ npm install waveform-navigator
 
 ## Visual Examples
 
-Here are some examples of how the waveform navigator looks with different visual configurations:
+Here are examples demonstrating the waveform navigator's visual customization options:
 
-### Default Theme
+### Default Theme with Playhead
 
-<img src="screenshots/default-theme.png" alt="Waveform navigator with blue waveform bars, progress indicator, and playback controls" width="800"/>
+<img src="screenshots/default-theme.png" alt="Waveform showing playhead position and progress visualization" width="800"/>
 
-The default blue theme with standard controls.
+Shows the playhead (red line) indicating current playback position and the progress bar (blue) showing elapsed audio.
 
-### Custom Color Themes
+### All Customizable Colors
 
-<img src="screenshots/purple-theme.png" alt="Waveform navigator with purple-colored waveform bars and matching controls" width="800"/>
+<img src="screenshots/custom-colors.png" alt="Waveform with all custom colors including waveform, buttons, icons, and volume slider" width="800"/>
 
-*Purple theme* - Custom purple color scheme
-
-<img src="screenshots/green-theme.png" alt="Waveform navigator with green-colored waveform bars and matching controls" width="800"/>
-
-*Green theme* - Fresh green color palette
-
-<img src="screenshots/orange-theme.png" alt="Waveform navigator with orange and red-colored waveform bars" width="800"/>
-
-*Orange theme* - Warm orange and red colors
-
-### Custom Button and Icon Colors
-
-<img src="screenshots/custom-buttons.png" alt="Waveform navigator with pink buttons and custom icon colors" width="800"/>
-
-*Custom buttons* - Pink play button with white icon, light pink rewind/forward buttons with dark pink icons
-
-### Progress and Playhead Visualization
-
-<img src="screenshots/playhead-progress.png" alt="Waveform showing blue progress bar for elapsed audio and red playhead indicator" width="800"/>
-
-*Progress and playhead* - Blue shows the played/elapsed portion, red line indicates current playback position
+Demonstrates every customizable color property: waveform colors (bar, progress, playhead), button colors (play, rewind, forward), icon colors, and volume slider fill color.
 
 ### Minimal UI
 
