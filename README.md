@@ -32,9 +32,17 @@ The default blue theme with standard controls.
 
 *Orange theme* - Warm orange and red colors
 
-<img src="screenshots/dark-theme.png" alt="Waveform navigator with light blue waveform bars suitable for dark backgrounds" width="800"/>
+### Custom Button and Icon Colors
 
-*Dark mode compatible* - Colors optimized for dark backgrounds
+<img src="screenshots/custom-buttons.png" alt="Waveform navigator with pink buttons and custom icon colors" width="800"/>
+
+*Custom buttons* - Pink play button with white icon, light pink rewind/forward buttons with dark pink icons
+
+### Progress and Playhead Visualization
+
+<img src="screenshots/playhead-progress.png" alt="Waveform showing blue progress bar for elapsed audio and red playhead indicator" width="800"/>
+
+*Progress and playhead* - Blue shows the played/elapsed portion, red line indicates current playback position
 
 ### Minimal UI
 

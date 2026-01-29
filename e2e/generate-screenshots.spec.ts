@@ -111,16 +111,24 @@ test.describe('Generate README Screenshots', () => {
 		});
 	});
 
-	test('screenshot: dark mode theme', async ({ page }) => {
+	test('screenshot: custom button colors', async ({ page }) => {
 		// Enable custom styles
 		await page.check('text=/Enable Custom Styles/i');
 		await page.waitForTimeout(500);
 
-		// Set dark mode colors
+		// Set custom button and icon colors
 		const colorInputs = page.locator('input[type="color"]');
-		await colorInputs.nth(0).fill('#60a5fa');
-		await colorInputs.nth(1).fill('#3b82f6');
-		await colorInputs.nth(2).fill('#06b6d4');
+		// Waveform colors
+		await colorInputs.nth(0).fill('#ec4899'); // Bar - pink
+		await colorInputs.nth(1).fill('#be185d'); // Progress - darker pink
+		await colorInputs.nth(2).fill('#f43f5e'); // Playhead - red-pink
+		// Button colors
+		await colorInputs.nth(3).fill('#ec4899'); // Play button - pink
+		await colorInputs.nth(4).fill('#ffffff'); // Play icon - white
+		await colorInputs.nth(5).fill('#fce7f3'); // Rewind button - light pink
+		await colorInputs.nth(6).fill('#831843'); // Rewind icon - dark pink
+		await colorInputs.nth(7).fill('#fce7f3'); // Forward button - light pink
+		await colorInputs.nth(8).fill('#831843'); // Forward icon - dark pink
 
 		// Wait for waveform to re-render
 		await page.waitForTimeout(1500);
@@ -128,7 +136,37 @@ test.describe('Generate README Screenshots', () => {
 		// Take screenshot
 		const waveformContainer = page.locator('.waveform-navigator').first();
 		await waveformContainer.screenshot({
-			path: path.join(SCREENSHOTS_DIR, 'dark-theme.png'),
+			path: path.join(SCREENSHOTS_DIR, 'custom-buttons.png'),
+		});
+	});
+
+	test('screenshot: playhead and progress demonstration', async ({ page }) => {
+		// Enable custom styles for better visibility
+		await page.check('text=/Enable Custom Styles/i');
+		await page.waitForTimeout(500);
+
+		// Set contrasting colors to show playhead and progress clearly
+		const colorInputs = page.locator('input[type="color"]');
+		await colorInputs.nth(0).fill('#94a3b8'); // Bar - light gray
+		await colorInputs.nth(1).fill('#0ea5e9'); // Progress - bright blue (elapsed/played portion)
+		await colorInputs.nth(2).fill('#ef4444'); // Playhead - bright red
+
+		await page.waitForTimeout(1000);
+
+		// Click on the waveform to seek to about 40% to show progress and playhead
+		const canvas = page.locator('canvas').first();
+		const box = await canvas.boundingBox();
+		if (box) {
+			await canvas.click({ position: { x: box.width * 0.4, y: box.height / 2 } });
+		}
+
+		// Wait for seek to complete
+		await page.waitForTimeout(1000);
+
+		// Take screenshot
+		const waveformContainer = page.locator('.waveform-navigator').first();
+		await waveformContainer.screenshot({
+			path: path.join(SCREENSHOTS_DIR, 'playhead-progress.png'),
 		});
 	});
 });
