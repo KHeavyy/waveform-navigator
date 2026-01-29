@@ -27,7 +27,7 @@ test.describe('Generate README Screenshots', () => {
 	test('screenshot: default theme with playhead', async ({ page }) => {
 		// Don't enable custom styles - use actual default colors
 		// Just seek to show playhead and progress with default theme
-		
+
 		await page.waitForTimeout(1000);
 
 		// Click on the waveform to seek to about 40% to show progress and playhead
