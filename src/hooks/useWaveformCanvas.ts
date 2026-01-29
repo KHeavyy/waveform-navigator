@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { syncCanvasSize } from '../utils';
+import type { Marker } from '../WaveformNavigator';
 
 interface UseWaveformCanvasProps {
 	width: number;
@@ -10,6 +11,9 @@ interface UseWaveformCanvasProps {
 	progressColor: string;
 	backgroundColor: string;
 	playheadColor: string;
+	markerColor: string;
+	markerLabelColor: string;
+	markers: Marker[];
 	peaks: Float32Array | null;
 	currentTime: number;
 	duration: number;
@@ -29,6 +33,9 @@ export function useWaveformCanvas({
 	progressColor,
 	backgroundColor,
 	playheadColor,
+	markerColor,
+	markerLabelColor,
+	markers,
 	peaks,
 	currentTime,
 	duration,
@@ -185,6 +192,79 @@ export function useWaveformCanvas({
 		const px = playedWidth;
 		ctx.fillStyle = playheadColor;
 		ctx.fillRect(px - 1, 0, 2, height);
+
+		// Draw markers (using logical coordinates)
+		if (markers && markers.length > 0) {
+			drawMarkers(ctx, markers, dur, width, height);
+		}
+	}
+
+	/**
+	 * Draw markers on the waveform.
+	 * Renders either default markers (line + label) or custom markup if provided.
+	 */
+	function drawMarkers(
+		ctx: CanvasRenderingContext2D,
+		markersArr: Marker[],
+		dur: number,
+		canvasWidth: number,
+		canvasHeight: number
+	) {
+		if (dur <= 0) {
+			return;
+		}
+
+		markersArr.forEach((marker, index) => {
+			// Calculate x position from time
+			const markerX = (marker.time / dur) * canvasWidth;
+
+			// Skip markers outside the visible range
+			if (markerX < 0 || markerX > canvasWidth) {
+				return;
+			}
+
+			// Use custom markup if provided, otherwise use default
+			if (marker.markup) {
+				// Custom marker rendering
+				ctx.save();
+				marker.markup({
+					ctx,
+					x: markerX,
+					height: canvasHeight,
+					index,
+					marker,
+				});
+				ctx.restore();
+			} else {
+				// Default marker rendering: vertical line with label
+				ctx.save();
+
+				// Draw vertical line
+				ctx.fillStyle = markerColor;
+				ctx.fillRect(markerX - 1, 0, 2, canvasHeight);
+
+				// Draw label background and text
+				const label = `M${index + 1}`;
+				ctx.font = '12px sans-serif';
+				const textMetrics = ctx.measureText(label);
+				const labelWidth = textMetrics.width + 8;
+				const labelHeight = 20;
+				const labelX = markerX - labelWidth / 2;
+				const labelY = 8;
+
+				// Draw label background
+				ctx.fillStyle = markerColor;
+				ctx.fillRect(labelX, labelY, labelWidth, labelHeight);
+
+				// Draw label text
+				ctx.fillStyle = markerLabelColor;
+				ctx.textAlign = 'center';
+				ctx.textBaseline = 'middle';
+				ctx.fillText(label, markerX, labelY + labelHeight / 2);
+
+				ctx.restore();
+			}
+		});
 	}
 
 	// Invalidate cache when base waveform properties change
@@ -225,7 +305,16 @@ export function useWaveformCanvas({
 				rafRef.current = null;
 			}
 		};
-	}, [isPlaying, peaks, progressColor, playheadColor, currentTime]);
+	}, [
+		isPlaying,
+		peaks,
+		progressColor,
+		playheadColor,
+		markerColor,
+		markerLabelColor,
+		markers,
+		currentTime,
+	]);
 
 	return {
 		canvasRef,
