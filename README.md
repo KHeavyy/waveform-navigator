@@ -14,31 +14,31 @@ Here are some examples of how the waveform navigator looks with different visual
 
 ### Default Theme
 
-<img src="screenshots/default-theme.png" alt="Default blue theme" width="800"/>
+<img src="screenshots/default-theme.png" alt="Waveform navigator with blue waveform bars, progress indicator, and playback controls" width="800"/>
 
 The default blue theme with standard controls.
 
 ### Custom Color Themes
 
-<img src="screenshots/purple-theme.png" alt="Purple theme" width="800"/>
+<img src="screenshots/purple-theme.png" alt="Waveform navigator with purple-colored waveform bars and matching controls" width="800"/>
 
 *Purple theme* - Custom purple color scheme
 
-<img src="screenshots/green-theme.png" alt="Green theme" width="800"/>
+<img src="screenshots/green-theme.png" alt="Waveform navigator with green-colored waveform bars and matching controls" width="800"/>
 
 *Green theme* - Fresh green color palette
 
-<img src="screenshots/orange-theme.png" alt="Orange theme" width="800"/>
+<img src="screenshots/orange-theme.png" alt="Waveform navigator with orange and red-colored waveform bars" width="800"/>
 
 *Orange theme* - Warm orange and red colors
 
-<img src="screenshots/dark-theme.png" alt="Dark mode compatible" width="800"/>
+<img src="screenshots/dark-theme.png" alt="Waveform navigator with light blue waveform bars suitable for dark backgrounds" width="800"/>
 
 *Dark mode compatible* - Colors optimized for dark backgrounds
 
 ### Minimal UI
 
-<img src="screenshots/minimal-ui.png" alt="Minimal UI without controls" width="800"/>
+<img src="screenshots/minimal-ui.png" alt="Waveform navigator showing only the waveform visualization without playback controls" width="800"/>
 
 *Without controls* - Waveform only, perfect for custom UI implementations using the component's ref API.
 
