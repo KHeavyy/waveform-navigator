@@ -249,7 +249,11 @@ export function useWaveformCanvas({
 				const textMetrics = ctx.measureText(label);
 				const labelWidth = textMetrics.width + 8;
 				const labelHeight = 20;
-				const labelX = markerX - labelWidth / 2;
+				// Clamp label position to stay within canvas bounds
+				const labelX = Math.max(
+					0,
+					Math.min(canvasWidth - labelWidth, markerX - labelWidth / 2)
+				);
 				const labelY = 8;
 
 				// Draw label background
@@ -260,7 +264,8 @@ export function useWaveformCanvas({
 				ctx.fillStyle = markerLabelColor;
 				ctx.textAlign = 'center';
 				ctx.textBaseline = 'middle';
-				ctx.fillText(label, markerX, labelY + labelHeight / 2);
+				// Center text within the clamped label bounds
+				ctx.fillText(label, labelX + labelWidth / 2, labelY + labelHeight / 2);
 
 				ctx.restore();
 			}
