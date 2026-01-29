@@ -24,16 +24,16 @@ test.describe('Generate README Screenshots', () => {
 		await page.waitForTimeout(2000);
 	});
 
-	test('screenshot: default theme with playhead', async ({ page }) => {
-		// Enable custom styles for better visibility
+	test('screenshot: playhead and progress visualization', async ({ page }) => {
+		// Enable custom styles with enhanced colors for better visibility
 		await page.check('text=/Enable Custom Styles/i');
 		await page.waitForTimeout(500);
 
-		// Set contrasting colors to show playhead and progress clearly
+		// Set contrasting colors to clearly demonstrate playhead and progress
 		const colorInputs = page.locator('input[type="color"]');
-		await colorInputs.nth(0).fill('#94a3b8'); // Bar - light gray
+		await colorInputs.nth(0).fill('#94a3b8'); // Bar - light gray (unplayed)
 		await colorInputs.nth(1).fill('#0ea5e9'); // Progress - bright blue (elapsed/played portion)
-		await colorInputs.nth(2).fill('#ef4444'); // Playhead - bright red
+		await colorInputs.nth(2).fill('#ef4444'); // Playhead - bright red (current position)
 
 		await page.waitForTimeout(1000);
 
