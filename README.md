@@ -98,6 +98,11 @@ The `styles` prop accepts an object with the following optional properties:
 - `backgroundColor` (string, default: 'transparent'): Background color of the waveform canvas.
 - `playheadColor` (string, default: '#ff4d4f'): Color of the playhead indicator.
 
+**Marker Colors:**
+
+- `markerColor` (string, default: '#10b981'): Color of marker lines and background for default marker labels.
+- `markerLabelColor` (string, default: '#ffffff'): Text color for default marker labels.
+
 **Control Button Colors:**
 
 - `playButtonColor` (string, default: '#111827'): Background color of the play/pause button.
@@ -129,6 +134,103 @@ The `styles` prop accepts an object with the following optional properties:
 ```
 
 **Note:** The volume icon is clickable and will toggle mute/unmute. When unmuted, it automatically restores the previous volume level.
+
+#### Markers
+
+The component supports displaying markers at specific time positions on the waveform. Markers can be used to indicate important moments, chapters, or annotations in the audio.
+
+- **`markers`** (Marker[] | undefined): Array of marker objects to display on the waveform. Each marker specifies a time position and optionally custom rendering.
+
+**Marker Interface:**
+
+```tsx
+import type { Marker, MarkerRenderProps } from 'waveform-navigator';
+
+interface Marker {
+  time: number; // Time position in seconds where the marker should be displayed
+  markup?: (props: MarkerRenderProps) => void; // Optional custom rendering function
+}
+
+interface MarkerRenderProps {
+  ctx: CanvasRenderingContext2D; // Canvas context for drawing
+  x: number; // X position of the marker in pixels
+  height: number; // Height of the waveform canvas in pixels
+  index: number; // Index of the marker in the markers array
+  marker: Marker; // The marker object
+}
+```
+
+**Default Marker Appearance:**
+
+By default, markers are rendered as a vertical line spanning the full height of the waveform with a label showing the marker number (M1, M2, etc.):
+
+```tsx
+<WaveformNavigator
+  audio="/audio.mp3"
+  markers={[
+    { time: 10 },  // Marker at 10 seconds (labeled M1)
+    { time: 30 },  // Marker at 30 seconds (labeled M2)
+    { time: 60 },  // Marker at 60 seconds (labeled M3)
+  ]}
+/>
+```
+
+<img src="screenshots/markers-default.png" alt="Default marker appearance showing three green markers (M1, M2, M3) on the waveform" width="800"/>
+
+**Custom Marker Rendering:**
+
+You can provide a custom `markup` function to render markers with your own design:
+
+```tsx
+const customMarker = ({ ctx, x, height }: MarkerRenderProps) => {
+  // Draw a custom flag-style marker
+  ctx.fillStyle = '#ff6b6b';
+  ctx.beginPath();
+  ctx.moveTo(x, 10);
+  ctx.lineTo(x + 15, 20);
+  ctx.lineTo(x, 30);
+  ctx.closePath();
+  ctx.fill();
+  
+  // Draw the pole
+  ctx.fillRect(x - 1, 10, 2, height - 10);
+};
+
+<WaveformNavigator
+  audio="/audio.mp3"
+  markers={[
+    { time: 15 },                          // Default marker at 15s
+    { time: 45, markup: customMarker },   // Custom marker at 45s
+  ]}
+/>
+```
+
+<img src="screenshots/markers-custom.png" alt="Custom marker rendering showing default green markers and a custom red flag-style marker (M2)" width="800"/>
+
+**Customizing Marker Colors:**
+
+Use the `styles` prop to customize the default marker colors:
+
+```tsx
+<WaveformNavigator
+  audio="/audio.mp3"
+  markers={[
+    { time: 20 },
+    { time: 40 },
+  ]}
+  styles={{
+    markerColor: '#ff6b6b',      // Red marker lines and label backgrounds
+    markerLabelColor: '#ffffff',  // White label text
+  }}
+/>
+```
+
+**Notes:**
+
+- Markers are positioned based on their `time` value relative to the audio duration.
+- Markers outside the valid time range (time < 0 or time > duration) will not be rendered.
+- The marker index (shown in default labels as M1, M2, etc.) corresponds to the marker's position in the array, starting from 1.
+- Custom markup functions receive the canvas context and should handle all drawing operations.
 
 #### Controlled Props
 

@@ -18,6 +18,32 @@ export interface WaveformNavigatorHandle {
 }
 
 /**
+ * Props for custom marker rendering.
+ */
+export interface MarkerRenderProps {
+	/** Canvas 2D rendering context for drawing */
+	ctx: CanvasRenderingContext2D;
+	/** X position of the marker in pixels */
+	x: number;
+	/** Height of the waveform canvas in pixels */
+	height: number;
+	/** Index of the marker in the markers array */
+	index: number;
+	/** The marker object */
+	marker: Marker;
+}
+
+/**
+ * Marker definition for displaying markers on the waveform.
+ */
+export interface Marker {
+	/** Time position in seconds where the marker should be displayed */
+	time: number;
+	/** Optional custom rendering function. If not provided, uses default marker appearance. */
+	markup?: (props: MarkerRenderProps) => void;
+}
+
+/**
  * Style configuration for WaveformNavigator appearance.
  * All color and visual properties can be customized via this object.
  */
@@ -27,6 +53,9 @@ export interface WaveformNavigatorStyles {
 	progressColor?: string;
 	backgroundColor?: string;
 	playheadColor?: string;
+	// Marker visual styles
+	markerColor?: string;
+	markerLabelColor?: string;
 	// Control button styles
 	playButtonColor?: string;
 	playIconColor?: string;
@@ -53,6 +82,12 @@ export interface WaveformNavigatorProps {
 	 * Example: styles={{ barColor: '#2b6ef6', playButtonColor: '#000' }}
 	 */
 	styles?: WaveformNavigatorStyles;
+	/**
+	 * Array of markers to display on the waveform.
+	 * Each marker has a time position and optional custom markup.
+	 * Example: markers={[{ time: 10 }, { time: 20, markup: customRenderFn }]}
+	 */
+	markers?: Marker[];
 	// responsive props
 	responsive?: boolean;
 	responsiveDebounceMs?: number;
@@ -85,7 +120,10 @@ const WaveformNavigator = React.forwardRef<
 	WaveformNavigatorProps
 >(
 	(
-		{
+		props: WaveformNavigatorProps,
+		ref: React.Ref<WaveformNavigatorHandle>
+	) => {
+		const {
 			audio,
 			width = 800,
 			height = 120,
@@ -93,6 +131,7 @@ const WaveformNavigator = React.forwardRef<
 			barWidth = 3,
 			gap = 2,
 			styles = {},
+			markers = [],
 			responsive = true,
 			responsiveDebounceMs = 150,
 			workerUrl,
@@ -112,9 +151,7 @@ const WaveformNavigator = React.forwardRef<
 			disableKeyboardControls = false,
 			ariaLabel = 'Audio waveform seek bar',
 			showControls = true,
-		},
-		ref
-	) => {
+		} = props;
 		const [hoverX, setHoverX] = useState<number | null>(null);
 		const [hoverTime, setHoverTime] = useState<number | null>(null);
 		const [errorState, setErrorState] = useState<{
@@ -128,6 +165,8 @@ const WaveformNavigator = React.forwardRef<
 			progressColor = '#0747a6',
 			backgroundColor = 'transparent',
 			playheadColor = '#ff4d4f',
+			markerColor = '#10b981',
+			markerLabelColor = '#ffffff',
 			playButtonColor = '#111827',
 			playIconColor = '#fff',
 			rewindButtonColor = '#fff',
@@ -211,6 +250,9 @@ const WaveformNavigator = React.forwardRef<
 			progressColor,
 			backgroundColor,
 			playheadColor,
+			markerColor,
+			markerLabelColor,
+			markers,
 			peaks,
 			currentTime: displayTime,
 			duration,
