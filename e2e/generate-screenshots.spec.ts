@@ -24,17 +24,10 @@ test.describe('Generate README Screenshots', () => {
 		await page.waitForTimeout(2000);
 	});
 
-	test('screenshot: playhead and progress visualization', async ({ page }) => {
-		// Enable custom styles with enhanced colors for better visibility
-		await page.check('text=/Enable Custom Styles/i');
-		await page.waitForTimeout(500);
-
-		// Set contrasting colors to clearly demonstrate playhead and progress
-		const colorInputs = page.locator('input[type="color"]');
-		await colorInputs.nth(0).fill('#94a3b8'); // Bar - light gray (unplayed)
-		await colorInputs.nth(1).fill('#0ea5e9'); // Progress - bright blue (elapsed/played portion)
-		await colorInputs.nth(2).fill('#ef4444'); // Playhead - bright red (current position)
-
+	test('screenshot: default theme with playhead', async ({ page }) => {
+		// Don't enable custom styles - use actual default colors
+		// Just seek to show playhead and progress with default theme
+		
 		await page.waitForTimeout(1000);
 
 		// Click on the waveform to seek to about 40% to show progress and playhead
@@ -78,6 +71,16 @@ test.describe('Generate README Screenshots', () => {
 
 		// Wait for waveform to re-render
 		await page.waitForTimeout(1500);
+
+		// Click on the waveform to seek to about 40% to show progress and playhead
+		const canvas = page.locator('canvas').first();
+		const box = await canvas.boundingBox();
+		if (box) {
+			await canvas.click({ position: { x: box.width * 0.4, y: box.height / 2 } });
+		}
+
+		// Wait for seek to complete
+		await page.waitForTimeout(1000);
 
 		// Take screenshot
 		const waveformContainer = page.locator('.waveform-navigator').first();

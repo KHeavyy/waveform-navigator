@@ -12,17 +12,17 @@ npm install waveform-navigator
 
 Here are examples demonstrating the waveform navigator's visual customization options:
 
-### Playhead and Progress Visualization
+### Default Theme
 
-<img src="screenshots/default-theme.png" alt="Waveform showing playhead position and progress visualization" width="800"/>
+<img src="screenshots/default-theme.png" alt="Waveform with default theme showing playhead position and progress" width="800"/>
 
-Enhanced colors for clarity: playhead (red line) shows current position, progress bar (blue) shows elapsed audio, gray bars show unplayed audio.
+The default blue theme with playhead (red line) showing current position and progress bar (darker blue) showing elapsed audio.
 
 ### All Customizable Colors
 
 <img src="screenshots/custom-colors.png" alt="Waveform with all custom colors including waveform, buttons, icons, and volume slider" width="800"/>
 
-Demonstrates every customizable color property: waveform colors (bar, progress, playhead), button colors (play, rewind, forward), icon colors, and volume slider fill color.
+Demonstrates every customizable color property with playhead and progress: waveform colors (bar, progress, playhead), button colors (play, rewind, forward), icon colors, and volume slider fill color.
 
 ### Minimal UI
 
