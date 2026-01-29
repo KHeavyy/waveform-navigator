@@ -642,9 +642,9 @@ export default function App() {
 						</p>
 						{useCustomMarkers && (
 							<p style={{ fontSize: 11, marginTop: 8, color: '#666' }}>
-								The custom marker demonstrates how to provide a custom markup
-								function to render markers with your own design. The middle marker
-								(M2) uses a red flag-style appearance.
+								The custom marker demonstrates how to provide a custom markup function
+								to render markers with your own design. The middle marker (M2) uses a
+								red flag-style appearance.
 							</p>
 						)}
 					</div>

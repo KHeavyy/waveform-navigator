@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import React, { useRef } from 'react';
-import WaveformNavigator from './WaveformNavigator';
-import type { WaveformNavigatorHandle } from './WaveformNavigator';
+import WaveformNavigator from '../WaveformNavigator';
+import type { WaveformNavigatorHandle } from '../WaveformNavigator';
 
 describe('WaveformNavigator', () => {
 	describe('showControls prop', () => {
