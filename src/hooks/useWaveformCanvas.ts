@@ -63,7 +63,9 @@ export function useWaveformCanvas({
 	// Initialize canvas with HiDPI support
 	useEffect(() => {
 		const canvas = canvasRef.current;
-		if (!canvas) return;
+		if (!canvas) {
+			return;
+		}
 
 		// Initialize canvas context with willReadFrequently hint for optimal ImageData operations
 		if (!ctxRef.current) {
@@ -96,10 +98,14 @@ export function useWaveformCanvas({
 	 */
 	function drawWaveform(peaksArr: Float32Array, time: number) {
 		const canvas = canvasRef.current;
-		if (!canvas) return;
+		if (!canvas) {
+			return;
+		}
 
 		const ctx = ctxRef.current;
-		if (!ctx) return;
+		if (!ctx) {
+			return;
+		}
 
 		const dur = durationRef.current;
 		const playedRatio = dur > 0 ? time / dur : 0;

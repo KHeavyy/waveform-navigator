@@ -12,7 +12,9 @@ vi.mock('../../utils/peaksComputation', () => ({
 vi.mock('../../utils/workerCreation', () => ({
 	createPeaksWorker: vi.fn(() => ({
 		postMessage: (msg: any) => {
-			if (msg && msg.type === 'compute') throw new Error('postMessage failed');
+			if (msg && msg.type === 'compute') {
+				throw new Error('postMessage failed');
+			}
 			return undefined;
 		},
 		terminate: () => {},

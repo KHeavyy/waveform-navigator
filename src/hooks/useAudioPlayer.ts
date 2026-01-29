@@ -164,19 +164,22 @@ export function useAudioPlayer({
 			el.removeEventListener('loadedmetadata', onLoadedEvent);
 			el.removeEventListener('ended', onEndedEvent);
 			el.removeEventListener('error', onErrorEvent);
-			if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+			if (objectUrlRef.current) {
+				URL.revokeObjectURL(objectUrlRef.current);
+			}
 			// Clean up ref
 			if (audioElementRef) {
 				audioElementRef.current = null;
 			}
 		};
 		// audioElementRef is intentionally excluded from deps to avoid recreating audio element
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	// Set audio source when `audio` prop changes
 	useEffect(() => {
-		if (!audioRef.current) return;
+		if (!audioRef.current) {
+			return;
+		}
 		const el = audioRef.current;
 
 		// Cleanup previous
@@ -201,7 +204,9 @@ export function useAudioPlayer({
 
 	// Sync volume
 	useEffect(() => {
-		if (!audioRef.current) return;
+		if (!audioRef.current) {
+			return;
+		}
 		audioRef.current.volume = volume;
 	}, [volume]);
 
@@ -227,21 +232,30 @@ export function useAudioPlayer({
 
 	function togglePlay() {
 		const a = audioRef.current;
-		if (!a) return;
-		if (a.paused) a.play();
-		else a.pause();
+		if (!a) {
+			return;
+		}
+		if (a.paused) {
+			a.play();
+		} else {
+			a.pause();
+		}
 	}
 
 	function seek(delta: number) {
 		const a = audioRef.current;
-		if (!a) return;
+		if (!a) {
+			return;
+		}
 		const newTime = Math.max(0, Math.min(a.duration || 0, a.currentTime + delta));
 		seekTo(newTime);
 	}
 
 	function seekTo(time: number) {
 		const a = audioRef.current;
-		if (!a) return;
+		if (!a) {
+			return;
+		}
 		if (isControlled) {
 			// In controlled mode, notify parent
 			onCurrentTimeChangeRef.current?.(time);

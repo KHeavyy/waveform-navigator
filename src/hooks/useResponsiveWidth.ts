@@ -66,7 +66,9 @@ export function useResponsiveWidth({
 			rafRef.current = requestAnimationFrame(() => {
 				rafRef.current = null;
 				const entry = entries[0];
-				if (!entry) return;
+				if (!entry) {
+					return;
+				}
 
 				const newWidth = Math.floor(entry.contentRect.width || 0);
 

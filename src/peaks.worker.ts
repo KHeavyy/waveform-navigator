@@ -19,8 +19,12 @@ self.onmessage = (ev: MessageEvent) => {
 				for (let i = offset; i < end; i++) {
 					const s = Math.abs(channel[i]);
 					let idx = Math.floor(i / samplesPerSlot);
-					if (idx >= slot) idx = slot - 1;
-					if (s > peaks[idx]) peaks[idx] = s;
+					if (idx >= slot) {
+						idx = slot - 1;
+					}
+					if (s > peaks[idx]) {
+						peaks[idx] = s;
+					}
 				}
 
 				// stream partial peaks back so UI can show progressive waveform

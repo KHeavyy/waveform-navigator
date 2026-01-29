@@ -36,7 +36,9 @@ export class WaveformPage {
 	async clickWaveformAt(xPercent: number, yPercent = 0.5) {
 		const canvas = await this.getCanvas();
 		const boundingBox = await canvas.boundingBox();
-		if (!boundingBox) throw new Error('Canvas not found');
+		if (!boundingBox) {
+			throw new Error('Canvas not found');
+		}
 
 		await canvas.click({
 			position: {

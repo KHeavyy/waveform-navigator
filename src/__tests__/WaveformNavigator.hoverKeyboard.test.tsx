@@ -48,7 +48,9 @@ describe('WaveformNavigator hover and keyboard', () => {
 			const interactive = container.querySelector(
 				'.waveform-interactive'
 			) as HTMLElement | null;
-			if (!interactive) throw new Error('interactive not mounted');
+			if (!interactive) {
+				throw new Error('interactive not mounted');
+			}
 		});
 
 		const canvas = container.querySelector('canvas') as HTMLCanvasElement;

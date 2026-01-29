@@ -29,7 +29,9 @@ describe('useWaveformCanvas', () => {
 		render(<TestComponent />);
 
 		await waitFor(() => {
-			if (!(window as any).__waveformReady) throw new Error('not ready');
+			if (!(window as any).__waveformReady) {
+				throw new Error('not ready');
+			}
 		});
 	});
 });

@@ -64,9 +64,13 @@ describe('WaveformNavigator click-to-seek', () => {
 			const interactive = container.querySelector(
 				'.waveform-interactive'
 			) as HTMLElement | null;
-			if (!interactive) throw new Error('interactive not mounted');
+			if (!interactive) {
+				throw new Error('interactive not mounted');
+			}
 			const max = interactive.getAttribute('aria-valuemax');
-			if (max !== '120') throw new Error('duration not applied yet');
+			if (max !== '120') {
+				throw new Error('duration not applied yet');
+			}
 		});
 
 		// Find the canvas and click in the middle (x=100)

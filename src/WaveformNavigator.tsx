@@ -219,7 +219,9 @@ const WaveformNavigator = React.forwardRef<
 
 		function onCanvasClick(e: React.MouseEvent<HTMLCanvasElement>) {
 			const rect = canvasRef.current?.getBoundingClientRect();
-			if (!rect) return;
+			if (!rect) {
+				return;
+			}
 			const x = e.clientX - rect.left;
 			const t = (x / rect.width) * duration;
 			if (!Number.isNaN(t)) {
@@ -230,7 +232,9 @@ const WaveformNavigator = React.forwardRef<
 
 		function onCanvasMove(e: React.MouseEvent<HTMLCanvasElement>) {
 			const rect = canvasRef.current?.getBoundingClientRect();
-			if (!rect) return;
+			if (!rect) {
+				return;
+			}
 			const x = e.clientX - rect.left;
 			setHoverX(x);
 			const t = duration > 0 ? (x / rect.width) * duration : 0;
@@ -259,7 +263,9 @@ const WaveformNavigator = React.forwardRef<
 			() => ({
 				play: async () => {
 					const a = audioRef.current;
-					if (!a) return;
+					if (!a) {
+						return;
+					}
 					try {
 						await a.play();
 					} catch (error) {
@@ -276,7 +282,9 @@ const WaveformNavigator = React.forwardRef<
 				},
 				pause: () => {
 					const a = audioRef.current;
-					if (!a) return;
+					if (!a) {
+						return;
+					}
 					a.pause();
 				},
 				seek: (time: number) => {
@@ -289,7 +297,9 @@ const WaveformNavigator = React.forwardRef<
 					const AudioContextClass =
 						(window as any).AudioContext ||
 						((window as any).webkitAudioContext as typeof AudioContext | undefined);
-					if (!AudioContextClass) return;
+					if (!AudioContextClass) {
+						return;
+					}
 
 					try {
 						const tempCtx = new AudioContextClass();

@@ -96,9 +96,13 @@ test.describe('WaveformNavigator Integration Tests', () => {
 		await page.waitForFunction(
 			(initial) => {
 				const m = document.body.innerText.match(/\d+:\d{2}/);
-				if (!m) return false;
+				if (!m) {
+					return false;
+				}
 				const value = m[0];
-				if (!initial) return value !== '0:00' && value.length > 0;
+				if (!initial) {
+					return value !== '0:00' && value.length > 0;
+				}
 				return value !== initial;
 			},
 			initialTime,

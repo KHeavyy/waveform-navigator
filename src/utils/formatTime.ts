@@ -4,7 +4,9 @@
  * @returns Formatted time string (e.g., "1:23", "12:45")
  */
 export function formatTime(time: number): string {
-	if (!time || !isFinite(time)) return '0:00';
+	if (!time || !isFinite(time)) {
+		return '0:00';
+	}
 	const s = Math.floor(time % 60)
 		.toString()
 		.padStart(2, '0');

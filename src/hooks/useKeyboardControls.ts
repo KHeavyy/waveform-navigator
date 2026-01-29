@@ -21,7 +21,9 @@ export function useKeyboardControls({
 }: UseKeyboardControlsProps) {
 	const onKeyDown = useCallback(
 		(e: React.KeyboardEvent<HTMLDivElement>) => {
-			if (disableKeyboardControls) return;
+			if (disableKeyboardControls) {
+				return;
+			}
 
 			// Calculate large step as 10% of duration if not provided
 			const largeStep = keyboardLargeStep ?? duration * 0.1;
