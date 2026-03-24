@@ -716,7 +716,6 @@ export default function App() {
 				<WaveformNavigator
 					ref={waveformRef}
 					audio={testAudioPath}
-					width={900}
 					height={140}
 					responsive={responsiveEnabled}
 					forceMainThread={forceMainThread}
