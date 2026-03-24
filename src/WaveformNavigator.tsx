@@ -70,6 +70,12 @@ export interface WaveformNavigatorStyles {
 
 export interface WaveformNavigatorProps {
 	audio: AudioProp;
+	/**
+	 * Fallback width in pixels used when `responsive` is false or ResizeObserver is unavailable.
+	 * When `responsive` is true (the default), the width is automatically calculated from the
+	 * parent container with padding applied on both sides via CSS.
+	 * @default 800
+	 */
 	width?: number;
 	height?: number;
 	className?: string;

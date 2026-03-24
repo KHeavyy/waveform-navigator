@@ -6,6 +6,9 @@
 		Roboto,
 		'Helvetica Neue',
 		Arial;
+	box-sizing: border-box;
+	padding: 0 16px;
+	position: relative;
 }
 
 /* Interactive waveform container with keyboard support */
@@ -163,9 +166,6 @@
 }
 
 /* Hover timestamp and vertical line */
-.waveform-navigator {
-	position: relative;
-}
 .hover-line {
 	position: absolute;
 	top: 0;
@@ -217,4 +217,48 @@
 	font-weight: 500;
 	max-width: 400px;
 	line-height: 1.5;
+}
+
+/* Responsive controls — medium screens */
+@media (max-width: 640px) {
+	.controls .vol-range {
+		width: 100px;
+	}
+	.controls .left {
+		min-width: 120px;
+	}
+}
+
+/* Responsive controls — small screens: reflow to two rows */
+@media (max-width: 480px) {
+	.controls {
+		flex-wrap: wrap;
+		justify-content: space-between;
+		gap: 8px;
+	}
+	.controls .left {
+		order: 2;
+		min-width: unset;
+		flex: 1;
+	}
+	.controls .center {
+		order: 1;
+		width: 100%;
+		justify-content: center;
+	}
+	.controls .right {
+		order: 3;
+	}
+	.controls .play {
+		width: 48px;
+		height: 48px;
+	}
+	.controls .rewind,
+	.controls .forward {
+		width: 38px;
+		height: 38px;
+	}
+	.controls .vol-range {
+		width: 90px;
+	}
 }
