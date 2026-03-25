@@ -118,6 +118,10 @@ export function useWaveformCanvas({
 		const playedRatio = dur > 0 ? time / dur : 0;
 		const playedWidth = Math.max(0, Math.min(1, playedRatio)) * width;
 		const dpr = dprRef.current;
+		const barCount = peaksArr.length;
+		const effectiveBarWidth = Math.min(barWidth, width);
+		const barStep =
+			barCount > 1 ? (width - effectiveBarWidth) / (barCount - 1) : 0;
 
 		// Restore cached base waveform for optimal performance
 		// This avoids redrawing all base bars on every frame
@@ -140,9 +144,9 @@ export function useWaveformCanvas({
 				ctx.fillRect(0, 0, width, height);
 			}
 
-			for (let i = 0; i < peaksArr.length; i++) {
-				const x = i * (barWidth + gap);
-				const w = barWidth;
+			for (let i = 0; i < barCount; i++) {
+				const x = i * barStep;
+				const w = effectiveBarWidth;
 				const h = peaksArr[i] * (height * 0.95);
 				const y = height / 2 - h / 2;
 				ctx.fillStyle = barColor;
@@ -173,9 +177,9 @@ export function useWaveformCanvas({
 		}
 
 		// Draw progress overlay (using logical coordinates)
-		for (let i = 0; i < peaksArr.length; i++) {
-			const x = i * (barWidth + gap);
-			const w = barWidth;
+		for (let i = 0; i < barCount; i++) {
+			const x = i * barStep;
+			const w = effectiveBarWidth;
 			const h = peaksArr[i] * (height * 0.95);
 			const y = height / 2 - h / 2;
 			if (x + w <= playedWidth) {

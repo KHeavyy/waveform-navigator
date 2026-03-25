@@ -9,22 +9,37 @@ self.onmessage = (ev: MessageEvent) => {
 			const barWidth = msg.barWidth;
 			const gap = msg.gap;
 			const slot = Math.max(1, Math.floor(width / (barWidth + gap)));
-			const samplesPerSlot = Math.floor(channelLength / slot) || 1;
 			const peaks = new Float32Array(slot);
-			const chunkSamples = msg.chunkSize || 262144;
+			const chunkSlots = Math.max(1, msg.chunkSize || 256);
 
-			// Process in chunks and stream partial results for progressive rendering
-			for (let offset = 0; offset < channelLength; offset += chunkSamples) {
-				const end = Math.min(offset + chunkSamples, channelLength);
-				for (let i = offset; i < end; i++) {
-					const s = Math.abs(channel[i]);
-					let idx = Math.floor(i / samplesPerSlot);
-					if (idx >= slot) {
-						idx = slot - 1;
+			if (channelLength === 0) {
+				const peaksCopy = peaks.slice();
+				(self as any).postMessage(
+					{
+						type: 'progress',
+						peaksBuffer: peaksCopy.buffer,
+						done: true,
+					},
+					[peaksCopy.buffer]
+				);
+				break;
+			}
+
+			// Process in slot chunks and stream partial results for progressive rendering.
+			for (let offset = 0; offset < slot; offset += chunkSlots) {
+				const endSlot = Math.min(offset + chunkSlots, slot);
+				for (let i = offset; i < endSlot; i++) {
+					const start = Math.floor((i * channelLength) / slot);
+					const rawEnd = Math.floor(((i + 1) * channelLength) / slot);
+					const end = Math.max(start + 1, Math.min(channelLength, rawEnd));
+					let max = 0;
+					for (let s = start; s < end; s++) {
+						const sample = Math.abs(channel[s]);
+						if (sample > max) {
+							max = sample;
+						}
 					}
-					if (s > peaks[idx]) {
-						peaks[idx] = s;
-					}
+					peaks[i] = max;
 				}
 
 				// stream partial peaks back so UI can show progressive waveform
@@ -33,7 +48,7 @@ self.onmessage = (ev: MessageEvent) => {
 					{
 						type: 'progress',
 						peaksBuffer: peaksCopy.buffer,
-						done: end === channelLength,
+						done: endSlot === slot,
 					},
 					[peaksCopy.buffer]
 				);

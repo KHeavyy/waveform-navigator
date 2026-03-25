@@ -25,13 +25,19 @@ export function computePeaksFromChannelData({
 	gap,
 }: PeaksComputationParams): PeaksComputationResult {
 	const slot = Math.max(1, Math.floor(width / (barWidth + gap)));
-	const samplesPerSlot = Math.floor(channelData.length / slot) || 1;
 	const peaks = new Float32Array(slot);
+	const totalSamples = channelData.length;
 
-	// Compute peaks by finding max absolute value in each slot
+	if (totalSamples === 0) {
+		return { peaks };
+	}
+
+	// Map each visual slot to a proportional time window so all audio maps
+	// across the full waveform width, including very short clips.
 	for (let i = 0; i < slot; i++) {
-		const start = i * samplesPerSlot;
-		const end = Math.min(start + samplesPerSlot, channelData.length);
+		const start = Math.floor((i * totalSamples) / slot);
+		const rawEnd = Math.floor(((i + 1) * totalSamples) / slot);
+		const end = Math.max(start + 1, Math.min(totalSamples, rawEnd));
 		let max = 0;
 		for (let s = start; s < end; s++) {
 			const v = Math.abs(channelData[s]);

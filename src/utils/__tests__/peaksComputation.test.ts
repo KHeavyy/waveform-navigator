@@ -120,6 +120,19 @@ describe('computePeaksFromChannelData', () => {
 		expect(result.peaks.length).toBeGreaterThanOrEqual(1);
 	});
 
+	it('maps short clips across all slots without trailing empty bins', () => {
+		const channelData = new Float32Array([0.2, -0.4, 0.6]);
+		const result = computePeaksFromChannelData({
+			channelData,
+			width: 30,
+			barWidth: 1,
+			gap: 0,
+		});
+
+		expect(result.peaks.length).toBe(30);
+		expect(result.peaks.every((peak) => peak > 0)).toBe(true);
+	});
+
 	it('handles zero values', () => {
 		const channelData = new Float32Array([0, 0, 0, 0]);
 		const result = computePeaksFromChannelData({
