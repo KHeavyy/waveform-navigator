@@ -6,7 +6,6 @@ interface UseWaveformCanvasProps {
 	width: number;
 	height: number;
 	barWidth: number;
-	gap: number;
 	barColor: string;
 	progressColor: string;
 	backgroundColor: string;
@@ -28,7 +27,6 @@ export function useWaveformCanvas({
 	width,
 	height,
 	barWidth,
-	gap,
 	barColor,
 	progressColor,
 	backgroundColor,
@@ -281,7 +279,7 @@ export function useWaveformCanvas({
 		baseWaveformCache.current = null;
 		// Allow readiness event to fire again after cache change
 		readyDispatchedRef.current = false;
-	}, [peaks, barWidth, gap, barColor, backgroundColor]);
+	}, [peaks, barWidth, barColor, backgroundColor]);
 
 	// Smooth progress updates while playing using requestAnimationFrame
 	useEffect(() => {

@@ -39,7 +39,6 @@ describe('useWaveformData', () => {
 				audio: '/test.mp3',
 				width: 100,
 				barWidth: 2,
-				gap: 1,
 			} as any);
 
 			return (

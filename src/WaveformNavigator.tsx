@@ -82,7 +82,6 @@ export interface WaveformNavigatorProps {
 	className?: string;
 	// visual customizations
 	barWidth?: number;
-	gap?: number;
 	/**
 	 * Style configuration object for colors and visual customization.
 	 * Provides a centralized way to configure all visual aspects.
@@ -136,7 +135,6 @@ const WaveformNavigator = React.forwardRef<
 			height = 120,
 			className = '',
 			barWidth = 3,
-			gap = 2,
 			styles = {},
 			markers = [],
 			responsive = true,
@@ -234,7 +232,6 @@ const WaveformNavigator = React.forwardRef<
 			audio,
 			width: effectiveWidth,
 			barWidth,
-			gap,
 			workerUrl,
 			forceMainThread,
 			onPeaksComputed: (peaks) => {
@@ -252,7 +249,6 @@ const WaveformNavigator = React.forwardRef<
 			width: effectiveWidth,
 			height,
 			barWidth,
-			gap,
 			barColor,
 			progressColor,
 			backgroundColor,
