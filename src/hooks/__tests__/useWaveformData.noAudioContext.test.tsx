@@ -21,6 +21,7 @@ describe('useWaveformData when AudioContext is missing', () => {
 				audio: file,
 				width: 100,
 				barWidth: 2,
+				gap: 1,
 				onPeaksComputed,
 				onError,
 			} as any);

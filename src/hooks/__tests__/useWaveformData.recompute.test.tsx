@@ -33,6 +33,7 @@ describe('useWaveformData recompute on dimension change', () => {
 				audio: file,
 				width: w,
 				barWidth: 2,
+				gap: 1,
 				onPeaksComputed,
 			} as any);
 			return <div />;

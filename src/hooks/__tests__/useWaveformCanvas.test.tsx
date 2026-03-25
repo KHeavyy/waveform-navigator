@@ -8,6 +8,7 @@ function TestComponent() {
 		width: 100,
 		height: 20,
 		barWidth: 2,
+		gap: 1,
 		barColor: '#000',
 		progressColor: '#f00',
 		backgroundColor: 'transparent',

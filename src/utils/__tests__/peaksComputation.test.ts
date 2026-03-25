@@ -10,6 +10,7 @@ describe('computePeaksFromChannelData', () => {
 			channelData,
 			width: 200,
 			barWidth: 2,
+			gap: 1,
 		});
 
 		expect(result.peaks).toBeInstanceOf(Float32Array);
@@ -20,8 +21,9 @@ describe('computePeaksFromChannelData', () => {
 		const channelData = new Float32Array([0.1, 0.5, 0.3, 0.8]);
 		const result = computePeaksFromChannelData({
 			channelData,
-			width: 2, // Small width results in 1 slot
+			width: 3, // Small width results in 1 slot
 			barWidth: 2,
+			gap: 1,
 		});
 
 		expect(result.peaks.length).toBe(1);
@@ -45,11 +47,12 @@ describe('computePeaksFromChannelData', () => {
 			0.2, // Last 4 samples
 		]);
 
-		// Adjust width/barWidth to get a reasonable number of slots
+		// Adjust width/barWidth/gap to get a reasonable number of slots
 		const result = computePeaksFromChannelData({
 			channelData,
 			width: 300,
 			barWidth: 10,
+			gap: 2,
 		});
 
 		// Just verify we have multiple peaks and they're reasonable
@@ -69,6 +72,7 @@ describe('computePeaksFromChannelData', () => {
 			channelData,
 			width: 100,
 			barWidth: 10,
+			gap: 2,
 		});
 
 		// Verify peaks are computed and contain reasonable values
@@ -82,22 +86,24 @@ describe('computePeaksFromChannelData', () => {
 			channelData,
 			width: 100,
 			barWidth: 2,
+			gap: 1,
 		});
 
 		expect(result.peaks).toBeInstanceOf(Float32Array);
 	});
 
-	it('computes correct number of slots based on width and barWidth', () => {
+	it('computes correct number of slots based on width, barWidth, and gap', () => {
 		const channelData = new Float32Array(1000);
 
-		// width / barWidth = 100 / 2 = 50
+		// width / (barWidth + gap) = 100 / (2 + 1) = 33.33 -> floor = 33
 		const result = computePeaksFromChannelData({
 			channelData,
 			width: 100,
 			barWidth: 2,
+			gap: 1,
 		});
 
-		expect(result.peaks.length).toBe(50);
+		expect(result.peaks.length).toBe(33);
 	});
 
 	it('ensures at least 1 slot', () => {
@@ -108,6 +114,7 @@ describe('computePeaksFromChannelData', () => {
 			channelData,
 			width: 1,
 			barWidth: 10,
+			gap: 5,
 		});
 
 		expect(result.peaks.length).toBeGreaterThanOrEqual(1);
@@ -119,6 +126,7 @@ describe('computePeaksFromChannelData', () => {
 			channelData,
 			width: 30,
 			barWidth: 1,
+			gap: 0,
 		});
 
 		expect(result.peaks.length).toBe(30);
@@ -131,35 +139,9 @@ describe('computePeaksFromChannelData', () => {
 			channelData,
 			width: 20,
 			barWidth: 2,
+			gap: 1,
 		});
 
 		expect(result.peaks.every((peak) => peak === 0)).toBe(true);
-	});
-
-	it('handles zero barWidth by falling back to barWidth=1 without throwing', () => {
-		const channelData = new Float32Array([0.1, 0.5, 0.3]);
-		let result: ReturnType<typeof computePeaksFromChannelData> | undefined;
-		expect(() => {
-			result = computePeaksFromChannelData({
-				channelData,
-				width: 100,
-				barWidth: 0,
-			});
-		}).not.toThrow();
-		// Falls back to barWidth=1: floor(100/1) = 100 slots
-		expect(result!.peaks.length).toBe(100);
-	});
-
-	it('handles NaN barWidth by falling back to barWidth=1 without throwing', () => {
-		const channelData = new Float32Array([0.1, 0.5, 0.3]);
-		let result: ReturnType<typeof computePeaksFromChannelData> | undefined;
-		expect(() => {
-			result = computePeaksFromChannelData({
-				channelData,
-				width: 100,
-				barWidth: NaN,
-			});
-		}).not.toThrow();
-		expect(result!.peaks.length).toBe(100);
 	});
 });

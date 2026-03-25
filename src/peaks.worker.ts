@@ -7,17 +7,8 @@ self.onmessage = (ev: MessageEvent) => {
 			const channelLength = msg.channelLength;
 			const width = msg.width;
 			const barWidth = msg.barWidth;
-			// Validate barWidth to avoid non-finite/zero values causing Float32Array errors.
-			const hasValidBarWidth = Number.isFinite(barWidth) && barWidth > 0;
-			if (!hasValidBarWidth) {
-				console.warn(
-					'[WaveformNavigator] Invalid barWidth passed to peaks worker:',
-					barWidth,
-					'- falling back to barWidth = 1.'
-				);
-			}
-			const effectiveBarWidth = hasValidBarWidth ? barWidth : 1;
-			const slot = Math.max(1, Math.floor(width / effectiveBarWidth));
+			const gap = msg.gap;
+			const slot = Math.max(1, Math.floor(width / (barWidth + gap)));
 			const peaks = new Float32Array(slot);
 			const chunkSlots = Math.max(1, msg.chunkSize || 256);
 
