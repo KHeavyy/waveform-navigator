@@ -135,4 +135,31 @@ describe('computePeaksFromChannelData', () => {
 
 		expect(result.peaks.every((peak) => peak === 0)).toBe(true);
 	});
+
+	it('handles zero barWidth by falling back to barWidth=1 without throwing', () => {
+		const channelData = new Float32Array([0.1, 0.5, 0.3]);
+		let result: ReturnType<typeof computePeaksFromChannelData> | undefined;
+		expect(() => {
+			result = computePeaksFromChannelData({
+				channelData,
+				width: 100,
+				barWidth: 0,
+			});
+		}).not.toThrow();
+		// Falls back to barWidth=1: floor(100/1) = 100 slots
+		expect(result!.peaks.length).toBe(100);
+	});
+
+	it('handles NaN barWidth by falling back to barWidth=1 without throwing', () => {
+		const channelData = new Float32Array([0.1, 0.5, 0.3]);
+		let result: ReturnType<typeof computePeaksFromChannelData> | undefined;
+		expect(() => {
+			result = computePeaksFromChannelData({
+				channelData,
+				width: 100,
+				barWidth: NaN,
+			});
+		}).not.toThrow();
+		expect(result!.peaks.length).toBe(100);
+	});
 });

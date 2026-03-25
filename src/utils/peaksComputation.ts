@@ -22,7 +22,17 @@ export function computePeaksFromChannelData({
 	width,
 	barWidth,
 }: PeaksComputationParams): PeaksComputationResult {
-	const slot = Math.max(1, Math.floor(width / barWidth));
+	// Validate barWidth to avoid non-finite/zero values causing Float32Array errors.
+	const hasValidBarWidth = Number.isFinite(barWidth) && barWidth > 0;
+	if (!hasValidBarWidth) {
+		console.warn(
+			'[WaveformNavigator] Invalid barWidth passed to computePeaksFromChannelData:',
+			barWidth,
+			'- falling back to barWidth = 1.'
+		);
+	}
+	const effectiveBarWidth = hasValidBarWidth ? barWidth : 1;
+	const slot = Math.max(1, Math.floor(width / effectiveBarWidth));
 	const peaks = new Float32Array(slot);
 	const totalSamples = channelData.length;
 
