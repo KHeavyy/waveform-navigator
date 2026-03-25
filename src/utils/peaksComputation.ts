@@ -7,7 +7,6 @@ export interface PeaksComputationParams {
 	channelData: Float32Array;
 	width: number;
 	barWidth: number;
-	gap: number;
 }
 
 export interface PeaksComputationResult {
@@ -22,9 +21,8 @@ export function computePeaksFromChannelData({
 	channelData,
 	width,
 	barWidth,
-	gap,
 }: PeaksComputationParams): PeaksComputationResult {
-	const slot = Math.max(1, Math.floor(width / (barWidth + gap)));
+	const slot = Math.max(1, Math.floor(width / barWidth));
 	const peaks = new Float32Array(slot);
 	const totalSamples = channelData.length;
 

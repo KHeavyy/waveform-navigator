@@ -38,7 +38,6 @@ describe('useWaveformData file input', () => {
 				audio: file,
 				width: 100,
 				barWidth: 2,
-				gap: 1,
 				onPeaksComputed,
 			} as any);
 			return <div>{peaks ? peaks.length : 0}</div>;

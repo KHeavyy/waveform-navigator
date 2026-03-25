@@ -14,7 +14,6 @@ describe('useWaveformData unsupported audio prop', () => {
 				audio: 123 as any,
 				width: 100,
 				barWidth: 2,
-				gap: 1,
 				onPeaksComputed,
 				onError,
 			} as any);

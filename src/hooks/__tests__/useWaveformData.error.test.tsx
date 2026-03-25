@@ -23,7 +23,6 @@ describe('useWaveformData error handling', () => {
 				audio: '/missing.mp3',
 				width: 100,
 				barWidth: 2,
-				gap: 1,
 				onError,
 			} as any);
 

@@ -84,7 +84,6 @@ import type { WaveformNavigatorProps } from 'waveform-navigator';
 #### Visual Customization Props
 
 - **`barWidth`** (number, default: 3): Width of each waveform bar in pixels.
-- **`gap`** (number, default: 2): Gap between waveform bars in pixels.
 - **`styles`** (WaveformNavigatorStyles | undefined): A centralized style configuration object for customizing all visual aspects of the waveform and controls. Provides a clean way to configure colors without needing individual props for each element.
 
 ##### WaveformNavigatorStyles Interface

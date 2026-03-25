@@ -32,7 +32,6 @@ describe('useWaveformData decode failure', () => {
 				audio: '/dummy.mp3',
 				width: 100,
 				barWidth: 2,
-				gap: 1,
 				onError,
 			} as any);
 			return <div />;

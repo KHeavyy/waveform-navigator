@@ -14,7 +14,6 @@ describe('useWaveformCanvas background and partial progress', () => {
 				width: 120,
 				height: 40,
 				barWidth: 10,
-				gap: 2,
 				barColor: '#000',
 				progressColor: '#f00',
 				backgroundColor: '#0f0',

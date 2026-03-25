@@ -6,7 +6,6 @@ interface UseWaveformDataProps {
 	audio: string | File | null | undefined;
 	width: number;
 	barWidth: number;
-	gap: number;
 	workerUrl?: string;
 	forceMainThread?: boolean;
 	onPeaksComputed?: (peaks: Float32Array) => void;
@@ -21,7 +20,6 @@ export function useWaveformData({
 	audio,
 	width,
 	barWidth,
-	gap,
 	workerUrl,
 	forceMainThread,
 	onPeaksComputed,
@@ -35,7 +33,6 @@ export function useWaveformData({
 	const audioBufferRef = useRef<Float32Array | null>(null);
 	const lastWidthRef = useRef<number | null>(null);
 	const lastBarWidthRef = useRef<number | null>(null);
-	const lastGapRef = useRef<number | null>(null);
 
 	useEffect(() => {
 		onPeaksComputedRef.current = onPeaksComputed;
@@ -133,7 +130,6 @@ export function useWaveformData({
 						audioBufferRef.current = channelData;
 						lastWidthRef.current = width;
 						lastBarWidthRef.current = barWidth;
-						lastGapRef.current = gap;
 						computePeaks(channelData);
 					}
 				} catch (decodeError: any) {
@@ -169,22 +165,20 @@ export function useWaveformData({
 		loadArrayBuffer();
 	}, [audio]);
 
-	// Recompute peaks when width, barWidth, or gap changes (without re-fetching audio)
+	// Recompute peaks when width or barWidth changes (without re-fetching audio)
 	useEffect(() => {
 		if (audioBufferRef.current) {
 			// Only recompute if dimensions actually changed (with threshold for sub-pixel changes)
 			const widthChanged = Math.abs(width - (lastWidthRef.current || 0)) > 1;
 			const barWidthChanged = barWidth !== lastBarWidthRef.current;
-			const gapChanged = gap !== lastGapRef.current;
 
-			if (widthChanged || barWidthChanged || gapChanged) {
+			if (widthChanged || barWidthChanged) {
 				lastWidthRef.current = width;
 				lastBarWidthRef.current = barWidth;
-				lastGapRef.current = gap;
 				computePeaks(audioBufferRef.current);
 			}
 		}
-	}, [width, barWidth, gap]);
+	}, [width, barWidth]);
 
 	function computePeaks(channelData: Float32Array) {
 		// Always compute peaks immediately on main thread for instant display
@@ -192,7 +186,6 @@ export function useWaveformData({
 			channelData,
 			width,
 			barWidth,
-			gap,
 		});
 
 		// Set initial peaks for immediate display
@@ -211,7 +204,6 @@ export function useWaveformData({
 						channelLength: channelCopy.length,
 						width,
 						barWidth,
-						gap,
 						chunkSize: 262144,
 					},
 					[channelCopy.buffer]

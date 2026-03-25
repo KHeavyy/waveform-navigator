@@ -7,8 +7,7 @@ self.onmessage = (ev: MessageEvent) => {
 			const channelLength = msg.channelLength;
 			const width = msg.width;
 			const barWidth = msg.barWidth;
-			const gap = msg.gap;
-			const slot = Math.max(1, Math.floor(width / (barWidth + gap)));
+			const slot = Math.max(1, Math.floor(width / barWidth));
 			const peaks = new Float32Array(slot);
 			const chunkSlots = Math.max(1, msg.chunkSize || 256);
 
