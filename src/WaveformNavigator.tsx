@@ -66,6 +66,8 @@ export interface WaveformNavigatorStyles {
 	// Volume control styles
 	volumeSliderFillColor?: string;
 	volumeIconColor?: string;
+	// Time display styles
+	timeColor?: string;
 }
 
 export interface WaveformNavigatorProps {
@@ -182,6 +184,7 @@ const WaveformNavigator = React.forwardRef<
 			forwardIconColor = '#111827',
 			volumeSliderFillColor = '#111827',
 			volumeIconColor = '#374151',
+			timeColor = '#374151',
 		} = styles;
 
 		// Clear error state when audio prop changes
@@ -295,6 +298,43 @@ const WaveformNavigator = React.forwardRef<
 			setHoverTime(null);
 		}
 
+		function onCanvasTouchStart(e: React.TouchEvent<HTMLCanvasElement>) {
+			e.preventDefault();
+			const touch = e.touches[0];
+			if (!touch) return;
+			const rect = canvasRef.current?.getBoundingClientRect();
+			if (!rect) return;
+			const x = Math.max(0, Math.min(rect.width, touch.clientX - rect.left));
+			const t = (x / rect.width) * duration;
+			if (!Number.isNaN(t)) {
+				const newTime = Math.max(0, Math.min(duration, t));
+				seekTo(newTime);
+				setHoverX(x);
+				setHoverTime(isFinite(newTime) ? newTime : null);
+			}
+		}
+
+		function onCanvasTouchMove(e: React.TouchEvent<HTMLCanvasElement>) {
+			e.preventDefault();
+			const touch = e.touches[0];
+			if (!touch) return;
+			const rect = canvasRef.current?.getBoundingClientRect();
+			if (!rect) return;
+			const x = Math.max(0, Math.min(rect.width, touch.clientX - rect.left));
+			const t = (x / rect.width) * duration;
+			if (!Number.isNaN(t)) {
+				const newTime = Math.max(0, Math.min(duration, t));
+				seekTo(newTime);
+				setHoverX(x);
+				setHoverTime(isFinite(newTime) ? newTime : null);
+			}
+		}
+
+		function onCanvasTouchEnd() {
+			setHoverX(null);
+			setHoverTime(null);
+		}
+
 		// Use keyboard controls hook
 		const { onKeyDown } = useKeyboardControls({
 			duration,
@@ -387,6 +427,9 @@ const WaveformNavigator = React.forwardRef<
 						onClick={onCanvasClick}
 						onMouseMove={onCanvasMove}
 						onMouseLeave={onCanvasLeave}
+						onTouchStart={onCanvasTouchStart}
+						onTouchMove={onCanvasTouchMove}
+						onTouchEnd={onCanvasTouchEnd}
 						className="waveform-canvas"
 						tabIndex={-1}
 					/>
@@ -428,6 +471,7 @@ const WaveformNavigator = React.forwardRef<
 							forwardIconColor,
 							volumeSliderFillColor,
 							volumeIconColor,
+							timeColor,
 						}}
 					/>
 				)}
