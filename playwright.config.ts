@@ -35,6 +35,15 @@ export default defineConfig({
 				viewport: { width: 1280, height: 720 },
 			},
 		},
+		{
+			// Mobile Chrome – runs only the mobile spec so the viewport-switching
+			// tests in mobile.spec.ts start from a real mobile context.
+			name: 'mobile-chrome',
+			use: {
+				...devices['Pixel 5'],
+			},
+			testMatch: '**/mobile.spec.ts',
+		},
 	],
 
 	// Start dev server before tests
