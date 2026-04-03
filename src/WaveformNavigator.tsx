@@ -267,9 +267,10 @@ const WaveformNavigator = React.forwardRef<
 
 	function onCanvasClick(e: React.MouseEvent<HTMLCanvasElement>) {
 		const rect = canvasRef.current?.getBoundingClientRect();
-		if (!rect) {
+		if (!rect || rect.width <= 0) {
 			return;
 		}
+
 		const x = e.clientX - rect.left;
 		const t = (x / rect.width) * duration;
 		if (!Number.isNaN(t)) {
@@ -295,14 +296,13 @@ const WaveformNavigator = React.forwardRef<
 	}
 
 	function onCanvasTouchStart(e: React.TouchEvent<HTMLCanvasElement>) {
-		e.preventDefault();
 		const touch = e.touches[0];
 		if (!touch) {
 			return;
 		}
 
 		const rect = canvasRef.current?.getBoundingClientRect();
-		if (!rect) {
+		if (!rect || rect.width <= 0) {
 			return;
 		}
 
@@ -317,14 +317,13 @@ const WaveformNavigator = React.forwardRef<
 	}
 
 	function onCanvasTouchMove(e: React.TouchEvent<HTMLCanvasElement>) {
-		e.preventDefault();
 		const touch = e.touches[0];
 		if (!touch) {
 			return;
 		}
 
 		const rect = canvasRef.current?.getBoundingClientRect();
-		if (!rect) {
+		if (!rect || rect.width <= 0) {
 			return;
 		}
 
@@ -438,6 +437,7 @@ const WaveformNavigator = React.forwardRef<
 					onTouchStart={onCanvasTouchStart}
 					onTouchMove={onCanvasTouchMove}
 					onTouchEnd={onCanvasTouchEnd}
+					onTouchCancel={onCanvasTouchEnd}
 					className="waveform-canvas"
 					tabIndex={-1}
 				/>

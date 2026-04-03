@@ -142,7 +142,10 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 
 	// Toggle mute/restore volume (desktop) or expand/collapse slider (mobile)
 	const handleVolumeIconClick = () => {
-		const isMobile = window.matchMedia('(max-width: 480px)').matches;
+		const isMobile =
+			typeof window !== 'undefined' &&
+			typeof window.matchMedia === 'function' &&
+			window.matchMedia('(max-width: 480px)').matches;
 		if (isMobile) {
 			setVolumeOpen((prev) => !prev);
 		} else {

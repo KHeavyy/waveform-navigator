@@ -166,7 +166,9 @@ describe('WaveformNavigator – mobile features', () => {
 
 			// The first call should be for an earlier time than the second
 			const first = onCurrentTimeChange.mock.calls[0][0] as number; // ~24 s
-			const last = onCurrentTimeChange.mock.calls.at(-1)![0] as number; // ~96 s
+			const last = onCurrentTimeChange.mock.calls[
+				onCurrentTimeChange.mock.calls.length - 1
+			][0] as number; // ~96 s
 			expect(first).toBeLessThan(last);
 		});
 
