@@ -37,11 +37,7 @@ describe('WaveformNavigator markers prop', () => {
 		const markers: Marker[] = [];
 
 		const { container } = render(
-			<WaveformNavigator
-				audio="/test.mp3"
-				markers={markers}
-				responsive={false}
-			/>
+			<WaveformNavigator audio="/test.mp3" markers={markers} responsive={false} />
 		);
 
 		await waitFor(() => expect((window as any).__lastAudio).toBeTruthy());
@@ -58,11 +54,7 @@ describe('WaveformNavigator markers prop', () => {
 		const markers: Marker[] = [{ time: 10 }, { time: 20 }, { time: 30 }];
 
 		const { container } = render(
-			<WaveformNavigator
-				audio="/test.mp3"
-				markers={markers}
-				responsive={false}
-			/>
+			<WaveformNavigator audio="/test.mp3" markers={markers} responsive={false} />
 		);
 
 		await waitFor(() => expect((window as any).__lastAudio).toBeTruthy());
@@ -81,17 +73,10 @@ describe('WaveformNavigator markers prop', () => {
 			props.ctx.fillRect(props.x - 5, 0, 10, props.height);
 		};
 
-		const markers: Marker[] = [
-			{ time: 10 },
-			{ time: 20, markup: customMarkup },
-		];
+		const markers: Marker[] = [{ time: 10 }, { time: 20, markup: customMarkup }];
 
 		const { container } = render(
-			<WaveformNavigator
-				audio="/test.mp3"
-				markers={markers}
-				responsive={false}
-			/>
+			<WaveformNavigator audio="/test.mp3" markers={markers} responsive={false} />
 		);
 
 		await waitFor(() => expect((window as any).__lastAudio).toBeTruthy());
@@ -123,5 +108,3 @@ describe('WaveformNavigator markers prop', () => {
 		expect(container.querySelector('canvas')).toBeTruthy();
 	});
 });
-
-
