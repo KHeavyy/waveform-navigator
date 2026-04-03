@@ -53,14 +53,18 @@ test.describe('Mobile layout and controls', () => {
 
 	test('play button is smaller on mobile than on desktop', async ({ page }) => {
 		// Capture mobile size
-		const mobileBox = await page.getByRole('button', { name: /play/i }).boundingBox();
+		const mobileBox = await page
+			.getByRole('button', { name: /play/i })
+			.boundingBox();
 		expect(mobileBox).toBeTruthy();
 
 		// Switch to desktop viewport
 		await page.setViewportSize({ width: 1280, height: 720 });
 		await page.waitForTimeout(300); // allow reflow
 
-		const desktopBox = await page.getByRole('button', { name: /play/i }).boundingBox();
+		const desktopBox = await page
+			.getByRole('button', { name: /play/i })
+			.boundingBox();
 		expect(desktopBox).toBeTruthy();
 
 		// Desktop play button should be visually larger
@@ -159,7 +163,9 @@ test.describe('Collapsible volume control on mobile', () => {
 		await expect(slider).toBeHidden({ timeout: 5000 });
 	});
 
-	test('tapping the speaker button reveals the volume slider', async ({ page }) => {
+	test('tapping the speaker button reveals the volume slider', async ({
+		page,
+	}) => {
 		const speaker = page.locator('.speaker').first();
 		await expect(speaker).toBeVisible({ timeout: 10000 });
 
@@ -176,10 +182,14 @@ test.describe('Collapsible volume control on mobile', () => {
 	}) => {
 		const speaker = page.locator('.speaker').first();
 		await speaker.tap(); // open
-		await expect(page.locator('.vol-range').first()).toBeVisible({ timeout: 3000 });
+		await expect(page.locator('.vol-range').first()).toBeVisible({
+			timeout: 3000,
+		});
 
 		await speaker.tap(); // close
-		await expect(page.locator('.vol-range').first()).toBeHidden({ timeout: 3000 });
+		await expect(page.locator('.vol-range').first()).toBeHidden({
+			timeout: 3000,
+		});
 	});
 
 	test('volume-open class is present on .right while slider is expanded', async ({
