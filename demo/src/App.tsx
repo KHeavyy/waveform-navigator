@@ -737,6 +737,7 @@ export default function App() {
 					onPeaksComputed={(peaks) => {
 						console.log('Peaks computed:', peaks.length, 'bars');
 						setPeaksReady(true);
+						(window as any).__waveformReady = true;
 					}}
 					onError={(err, type) => {
 						console.error(`${type} error:`, err.message);
