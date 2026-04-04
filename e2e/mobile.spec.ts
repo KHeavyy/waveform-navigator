@@ -12,14 +12,17 @@ import { test, expect } from '@playwright/test';
 
 const MOBILE_VIEWPORT = { width: 375, height: 812 };
 
-// Wait for the demo app to signal the waveform is ready.
+// Wait for the demo app to signal both peaks and audio metadata are ready.
 async function waitForWaveform(page: import('@playwright/test').Page) {
 	await page
-		.waitForFunction(() => (window as any).__waveformReady === true, {
-			timeout: 20000,
-		})
+		.waitForFunction(
+			() =>
+				(window as any).__waveformReady === true &&
+				(window as any).__waveformDuration > 0,
+			{ timeout: 20000 }
+		)
 		.catch(() => {
-			// If flag never fires the subsequent assertions will surface the failure.
+			// If flags never fire the subsequent assertions will surface the failure.
 		});
 }
 

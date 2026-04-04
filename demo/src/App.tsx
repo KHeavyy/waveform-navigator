@@ -732,6 +732,7 @@ export default function App() {
 					onLoaded={(dur) => {
 						setDuration(dur);
 						setError(null); // Clear error on successful load
+						(window as any).__waveformDuration = dur;
 					}}
 					onTimeUpdate={(time) => setCurrentTime(time)}
 					onPeaksComputed={(peaks) => {
