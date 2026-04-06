@@ -92,11 +92,12 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
 // use relative URLs like `/test.mp3`; in Node's undici this would throw
 // an Invalid URL error. Return a fake Response with an empty ArrayBuffer
 // so the hook can continue (the audio decoding is mocked elsewhere).
-global.fetch = vi.fn(async (input: RequestInfo) => {
+global.fetch = vi.fn(async (_input: RequestInfo) => {
 	return {
 		ok: true,
 		status: 200,
 		statusText: 'OK',
+		headers: { get: (_name: string) => null },
 		arrayBuffer: async () => new ArrayBuffer(0),
 	} as any;
 }) as any;

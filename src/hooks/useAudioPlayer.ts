@@ -5,6 +5,26 @@ const CONTROLLED_TIME_THRESHOLD = 0.01;
 
 interface UseAudioPlayerProps {
 	audio: string | File | null | undefined;
+	/**
+	 * Blob URL created from the same ArrayBuffer fetched for peak computation.
+	 * When provided, the audio element's src is replaced with this URL so the
+	 * browser does not issue a second network request for the same file.
+	 */
+	audioBlobUrl?: string;
+	/**
+	 * Seed the duration display before the audio element loads metadata.
+	 * Use this alongside `preload="none"` and `precomputedPeaks` so the
+	 * waveform is fully interactive (seekable) before the user presses play.
+	 * The value is overridden by the real duration once `loadedmetadata` fires.
+	 */
+	initialDuration?: number;
+	/**
+	 * Controls the initial `preload` attribute of the underlying `<audio>` element.
+	 * Defaults to `'none'` so no bytes are downloaded until the user presses play.
+	 * Set to `'metadata'` to download just file headers (duration) on mount, or
+	 * `'auto'` to restore the previous eager-loading behaviour.
+	 */
+	preload?: 'none' | 'metadata' | 'auto';
 	controlledCurrentTime?: number;
 	onCurrentTimeChange?: (time: number) => void;
 	audioElementRef?: React.MutableRefObject<HTMLAudioElement | null>;
@@ -32,6 +52,9 @@ interface UseAudioPlayerReturn {
 
 export function useAudioPlayer({
 	audio,
+	audioBlobUrl,
+	initialDuration,
+	preload = 'none',
 	controlledCurrentTime,
 	onCurrentTimeChange,
 	audioElementRef,
@@ -46,7 +69,7 @@ export function useAudioPlayer({
 	const objectUrlRef = useRef<string | null>(null);
 
 	const [isPlaying, setIsPlaying] = useState(false);
-	const [duration, setDuration] = useState<number>(0);
+	const [duration, setDuration] = useState<number>(initialDuration ?? 0);
 	const [currentTime, setCurrentTime] = useState<number>(0);
 	const [volume, setVolume] = useState<number>(1);
 
@@ -88,7 +111,7 @@ export function useAudioPlayer({
 	// Initialize audio element
 	useEffect(() => {
 		const el = new Audio();
-		el.preload = 'auto';
+		el.preload = preload;
 		el.crossOrigin = 'anonymous';
 		audioRef.current = el;
 
@@ -175,6 +198,20 @@ export function useAudioPlayer({
 		// audioElementRef is intentionally excluded from deps to avoid recreating audio element
 	}, []);
 
+	// When a Blob URL derived from the waveform fetch is available, point the
+	// audio element at it so the browser reuses the already-downloaded data.
+	// Only switch if playback has not yet started to avoid interrupting a stream
+	// that the user initiated before the fetch completed.
+	useEffect(() => {
+		if (!audioBlobUrl || !audioRef.current || typeof audio !== 'string') {
+			return;
+		}
+		const el = audioRef.current;
+		if (el.paused && el.currentTime === 0) {
+			el.src = audioBlobUrl;
+		}
+	}, [audioBlobUrl, audio]);
+
 	// Set audio source when `audio` prop changes
 	useEffect(() => {
 		if (!audioRef.current) {
@@ -236,6 +273,7 @@ export function useAudioPlayer({
 			return;
 		}
 		if (a.paused) {
+			a.preload = 'auto';
 			a.play();
 		} else {
 			a.pause();

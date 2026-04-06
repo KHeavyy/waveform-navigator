@@ -89,8 +89,9 @@ Accepts either a `Float32Array` (as returned by `onPeaksComputed`) or a plain `n
 
 **How it works:**
 - If the provided array's length matches the expected bar count (`Math.floor(width / (barWidth + gap))`), the waveform renders immediately on the first frame — before any audio fetch or decoding occurs.
-- The Web Worker always runs in the background to verify the data. If the computed result matches, nothing changes (no re-render, no callback). If it differs, the canvas updates and `onPeaksComputed` fires with the fresh peaks.
+- When peaks are valid, the fetch and decode steps are **skipped entirely** — no network request is made for peak computation on subsequent views.
 - When the `audio` prop changes, `precomputedPeaks` is treated as stale and ignored — the new audio always produces a freshly computed waveform.
+- If the provided array's length does not match the expected bar count, it is ignored and a fresh fetch + decode is performed, after which `onPeaksComputed` fires with the result.
 
 **Typical workflow:**
 
@@ -296,6 +297,11 @@ The component supports both controlled and uncontrolled modes for playback posit
 #### UI Control Props
 
 - **`showControls`** (boolean, default: true): Show or hide the built-in playback controls. Set to `false` to display only the waveform, useful when implementing custom controls or minimal UI. When hidden, you can control playback programmatically using the component ref.
+- **`preload`** (`'none'` | `'metadata'` | `'auto'`, default: `'none'`): Controls the initial [`preload`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/audio#preload) attribute of the underlying `<audio>` element.
+  - `'none'` (default) — no bytes are downloaded until the user presses play. Combine with `precomputedPeaks` for a fully deferred-load experience.
+  - `'metadata'` — only file headers are fetched on mount, enabling accurate duration display before the user interacts.
+  - `'auto'` — the browser eagerly downloads the full file on mount (pre-v2 behaviour).
+- **`initialDuration`** (number | undefined): Seed the displayed duration (in seconds) before the audio element has loaded any metadata. This is required when using `preload="none"` together with `precomputedPeaks` — without it `duration` stays at 0 and click-to-seek is disabled. Persist this value alongside your peaks (e.g. save it from `onLoaded`) and pass it back on subsequent page loads. The real duration reported by the audio element will override it once `loadedmetadata` fires.
 
 ### Programmatic Control (Ref Forwarding)
 

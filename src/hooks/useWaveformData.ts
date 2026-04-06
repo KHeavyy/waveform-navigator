@@ -31,6 +31,12 @@ interface UseWaveformDataProps {
 	 * Cleared when the `audio` prop changes so new audio always computes fresh.
 	 */
 	precomputedPeaks?: Float32Array | number[];
+	/**
+	 * Called with a Blob URL created from the same ArrayBuffer fetched for peak
+	 * computation, so the audio element can reuse it without a second network request.
+	 * The caller is responsible for revoking the URL when it is no longer needed.
+	 */
+	onBlobUrlReady?: (blobUrl: string) => void;
 	onPeaksComputed?: (peaks: Float32Array) => void;
 	onError?: (error: Error) => void;
 }
@@ -47,6 +53,7 @@ export function useWaveformData({
 	workerUrl,
 	forceMainThread,
 	precomputedPeaks,
+	onBlobUrlReady,
 	onPeaksComputed,
 	onError,
 }: UseWaveformDataProps): UseWaveformDataReturn {
@@ -71,6 +78,7 @@ export function useWaveformData({
 	const audioCtxRef = useRef<AudioContext | null>(null);
 	const workerRef = useRef<Worker | null>(null);
 	const onPeaksComputedRef = useRef(onPeaksComputed);
+	const onBlobUrlReadyRef = useRef(onBlobUrlReady);
 	const onErrorRef = useRef(onError);
 	const audioBufferRef = useRef<Float32Array | null>(null);
 	const lastWidthRef = useRef<number | null>(null);
@@ -81,8 +89,9 @@ export function useWaveformData({
 
 	useEffect(() => {
 		onPeaksComputedRef.current = onPeaksComputed;
+		onBlobUrlReadyRef.current = onBlobUrlReady;
 		onErrorRef.current = onError;
-	}, [onPeaksComputed, onError]);
+	}, [onPeaksComputed, onBlobUrlReady, onError]);
 
 	// Initialize worker and cleanup when props change
 	useEffect(() => {
@@ -153,6 +162,25 @@ export function useWaveformData({
 		}
 		prevAudioRef.current = audio;
 
+		// Re-validate precomputed peaks for the new audio source/dimensions when the
+		// ref was just cleared (audio changed) or was never populated.
+		if (precomputedPeaks && !precomputedPeaksRef.current) {
+			const converted =
+				precomputedPeaks instanceof Float32Array
+					? precomputedPeaks
+					: new Float32Array(precomputedPeaks);
+			if (converted.length === Math.floor(width / (barWidth + gap))) {
+				precomputedPeaksRef.current = converted;
+				setPeaks(converted);
+			}
+		}
+
+		// Skip the fetch entirely when valid pre-computed peaks are already available.
+		// There is nothing to compute — the canvas already shows the correct waveform.
+		if (precomputedPeaksRef.current) {
+			return;
+		}
+
 		const loadArrayBuffer = async () => {
 			try {
 				// Close previous AudioContext if it exists
@@ -173,6 +201,13 @@ export function useWaveformData({
 						);
 					}
 					arrayBuffer = await resp.arrayBuffer();
+					// Share the fetched buffer with the audio element via a Blob URL so the
+					// browser does not issue a second network request for the same file.
+					const contentType = resp.headers.get('Content-Type') ?? 'audio/*';
+					const blobUrl = URL.createObjectURL(
+						new Blob([arrayBuffer], { type: contentType })
+					);
+					onBlobUrlReadyRef.current?.(blobUrl);
 				} else if (audio instanceof File) {
 					arrayBuffer = await audio.arrayBuffer();
 				} else {

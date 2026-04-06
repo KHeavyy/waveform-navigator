@@ -30,12 +30,34 @@ export default function App() {
 	const [responsiveEnabled, setResponsiveEnabled] = useState(true);
 	const [containerWidth, setContainerWidth] = useState(900);
 
-	// Demo precomputed peaks
-	const [savedPeaks, setSavedPeaks] = useState<Float32Array | null>(null);
+	// Demo precomputed peaks — persisted to localStorage so page reloads can
+	// actually exercise the preload=none + precomputedPeaks flow.
+	const [savedPeaks, setSavedPeaks] = useState<Float32Array | null>(() => {
+		try {
+			const raw = localStorage.getItem('demo_peaks');
+			if (!raw) return null;
+			const arr = JSON.parse(raw) as number[];
+			return new Float32Array(arr);
+		} catch {
+			return null;
+		}
+	});
+	const [savedDuration, setSavedDuration] = useState<number>(() => {
+		const raw = localStorage.getItem('demo_duration');
+		return raw ? Number(raw) : 0;
+	});
 	const [usePrecomputedPeaks, setUsePrecomputedPeaks] = useState(false);
 
 	// Demo worker mode
 	const [forceMainThread, setForceMainThread] = useState(false);
+
+	// Demo preload mode — persisted so you can reload and immediately test
+	// the no-fetch behaviour.
+	const [preloadMode, setPreloadMode] = useState<'none' | 'metadata' | 'auto'>(
+		() =>
+			(localStorage.getItem('demo_preload') as 'none' | 'metadata' | 'auto') ??
+			'none'
+	);
 
 	// Demo error simulation
 	const [testAudioPath, setTestAudioPath] = useState(demoAudioPath);
@@ -291,6 +313,19 @@ export default function App() {
 					{savedPeaks ? (
 						<span style={{ color: '#166534' }}>
 							✅ {savedPeaks.length} bars captured
+							{savedDuration > 0 && ` · duration: ${savedDuration.toFixed(2)}s`}{' '}
+							<button
+								style={{ fontSize: 11, marginLeft: 6 }}
+								onClick={() => {
+									setSavedPeaks(null);
+									setSavedDuration(0);
+									setUsePrecomputedPeaks(false);
+									localStorage.removeItem('demo_peaks');
+									localStorage.removeItem('demo_duration');
+								}}
+							>
+								Clear
+							</button>
 						</span>
 					) : (
 						<span style={{ color: '#6b7280' }}>None yet — load the audio first</span>
@@ -314,11 +349,82 @@ export default function App() {
 				</div>
 				{usePrecomputedPeaks && savedPeaks && (
 					<p style={{ fontSize: 12, color: '#166534', margin: 0 }}>
-						✅ Waveform will render instantly from saved peaks — the worker still
-						verifies in the background. If the result matches,{' '}
-						<code>onPeaksComputed</code> is suppressed (no redundant update).
+						✅ Waveform renders instantly from saved peaks — the fetch and decode
+						steps are skipped entirely. <code>onPeaksComputed</code> will not fire
+						unless the peaks become invalid.
 					</p>
 				)}
+			</div>
+
+			{/* Preload mode demo */}
+			<div
+				style={{
+					marginBottom: 12,
+					padding: 12,
+					backgroundColor: '#fef9ec',
+					borderRadius: 4,
+				}}
+			>
+				<h3>🌐 Preload Mode Demo</h3>
+				<p style={{ fontSize: 13, marginBottom: 10 }}>
+					Controls when the browser starts downloading the audio file. Open DevTools
+					→ Network tab and watch the request fire (or not) as you switch modes.
+				</p>
+				<div
+					style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}
+				>
+					{(['none', 'metadata', 'auto'] as const).map((mode) => (
+						<label
+							key={mode}
+							style={{
+								display: 'flex',
+								alignItems: 'center',
+								gap: 4,
+								cursor: 'pointer',
+								padding: '4px 10px',
+								borderRadius: 4,
+								background: preloadMode === mode ? '#111827' : '#e5e7eb',
+								color: preloadMode === mode ? '#fff' : '#111827',
+								fontFamily: 'monospace',
+							}}
+						>
+							<input
+								type="radio"
+								name="preload"
+								value={mode}
+								checked={preloadMode === mode}
+								onChange={() => {
+									setPreloadMode(mode);
+									localStorage.setItem('demo_preload', mode);
+								}}
+								style={{ display: 'none' }}
+							/>
+							{mode}
+						</label>
+					))}
+				</div>
+				<p style={{ fontSize: 12, margin: 0 }}>
+					{preloadMode === 'none' && (
+						<>
+							<strong>none</strong> (default) — no audio bytes are downloaded until the
+							user presses play. Best combined with <code>precomputedPeaks</code> for a
+							fully deferred experience.
+						</>
+					)}
+					{preloadMode === 'metadata' && (
+						<>
+							<strong>metadata</strong> — only the file headers are fetched on mount so
+							the duration is shown immediately, without downloading the full file.
+						</>
+					)}
+					{preloadMode === 'auto' && (
+						<>
+							<strong>auto</strong> — the browser eagerly downloads the full audio file
+							on mount. Useful when you know the user is very likely to press play
+							soon.
+						</>
+					)}
+				</p>
 			</div>
 
 			{/* Worker mode demo */}
@@ -777,6 +883,10 @@ export default function App() {
 					height={140}
 					responsive={responsiveEnabled}
 					forceMainThread={forceMainThread}
+					preload={preloadMode}
+					initialDuration={
+						usePrecomputedPeaks && savedDuration > 0 ? savedDuration : undefined
+					}
 					showControls={showControls}
 					markers={markers}
 					precomputedPeaks={
@@ -798,8 +908,21 @@ export default function App() {
 					onPeaksComputed={(peaks) => {
 						console.log('Peaks computed:', peaks.length, 'bars');
 						setPeaksReady(true);
-						// Save a copy for the pre-computed peaks demo
-						setSavedPeaks(peaks.slice());
+						// Save peaks + duration to state and localStorage for reload persistence.
+						const peaksCopy = peaks.slice();
+						setSavedPeaks(peaksCopy);
+						try {
+							localStorage.setItem(
+								'demo_peaks',
+								JSON.stringify(Array.from(peaksCopy))
+							);
+							if (duration > 0) {
+								setSavedDuration(duration);
+								localStorage.setItem('demo_duration', String(duration));
+							}
+						} catch {
+							// localStorage may be unavailable (private browsing, storage quota)
+						}
 						(window as any).__waveformReady = true;
 					}}
 					onError={(err, type) => {
