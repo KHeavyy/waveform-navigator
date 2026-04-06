@@ -289,7 +289,7 @@ export default function App() {
 				<div style={{ marginBottom: 8 }}>
 					<strong>Peaks saved:</strong>{' '}
 					{savedPeaks ? (
-						<span style={{ color: '#16a34a' }}>
+						<span style={{ color: '#166534' }}>
 							✅ {savedPeaks.length} bars captured
 						</span>
 					) : (
