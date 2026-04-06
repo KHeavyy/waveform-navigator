@@ -406,7 +406,7 @@ const WaveformNavigator = React.forwardRef<
 				} catch (error) {
 					// Silently fail if AudioContext creation fails
 					// This is a best-effort attempt to enable audio
-					if (process.env.NODE_ENV === 'development') {
+					if (import.meta.env.DEV) {
 						console.warn('Failed to resume AudioContext:', error);
 					}
 				}
