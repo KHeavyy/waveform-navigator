@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { computePeaksFromChannelData } from '../utils/peaksComputation';
+import {
+	computePeaksFromChannelData,
+	resamplePeaks,
+} from '../utils/peaksComputation';
 import { createPeaksWorker } from '../utils/workerCreation';
 
 function peaksMatch(
@@ -57,17 +60,22 @@ export function useWaveformData({
 	onPeaksComputed,
 	onError,
 }: UseWaveformDataProps): UseWaveformDataReturn {
-	// Validate precomputedPeaks against the current bar count.
-	// useState and useRef only consume this value on the initial mount.
+	// Resample or adopt precomputedPeaks to match the current expected bar count.
+	// useState and useRef only consume these values on the initial mount.
+	const expectedBarCount = Math.max(1, Math.floor(width / (barWidth + gap)));
+	let initialResampledPeaks: Float32Array | null = null;
 	const validPrecomputed: Float32Array | null = (() => {
 		if (!precomputedPeaks) return null;
 		const converted =
 			precomputedPeaks instanceof Float32Array
 				? precomputedPeaks
 				: new Float32Array(precomputedPeaks);
-		return converted.length === Math.floor(width / (barWidth + gap))
-			? converted
-			: null;
+		const resampled = resamplePeaks(converted, expectedBarCount);
+		// Track when the bar count changed so the mount effect can fire onPeaksComputed.
+		if (converted.length !== expectedBarCount) {
+			initialResampledPeaks = resampled;
+		}
+		return resampled;
 	})();
 
 	const [peaks, setPeaks] = useState<Float32Array | null>(
@@ -75,6 +83,8 @@ export function useWaveformData({
 	);
 	// Comparison baseline: holds the validated precomputed peaks until audio changes.
 	const precomputedPeaksRef = useRef<Float32Array | null>(validPrecomputed);
+	// Holds resampled peaks from the initial mount that need to be reported via onPeaksComputed.
+	const initialResampledRef = useRef<Float32Array | null>(initialResampledPeaks);
 	const audioCtxRef = useRef<AudioContext | null>(null);
 	const workerRef = useRef<Worker | null>(null);
 	const onPeaksComputedRef = useRef(onPeaksComputed);
@@ -92,6 +102,15 @@ export function useWaveformData({
 		onBlobUrlReadyRef.current = onBlobUrlReady;
 		onErrorRef.current = onError;
 	}, [onPeaksComputed, onBlobUrlReady, onError]);
+
+	// Fire onPeaksComputed once on mount when precomputedPeaks were resampled to a
+	// different bar count, so callers can persist the adjusted version for future loads.
+	useEffect(() => {
+		if (initialResampledRef.current) {
+			onPeaksComputedRef.current?.(initialResampledRef.current);
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
 	// Initialize worker and cleanup when props change
 	useEffect(() => {
@@ -162,16 +181,19 @@ export function useWaveformData({
 		}
 		prevAudioRef.current = audio;
 
-		// Re-validate precomputed peaks for the new audio source/dimensions when the
+		// Re-resample precomputed peaks for the new audio source/dimensions when the
 		// ref was just cleared (audio changed) or was never populated.
 		if (precomputedPeaks && !precomputedPeaksRef.current) {
 			const converted =
 				precomputedPeaks instanceof Float32Array
 					? precomputedPeaks
 					: new Float32Array(precomputedPeaks);
-			if (converted.length === Math.floor(width / (barWidth + gap))) {
-				precomputedPeaksRef.current = converted;
-				setPeaks(converted);
+			const target = Math.max(1, Math.floor(width / (barWidth + gap)));
+			const resampled = resamplePeaks(converted, target);
+			precomputedPeaksRef.current = resampled;
+			setPeaks(resampled);
+			if (converted.length !== target) {
+				onPeaksComputedRef.current?.(resampled);
 			}
 		}
 

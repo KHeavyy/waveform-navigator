@@ -15,6 +15,35 @@ export interface PeaksComputationResult {
 }
 
 /**
+ * Linearly interpolate a peaks array to a new target length.
+ * Returns a `Float32Array` of exactly `targetCount` values (minimum 1).
+ * When the source length already equals `targetCount`, a copy is returned.
+ * Handles edge cases: empty input, single sample, and targetCount of 1.
+ */
+export function resamplePeaks(
+	peaks: number[] | Float32Array,
+	targetCount: number
+): Float32Array {
+	const target = Math.max(1, targetCount);
+	if (peaks.length === 0) return new Float32Array(target);
+	if (peaks.length === target) return Float32Array.from(peaks);
+	const out = new Float32Array(target);
+	if (target === 1) {
+		out[0] = peaks[0];
+		return out;
+	}
+	const ratio = (peaks.length - 1) / (target - 1);
+	for (let i = 0; i < target; i++) {
+		const pos = i * ratio;
+		const lo = Math.floor(pos);
+		const hi = Math.min(lo + 1, peaks.length - 1);
+		const t = pos - lo;
+		out[i] = peaks[lo] * (1 - t) + peaks[hi] * t;
+	}
+	return out;
+}
+
+/**
  * Compute peaks from audio channel data.
  * This is the core algorithm used for waveform visualization.
  */
