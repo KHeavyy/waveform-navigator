@@ -97,6 +97,20 @@ export interface WaveformNavigatorProps {
 	 * Example: markers={[{ time: 10 }, { time: 20, markup: customRenderFn }]}
 	 */
 	markers?: Marker[];
+	/**
+	 * Pre-computed peaks for instant waveform rendering without waiting for audio to load.
+	 * Accepts a `Float32Array` or plain `number[]` (e.g. from JSON-deserialized storage).
+	 *
+	 * Typical workflow: on the first load, capture peaks via `onPeaksComputed` and persist
+	 * them. On subsequent loads, pass the saved peaks here — the waveform renders immediately
+	 * using the pre-computed data while the worker verifies in the background.
+	 * If the computed result differs from the provided peaks, the canvas updates and
+	 * `onPeaksComputed` fires with fresh data. When the `audio` prop changes, this value
+	 * is ignored so the new audio always produces a freshly computed waveform.
+	 *
+	 * Example: `precomputedPeaks={savedPeaksArray}`
+	 */
+	precomputedPeaks?: Float32Array | number[];
 	// responsive props
 	responsive?: boolean;
 	responsiveDebounceMs?: number;
@@ -137,6 +151,7 @@ const WaveformNavigator = React.forwardRef<
 		gap = 2,
 		styles = {},
 		markers = [],
+		precomputedPeaks,
 		responsive = true,
 		responsiveDebounceMs = 150,
 		workerUrl,
@@ -234,6 +249,7 @@ const WaveformNavigator = React.forwardRef<
 		width: effectiveWidth,
 		barWidth,
 		gap,
+		precomputedPeaks,
 		workerUrl,
 		forceMainThread,
 		onPeaksComputed: (peaks) => {

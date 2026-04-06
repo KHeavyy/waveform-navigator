@@ -81,7 +81,43 @@ import type { WaveformNavigatorProps } from 'waveform-navigator';
 - **`workerUrl`** (string | undefined): Optional custom URL for the Web Worker that computes waveform peaks. When not provided, the component uses the bundled worker. Use this when hosting the worker file separately (e.g., on a CDN) or when your bundler requires a specific worker path.
 - **`forceMainThread`** (boolean, default: false): Force peak computation to run on the main thread instead of using a Web Worker. Set to `true` to disable worker usage (useful for debugging or environments where workers are restricted).
 
-#### Visual Customization Props
+#### Pre-computed Peaks
+
+- **`precomputedPeaks`** (Float32Array | number[] | undefined): Optional pre-computed peaks data for instant waveform rendering without waiting for audio to load and decode.
+
+Accepts either a `Float32Array` (as returned by `onPeaksComputed`) or a plain `number[]` (e.g. after deserializing from JSON storage).
+
+**How it works:**
+- If the provided array's length matches the expected bar count (`Math.floor(width / (barWidth + gap))`), the waveform renders immediately on the first frame — before any audio fetch or decoding occurs.
+- The Web Worker always runs in the background to verify the data. If the computed result matches, nothing changes (no re-render, no callback). If it differs, the canvas updates and `onPeaksComputed` fires with the fresh peaks.
+- When the `audio` prop changes, `precomputedPeaks` is treated as stale and ignored — the new audio always produces a freshly computed waveform.
+
+**Typical workflow:**
+
+```tsx
+// First visit — audio loads, peaks are computed and exposed via callback
+<WaveformNavigator
+  audio={audioUrl}
+  onPeaksComputed={(peaks) => {
+    // Persist peaks (localStorage, database, cache, etc.)
+    localStorage.setItem('peaks', JSON.stringify(Array.from(peaks)));
+  }}
+/>
+
+// Subsequent visits — pass saved peaks for instant rendering
+const savedPeaks = JSON.parse(localStorage.getItem('peaks') ?? 'null');
+
+<WaveformNavigator
+  audio={audioUrl}
+  precomputedPeaks={savedPeaks ?? undefined}
+  onPeaksComputed={(peaks) => {
+    // Only called when computed peaks differ from precomputedPeaks
+    localStorage.setItem('peaks', JSON.stringify(Array.from(peaks)));
+  }}
+/>
+```
+
+This is especially useful for large audio files on slow connections: the waveform is immediately visible while the audio element itself continues loading in the background.
 
 - **`barWidth`** (number, default: 3): Width of each waveform bar in pixels.
 - **`gap`** (number, default: 2): Gap between waveform bars in pixels.
@@ -247,7 +283,7 @@ The component supports both controlled and uncontrolled modes for playback posit
 - **`onEnded`** (() => void): Callback fired when audio playback ends.
 - **`onLoaded`** ((duration: number) => void): Callback fired when audio metadata is loaded, providing the duration in seconds.
 - **`onTimeUpdate`** ((currentTime: number) => void): Callback fired during playback as the current time updates, providing the current time in seconds.
-- **`onPeaksComputed`** ((peaks: Float32Array) => void): Callback fired when waveform peaks are computed, providing the peak data array.
+- **`onPeaksComputed`** ((peaks: Float32Array) => void): Callback fired when waveform peaks are computed and differ from any provided `precomputedPeaks`. Use this to persist peaks for faster future loads. If `precomputedPeaks` were provided and the computed result matches, this callback is skipped — you already have the correct data.
 - **`onError`** ((error: Error, type: 'audio' | 'waveform') => void): Callback fired when an error occurs during audio loading or waveform computation. The `type` parameter indicates whether the error occurred during audio playback ('audio') or waveform generation ('waveform'). Common errors include CORS issues, unsupported audio formats, and decoding failures.
 
 #### Accessibility Props
@@ -533,6 +569,44 @@ function App() {
   );
 }
 ```
+
+### Pre-computed Peaks for Instant Rendering
+
+For large files or slow connections, save the peaks from the first load and pass them back on subsequent visits so the waveform renders before any audio is fetched:
+
+```tsx
+function AudioPlayer({ audioUrl }: { audioUrl: string }) {
+  const storageKey = `peaks:${audioUrl}`;
+
+  // Load any previously saved peaks from storage
+  const [savedPeaks] = useState<number[] | null>(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  return (
+    <WaveformNavigator
+      audio={audioUrl}
+      // If savedPeaks exist with the right bar count, the waveform renders immediately
+      precomputedPeaks={savedPeaks ?? undefined}
+      onPeaksComputed={(peaks) => {
+        // Fired only when computed peaks differ from savedPeaks
+        // (or when no savedPeaks were provided)
+        localStorage.setItem(storageKey, JSON.stringify(Array.from(peaks)));
+      }}
+    />
+  );
+}
+```
+
+**Notes:**
+- `precomputedPeaks` accepts both `Float32Array` (direct from `onPeaksComputed`) and `number[]` (JSON-deserialized).
+- If the array length does not match the expected bar count for the current dimensions, it is silently ignored and a fresh waveform is computed.
+- When `audio` changes (e.g. user selects a different file), `precomputedPeaks` is ignored for the new load so fresh peaks are always computed and exposed.
 
 ### Error Handling
 
