@@ -78,6 +78,32 @@
 	border: none;
 	cursor: pointer;
 }
+
+/* Spinner ring wrapper for the play button */
+.play-wrapper {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+@keyframes waveform-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.play-wrapper--loading::before {
+	content: '';
+	position: absolute;
+	inset: -5px;
+	border-radius: 9999px;
+	border: 3px solid transparent;
+	border-top-color: var(--play-spinner-color, #111827);
+	border-right-color: var(--play-spinner-color, #111827);
+	animation: waveform-spin 0.7s linear infinite;
+	pointer-events: none;
+}
 .controls .rewind,
 .controls .forward {
 	width: 44px;
@@ -253,6 +279,9 @@
 	.controls .play {
 		width: 44px;
 		height: 44px;
+	}
+	.play-wrapper--loading::before {
+		inset: -4px;
 	}
 	.controls .rewind,
 	.controls .forward {

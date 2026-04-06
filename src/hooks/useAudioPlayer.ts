@@ -39,6 +39,11 @@ interface UseAudioPlayerProps {
 interface UseAudioPlayerReturn {
 	audioRef: React.MutableRefObject<HTMLAudioElement | null>;
 	isPlaying: boolean;
+	/**
+	 * True while the browser is fetching or buffering audio after play() is called.
+	 * Becomes false once playback has actually started, paused, errored, or ended.
+	 */
+	isLoading: boolean;
 	duration: number;
 	currentTime: number;
 	volume: number;
@@ -69,6 +74,7 @@ export function useAudioPlayer({
 	const objectUrlRef = useRef<string | null>(null);
 
 	const [isPlaying, setIsPlaying] = useState(false);
+	const [isLoading, setIsLoading] = useState(false);
 	const [duration, setDuration] = useState<number>(initialDuration ?? 0);
 	const [currentTime, setCurrentTime] = useState<number>(0);
 	const [volume, setVolume] = useState<number>(1);
@@ -124,8 +130,15 @@ export function useAudioPlayer({
 			setIsPlaying(true);
 			onPlayRef.current?.();
 		};
+		const onPlayingEvent = () => {
+			setIsLoading(false);
+		};
+		const onWaitingEvent = () => {
+			setIsLoading(true);
+		};
 		const onPauseEvent = () => {
 			setIsPlaying(false);
+			setIsLoading(false);
 			onPauseRef.current?.();
 		};
 		const onTimeEvent = () => {
@@ -147,6 +160,7 @@ export function useAudioPlayer({
 			onEndedRef.current?.();
 		};
 		const onErrorEvent = () => {
+			setIsLoading(false);
 			const error = el.error;
 			if (error) {
 				let errorMessage: string;
@@ -173,6 +187,8 @@ export function useAudioPlayer({
 		};
 
 		el.addEventListener('play', onPlayEvent);
+		el.addEventListener('playing', onPlayingEvent);
+		el.addEventListener('waiting', onWaitingEvent);
 		el.addEventListener('pause', onPauseEvent);
 		el.addEventListener('timeupdate', onTimeEvent);
 		el.addEventListener('loadedmetadata', onLoadedEvent);
@@ -182,6 +198,8 @@ export function useAudioPlayer({
 		return () => {
 			el.pause();
 			el.removeEventListener('play', onPlayEvent);
+			el.removeEventListener('playing', onPlayingEvent);
+			el.removeEventListener('waiting', onWaitingEvent);
 			el.removeEventListener('pause', onPauseEvent);
 			el.removeEventListener('timeupdate', onTimeEvent);
 			el.removeEventListener('loadedmetadata', onLoadedEvent);
@@ -306,6 +324,7 @@ export function useAudioPlayer({
 	return {
 		audioRef,
 		isPlaying,
+		isLoading,
 		duration,
 		currentTime,
 		volume,

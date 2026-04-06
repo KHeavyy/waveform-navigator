@@ -18,6 +18,11 @@ export interface WaveformControlsStyles {
 
 export interface WaveformControlsProps {
 	isPlaying: boolean;
+	/**
+	 * When true, renders a spinning ring around the play button to indicate
+	 * that audio is being fetched or buffered.
+	 */
+	isLoading?: boolean;
 	displayTime: number;
 	duration: number;
 	volume: number;
@@ -33,6 +38,7 @@ export interface WaveformControlsProps {
 
 export const WaveformControls: React.FC<WaveformControlsProps> = ({
 	isPlaying,
+	isLoading = false,
 	displayTime,
 	duration,
 	volume,
@@ -185,35 +191,40 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 					</svg>
 				</button>
 
-				<button
-					className="play"
-					onClick={onTogglePlay}
-					aria-label={isPlaying ? 'pause' : 'play'}
-					style={{ backgroundColor: playButtonColor }}
+				<div
+					className={`play-wrapper${isLoading ? ' play-wrapper--loading' : ''}`}
+					style={{ '--play-spinner-color': playButtonColor } as React.CSSProperties}
 				>
-					{isPlaying ? (
-						<svg
-							viewBox="0 0 24 24"
-							width="20"
-							height="20"
-							fill="none"
-							xmlns="http://www.w3.org/2000/svg"
-						>
-							<rect x="6" y="5" width="4" height="14" fill={playIconColor} />
-							<rect x="14" y="5" width="4" height="14" fill={playIconColor} />
-						</svg>
-					) : (
-						<svg
-							viewBox="0 0 24 24"
-							width="20"
-							height="20"
-							fill="none"
-							xmlns="http://www.w3.org/2000/svg"
-						>
-							<path d="M5 3v18l15-9L5 3z" fill={playIconColor} />
-						</svg>
-					)}
-				</button>
+					<button
+						className="play"
+						onClick={onTogglePlay}
+						aria-label={isPlaying ? 'pause' : 'play'}
+						style={{ backgroundColor: playButtonColor }}
+					>
+						{isPlaying ? (
+							<svg
+								viewBox="0 0 24 24"
+								width="20"
+								height="20"
+								fill="none"
+								xmlns="http://www.w3.org/2000/svg"
+							>
+								<rect x="6" y="5" width="4" height="14" fill={playIconColor} />
+								<rect x="14" y="5" width="4" height="14" fill={playIconColor} />
+							</svg>
+						) : (
+							<svg
+								viewBox="0 0 24 24"
+								width="20"
+								height="20"
+								fill="none"
+								xmlns="http://www.w3.org/2000/svg"
+							>
+								<path d="M5 3v18l15-9L5 3z" fill={playIconColor} />
+							</svg>
+						)}
+					</button>
+				</div>
 
 				<button
 					className="ctrl forward"

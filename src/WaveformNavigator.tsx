@@ -259,6 +259,7 @@ const WaveformNavigator = React.forwardRef<
 	const {
 		audioRef,
 		isPlaying,
+		isLoading,
 		duration,
 		volume,
 		setVolume,
@@ -527,6 +528,7 @@ const WaveformNavigator = React.forwardRef<
 			{showControls && (
 				<WaveformControls
 					isPlaying={isPlaying}
+					isLoading={isLoading}
 					displayTime={displayTime}
 					duration={duration}
 					volume={volume}
