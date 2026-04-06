@@ -51,9 +51,7 @@ describe('useWaveformCanvas with markers', () => {
 			textAlign: '',
 			textBaseline: '',
 		};
-		HTMLCanvasElement.prototype.getContext = vi
-			.fn()
-			.mockReturnValue(mockContext);
+		HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue(mockContext);
 	});
 
 	it('renders markers with default appearance', async () => {
@@ -75,9 +73,7 @@ describe('useWaveformCanvas with markers', () => {
 		await new Promise((resolve) => setTimeout(resolve, 50));
 
 		// Verify that marker labels were drawn
-		const textCalls = mockContext.fillText.mock.calls.map(
-			(call: any) => call[0]
-		);
+		const textCalls = mockContext.fillText.mock.calls.map((call: any) => call[0]);
 		expect(textCalls).toContain('M1');
 		expect(textCalls).toContain('M2');
 	});
@@ -138,9 +134,7 @@ describe('useWaveformCanvas with markers', () => {
 		await new Promise((resolve) => setTimeout(resolve, 50));
 
 		// Only M2 (the valid marker) should be drawn
-		const textCalls = mockContext.fillText.mock.calls.map(
-			(call: any) => call[0]
-		);
+		const textCalls = mockContext.fillText.mock.calls.map((call: any) => call[0]);
 		expect(textCalls).toContain('M2'); // valid marker at index 1
 		expect(textCalls).not.toContain('M1'); // out of bounds
 		expect(textCalls).not.toContain('M3'); // out of bounds
@@ -208,9 +202,7 @@ describe('useWaveformCanvas with markers', () => {
 		await new Promise((resolve) => setTimeout(resolve, 50));
 
 		// All markers should be rendered
-		const textCalls = mockContext.fillText.mock.calls.map(
-			(call: any) => call[0]
-		);
+		const textCalls = mockContext.fillText.mock.calls.map((call: any) => call[0]);
 		expect(textCalls).toContain('M1');
 		expect(textCalls).toContain('M2');
 		expect(textCalls).toContain('M3');

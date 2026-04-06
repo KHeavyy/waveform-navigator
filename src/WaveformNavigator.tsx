@@ -66,6 +66,8 @@ export interface WaveformNavigatorStyles {
 	// Volume control styles
 	volumeSliderFillColor?: string;
 	volumeIconColor?: string;
+	// Time display styles
+	timeColor?: string;
 }
 
 export interface WaveformNavigatorProps {
@@ -95,6 +97,20 @@ export interface WaveformNavigatorProps {
 	 * Example: markers={[{ time: 10 }, { time: 20, markup: customRenderFn }]}
 	 */
 	markers?: Marker[];
+	/**
+	 * Pre-computed peaks for instant waveform rendering without waiting for audio to load.
+	 * Accepts a `Float32Array` or plain `number[]` (e.g. from JSON-deserialized storage).
+	 *
+	 * Typical workflow: on the first load, capture peaks via `onPeaksComputed` and persist
+	 * them. On subsequent loads, pass the saved peaks here — the waveform renders immediately
+	 * using the pre-computed data while the worker verifies in the background.
+	 * If the computed result differs from the provided peaks, the canvas updates and
+	 * `onPeaksComputed` fires with fresh data. When the `audio` prop changes, this value
+	 * is ignored so the new audio always produces a freshly computed waveform.
+	 *
+	 * Example: `precomputedPeaks={savedPeaksArray}`
+	 */
+	precomputedPeaks?: Float32Array | number[];
 	// responsive props
 	responsive?: boolean;
 	responsiveDebounceMs?: number;
@@ -125,316 +141,367 @@ export interface WaveformNavigatorProps {
 const WaveformNavigator = React.forwardRef<
 	WaveformNavigatorHandle,
 	WaveformNavigatorProps
->(
-	(
-		props: WaveformNavigatorProps,
-		ref: React.Ref<WaveformNavigatorHandle>
-	) => {
-		const {
-			audio,
-			width = 800,
-			height = 120,
-			className = '',
-			barWidth = 3,
-			gap = 2,
-			styles = {},
-			markers = [],
-			responsive = true,
-			responsiveDebounceMs = 150,
-			workerUrl,
-			forceMainThread = false,
-			controlledCurrentTime,
-			onCurrentTimeChange,
-			audioElementRef,
-			onPlay,
-			onPause,
-			onEnded,
-			onLoaded,
-			onTimeUpdate,
-			onPeaksComputed,
-			onError,
-			keyboardSmallStep = 5,
-			keyboardLargeStep,
-			disableKeyboardControls = false,
-			ariaLabel = 'Audio waveform seek bar',
-			showControls = true,
-		} = props;
-		const [hoverX, setHoverX] = useState<number | null>(null);
-		const [hoverTime, setHoverTime] = useState<number | null>(null);
-		const [errorState, setErrorState] = useState<{
-			message: string;
-			type: 'audio' | 'waveform';
-		} | null>(null);
+>((props: WaveformNavigatorProps, ref: React.Ref<WaveformNavigatorHandle>) => {
+	const {
+		audio,
+		width = 800,
+		height = 120,
+		className = '',
+		barWidth = 3,
+		gap = 2,
+		styles = {},
+		markers = [],
+		precomputedPeaks,
+		responsive = true,
+		responsiveDebounceMs = 150,
+		workerUrl,
+		forceMainThread = false,
+		controlledCurrentTime,
+		onCurrentTimeChange,
+		audioElementRef,
+		onPlay,
+		onPause,
+		onEnded,
+		onLoaded,
+		onTimeUpdate,
+		onPeaksComputed,
+		onError,
+		keyboardSmallStep = 5,
+		keyboardLargeStep,
+		disableKeyboardControls = false,
+		ariaLabel = 'Audio waveform seek bar',
+		showControls = true,
+	} = props;
+	const [hoverX, setHoverX] = useState<number | null>(null);
+	const [hoverTime, setHoverTime] = useState<number | null>(null);
+	const [errorState, setErrorState] = useState<{
+		message: string;
+		type: 'audio' | 'waveform';
+	} | null>(null);
 
-		// Extract style values with defaults
-		const {
-			barColor = '#2b6ef6',
-			progressColor = '#0747a6',
-			backgroundColor = 'transparent',
-			playheadColor = '#ff4d4f',
-			markerColor = '#10b981',
-			markerLabelColor = '#ffffff',
-			playButtonColor = '#111827',
-			playIconColor = '#fff',
-			rewindButtonColor = '#fff',
-			rewindIconColor = '#111827',
-			forwardButtonColor = '#fff',
-			forwardIconColor = '#111827',
-			volumeSliderFillColor = '#111827',
-			volumeIconColor = '#374151',
-		} = styles;
+	// Extract style values with defaults
+	const {
+		barColor = '#2b6ef6',
+		progressColor = '#0747a6',
+		backgroundColor = 'transparent',
+		playheadColor = '#ff4d4f',
+		markerColor = '#10b981',
+		markerLabelColor = '#ffffff',
+		playButtonColor = '#111827',
+		playIconColor = '#fff',
+		rewindButtonColor = '#fff',
+		rewindIconColor = '#111827',
+		forwardButtonColor = '#fff',
+		forwardIconColor = '#111827',
+		volumeSliderFillColor = '#111827',
+		volumeIconColor = '#374151',
+		timeColor = '#374151',
+	} = styles;
 
-		// Clear error state when audio prop changes
-		useEffect(() => {
-			setErrorState(null);
-		}, [audio]);
+	// Clear error state when audio prop changes
+	useEffect(() => {
+		setErrorState(null);
+	}, [audio]);
 
-		// Use responsive width hook when responsive mode is enabled
-		const { width: responsiveWidth, containerRef } = useResponsiveWidth({
-			responsive,
-			debounceMs: responsiveDebounceMs,
-			fallbackWidth: width,
-		});
+	// Use responsive width hook when responsive mode is enabled
+	const { width: responsiveWidth, containerRef } = useResponsiveWidth({
+		responsive,
+		debounceMs: responsiveDebounceMs,
+		fallbackWidth: width,
+	});
 
-		// Use responsive width if enabled, otherwise use the provided width prop
-		const effectiveWidth = responsive ? responsiveWidth : width;
+	// Use responsive width if enabled, otherwise use the provided width prop
+	const effectiveWidth = responsive ? responsiveWidth : width;
 
-		// Use audio player hook
-		const {
-			audioRef,
-			isPlaying,
-			duration,
-			volume,
-			setVolume,
-			togglePlay,
-			seek,
-			seekTo,
-			displayTime,
-		} = useAudioPlayer({
-			audio,
-			controlledCurrentTime,
-			onCurrentTimeChange,
-			audioElementRef,
-			onPlay,
-			onPause,
-			onEnded,
-			onLoaded: (dur) => {
-				setErrorState(null); // Clear error on successful load
-				onLoaded?.(dur);
-			},
-			onTimeUpdate,
-			onError: (error) => {
-				setErrorState({ message: error.message, type: 'audio' });
-				onError?.(error, 'audio');
-			},
-		});
+	// Use audio player hook
+	const {
+		audioRef,
+		isPlaying,
+		duration,
+		volume,
+		setVolume,
+		togglePlay,
+		seek,
+		seekTo,
+		displayTime,
+	} = useAudioPlayer({
+		audio,
+		controlledCurrentTime,
+		onCurrentTimeChange,
+		audioElementRef,
+		onPlay,
+		onPause,
+		onEnded,
+		onLoaded: (dur) => {
+			setErrorState(null); // Clear error on successful load
+			onLoaded?.(dur);
+		},
+		onTimeUpdate,
+		onError: (error) => {
+			setErrorState({ message: error.message, type: 'audio' });
+			onError?.(error, 'audio');
+		},
+	});
 
-		// Use waveform data hook
-		const { peaks } = useWaveformData({
-			audio,
-			width: effectiveWidth,
-			barWidth,
-			gap,
-			workerUrl,
-			forceMainThread,
-			onPeaksComputed: (peaks) => {
-				setErrorState(null); // Clear error on successful peaks computation
-				onPeaksComputed?.(peaks);
-			},
-			onError: (error) => {
-				setErrorState({ message: error.message, type: 'waveform' });
-				onError?.(error, 'waveform');
-			},
-		});
+	// Use waveform data hook
+	const { peaks } = useWaveformData({
+		audio,
+		width: effectiveWidth,
+		barWidth,
+		gap,
+		precomputedPeaks,
+		workerUrl,
+		forceMainThread,
+		onPeaksComputed: (peaks) => {
+			setErrorState(null); // Clear error on successful peaks computation
+			onPeaksComputed?.(peaks);
+		},
+		onError: (error) => {
+			setErrorState({ message: error.message, type: 'waveform' });
+			onError?.(error, 'waveform');
+		},
+	});
 
-		// Use waveform canvas hook
-		const { canvasRef } = useWaveformCanvas({
-			width: effectiveWidth,
-			height,
-			barWidth,
-			gap,
-			barColor,
-			progressColor,
-			backgroundColor,
-			playheadColor,
-			markerColor,
-			markerLabelColor,
-			markers,
-			peaks,
-			currentTime: displayTime,
-			duration,
-			isPlaying,
-		});
+	// Use waveform canvas hook
+	const { canvasRef } = useWaveformCanvas({
+		width: effectiveWidth,
+		height,
+		barWidth,
+		gap,
+		barColor,
+		progressColor,
+		backgroundColor,
+		playheadColor,
+		markerColor,
+		markerLabelColor,
+		markers,
+		peaks,
+		currentTime: displayTime,
+		duration,
+		isPlaying,
+	});
 
-		function onCanvasClick(e: React.MouseEvent<HTMLCanvasElement>) {
-			const rect = canvasRef.current?.getBoundingClientRect();
-			if (!rect) {
-				return;
-			}
-			const x = e.clientX - rect.left;
-			const t = (x / rect.width) * duration;
-			if (!Number.isNaN(t)) {
-				const newTime = Math.max(0, Math.min(duration, t));
-				seekTo(newTime);
-			}
+	function onCanvasClick(e: React.MouseEvent<HTMLCanvasElement>) {
+		const rect = canvasRef.current?.getBoundingClientRect();
+		if (!rect || rect.width <= 0) {
+			return;
 		}
 
-		function onCanvasMove(e: React.MouseEvent<HTMLCanvasElement>) {
-			const rect = canvasRef.current?.getBoundingClientRect();
-			if (!rect) {
-				return;
-			}
-			const x = e.clientX - rect.left;
+		const x = e.clientX - rect.left;
+		const t = (x / rect.width) * duration;
+		if (!Number.isNaN(t)) {
+			const newTime = Math.max(0, Math.min(duration, t));
+			seekTo(newTime);
+		}
+	}
+
+	function onCanvasMove(e: React.MouseEvent<HTMLCanvasElement>) {
+		const rect = canvasRef.current?.getBoundingClientRect();
+		if (!rect) {
+			return;
+		}
+		const x = e.clientX - rect.left;
+		setHoverX(x);
+		const t = duration > 0 ? (x / rect.width) * duration : 0;
+		setHoverTime(isFinite(t) ? t : null);
+	}
+
+	function onCanvasLeave() {
+		setHoverX(null);
+		setHoverTime(null);
+	}
+
+	function onCanvasTouchStart(e: React.TouchEvent<HTMLCanvasElement>) {
+		const touch = e.touches[0];
+		if (!touch) {
+			return;
+		}
+
+		const rect = canvasRef.current?.getBoundingClientRect();
+		if (!rect || rect.width <= 0) {
+			return;
+		}
+
+		const x = Math.max(0, Math.min(rect.width, touch.clientX - rect.left));
+		const t = (x / rect.width) * duration;
+		if (!Number.isNaN(t)) {
+			const newTime = Math.max(0, Math.min(duration, t));
+			seekTo(newTime);
 			setHoverX(x);
-			const t = duration > 0 ? (x / rect.width) * duration : 0;
-			setHoverTime(isFinite(t) ? t : null);
+			setHoverTime(isFinite(newTime) ? newTime : null);
+		}
+	}
+
+	function onCanvasTouchMove(e: React.TouchEvent<HTMLCanvasElement>) {
+		const touch = e.touches[0];
+		if (!touch) {
+			return;
 		}
 
-		function onCanvasLeave() {
-			setHoverX(null);
-			setHoverTime(null);
+		const rect = canvasRef.current?.getBoundingClientRect();
+		if (!rect || rect.width <= 0) {
+			return;
 		}
 
-		// Use keyboard controls hook
-		const { onKeyDown } = useKeyboardControls({
-			duration,
-			keyboardSmallStep,
-			keyboardLargeStep,
-			disableKeyboardControls,
-			seek,
-			seekTo,
-			togglePlay,
-		});
+		const x = Math.max(0, Math.min(rect.width, touch.clientX - rect.left));
+		const t = (x / rect.width) * duration;
+		if (!Number.isNaN(t)) {
+			const newTime = Math.max(0, Math.min(duration, t));
+			seekTo(newTime);
+			setHoverX(x);
+			setHoverTime(isFinite(newTime) ? newTime : null);
+		}
+	}
 
-		// Expose imperative methods via ref
-		useImperativeHandle(
-			ref,
-			() => ({
-				play: async () => {
-					const a = audioRef.current;
-					if (!a) {
-						return;
-					}
-					try {
-						await a.play();
-					} catch (error) {
-						// Re-throw with context about common issues
-						if (error instanceof DOMException) {
-							throw new Error(
-								`Failed to play audio: ${error.message}. ` +
-									'On Safari/iOS, playback must be initiated by a user gesture. ' +
-									'Call resumeAudioContext() first if needed.'
-							);
-						}
-						throw error;
-					}
-				},
-				pause: () => {
-					const a = audioRef.current;
-					if (!a) {
-						return;
-					}
-					a.pause();
-				},
-				seek: (time: number) => {
-					seekTo(time);
-				},
-				resumeAudioContext: async () => {
-					// Resume any suspended AudioContext (needed for Safari/iOS)
-					// This creates a temporary AudioContext to trigger user activation
-					// which enables audio playback across the page
-					const AudioContextClass =
-						(window as any).AudioContext ||
-						((window as any).webkitAudioContext as typeof AudioContext | undefined);
-					if (!AudioContextClass) {
-						return;
-					}
+	function onCanvasTouchEnd() {
+		setHoverX(null);
+		setHoverTime(null);
+	}
 
-					try {
-						const tempCtx = new AudioContextClass();
-						if (tempCtx.state === 'suspended') {
-							await tempCtx.resume();
-						}
-						await tempCtx.close();
-					} catch (error) {
-						// Silently fail if AudioContext creation fails
-						// This is a best-effort attempt to enable audio
-						if (process.env.NODE_ENV === 'development') {
-							console.warn('Failed to resume AudioContext:', error);
-						}
-					}
-				},
-			}),
-			[seekTo, audioRef]
-		);
+	// Use keyboard controls hook
+	const { onKeyDown } = useKeyboardControls({
+		duration,
+		keyboardSmallStep,
+		keyboardLargeStep,
+		disableKeyboardControls,
+		seek,
+		seekTo,
+		togglePlay,
+	});
 
-		return (
-			<div ref={containerRef} className={`waveform-navigator ${className}`}>
-				<div
-					className="waveform-interactive"
-					role="slider"
-					aria-label={ariaLabel}
-					aria-valuemin={0}
-					aria-valuemax={duration > 0 ? duration : 1}
-					aria-valuenow={displayTime}
-					aria-valuetext={`${formatTime(displayTime)} of ${formatTime(duration)}`}
-					tabIndex={0}
-					onKeyDown={onKeyDown}
+	// Expose imperative methods via ref
+	useImperativeHandle(
+		ref,
+		() => ({
+			play: async () => {
+				const a = audioRef.current;
+				if (!a) {
+					return;
+				}
+				try {
+					await a.play();
+				} catch (error) {
+					// Re-throw with context about common issues
+					if (error instanceof DOMException) {
+						throw new Error(
+							`Failed to play audio: ${error.message}. ` +
+								'On Safari/iOS, playback must be initiated by a user gesture. ' +
+								'Call resumeAudioContext() first if needed.'
+						);
+					}
+					throw error;
+				}
+			},
+			pause: () => {
+				const a = audioRef.current;
+				if (!a) {
+					return;
+				}
+				a.pause();
+			},
+			seek: (time: number) => {
+				seekTo(time);
+			},
+			resumeAudioContext: async () => {
+				// Resume any suspended AudioContext (needed for Safari/iOS)
+				// This creates a temporary AudioContext to trigger user activation
+				// which enables audio playback across the page
+				const AudioContextClass =
+					(window as any).AudioContext ||
+					((window as any).webkitAudioContext as typeof AudioContext | undefined);
+				if (!AudioContextClass) {
+					return;
+				}
+
+				try {
+					const tempCtx = new AudioContextClass();
+					if (tempCtx.state === 'suspended') {
+						await tempCtx.resume();
+					}
+					await tempCtx.close();
+				} catch (error) {
+					// Silently fail if AudioContext creation fails
+					// This is a best-effort attempt to enable audio
+					if (import.meta.env.DEV) {
+						console.warn('Failed to resume AudioContext:', error);
+					}
+				}
+			},
+		}),
+		[seekTo, audioRef]
+	);
+
+	return (
+		<div ref={containerRef} className={`waveform-navigator ${className}`}>
+			<div
+				className="waveform-interactive"
+				role="slider"
+				aria-label={ariaLabel}
+				aria-valuemin={0}
+				aria-valuemax={duration > 0 ? duration : 1}
+				aria-valuenow={displayTime}
+				aria-valuetext={`${formatTime(displayTime)} of ${formatTime(duration)}`}
+				tabIndex={0}
+				onKeyDown={onKeyDown}
+				onMouseLeave={onCanvasLeave}
+			>
+				<canvas
+					ref={canvasRef}
+					onClick={onCanvasClick}
+					onMouseMove={onCanvasMove}
 					onMouseLeave={onCanvasLeave}
-				>
-					<canvas
-						ref={canvasRef}
-						onClick={onCanvasClick}
-						onMouseMove={onCanvasMove}
-						onMouseLeave={onCanvasLeave}
-						className="waveform-canvas"
-						tabIndex={-1}
-					/>
+					onTouchStart={onCanvasTouchStart}
+					onTouchMove={onCanvasTouchMove}
+					onTouchEnd={onCanvasTouchEnd}
+					onTouchCancel={onCanvasTouchEnd}
+					className="waveform-canvas"
+					tabIndex={-1}
+				/>
 
-					{errorState && (
-						<div className="waveform-error" role="alert" aria-live="assertive">
-							<div className="waveform-error-icon" aria-hidden="true">
-								⚠️
-							</div>
-							<div className="waveform-error-message">{errorState.message}</div>
+				{errorState && (
+					<div className="waveform-error" role="alert" aria-live="assertive">
+						<div className="waveform-error-icon" aria-hidden="true">
+							⚠️
 						</div>
-					)}
+						<div className="waveform-error-message">{errorState.message}</div>
+					</div>
+				)}
 
-					{hoverX !== null && !errorState && (
-						<>
-							<div className="hover-line" style={{ left: `${hoverX}px` }} />
-							<div className="hover-tooltip" style={{ left: `${hoverX}px` }}>
-								{hoverTime !== null ? formatTime(hoverTime) : ''}
-							</div>
-						</>
-					)}
-				</div>
-
-				{showControls && (
-					<WaveformControls
-						isPlaying={isPlaying}
-						displayTime={displayTime}
-						duration={duration}
-						volume={volume}
-						onTogglePlay={togglePlay}
-						onSeek={seek}
-						onVolumeChange={setVolume}
-						styles={{
-							playButtonColor,
-							playIconColor,
-							rewindButtonColor,
-							rewindIconColor,
-							forwardButtonColor,
-							forwardIconColor,
-							volumeSliderFillColor,
-							volumeIconColor,
-						}}
-					/>
+				{hoverX !== null && !errorState && (
+					<>
+						<div className="hover-line" style={{ left: `${hoverX}px` }} />
+						<div className="hover-tooltip" style={{ left: `${hoverX}px` }}>
+							{hoverTime !== null ? formatTime(hoverTime) : ''}
+						</div>
+					</>
 				)}
 			</div>
-		);
-	}
-);
+
+			{showControls && (
+				<WaveformControls
+					isPlaying={isPlaying}
+					displayTime={displayTime}
+					duration={duration}
+					volume={volume}
+					onTogglePlay={togglePlay}
+					onSeek={seek}
+					onVolumeChange={setVolume}
+					styles={{
+						playButtonColor,
+						playIconColor,
+						rewindButtonColor,
+						rewindIconColor,
+						forwardButtonColor,
+						forwardIconColor,
+						volumeSliderFillColor,
+						volumeIconColor,
+						timeColor,
+					}}
+				/>
+			)}
+		</div>
+	);
+});
 
 // Add display name for React DevTools
 WaveformNavigator.displayName = 'WaveformNavigator';

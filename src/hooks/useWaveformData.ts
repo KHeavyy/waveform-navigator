@@ -2,6 +2,18 @@ import { useEffect, useRef, useState } from 'react';
 import { computePeaksFromChannelData } from '../utils/peaksComputation';
 import { createPeaksWorker } from '../utils/workerCreation';
 
+function peaksMatch(
+	a: Float32Array,
+	b: Float32Array,
+	threshold = 0.001
+): boolean {
+	if (a.length !== b.length) return false;
+	for (let i = 0; i < a.length; i++) {
+		if (Math.abs(a[i] - b[i]) > threshold) return false;
+	}
+	return true;
+}
+
 interface UseWaveformDataProps {
 	audio: string | File | null | undefined;
 	width: number;
@@ -9,6 +21,16 @@ interface UseWaveformDataProps {
 	gap: number;
 	workerUrl?: string;
 	forceMainThread?: boolean;
+	/**
+	 * Optional pre-computed peaks data for instant waveform rendering.
+	 * Accepts a `Float32Array` or plain `number[]` (e.g. from JSON storage).
+	 * If the bar count matches current dimensions, the waveform renders immediately
+	 * without waiting for the audio to load and decode.
+	 * The worker still runs in the background for verification; if the result
+	 * differs, the canvas updates and `onPeaksComputed` fires with fresh data.
+	 * Cleared when the `audio` prop changes so new audio always computes fresh.
+	 */
+	precomputedPeaks?: Float32Array | number[];
 	onPeaksComputed?: (peaks: Float32Array) => void;
 	onError?: (error: Error) => void;
 }
@@ -24,10 +46,28 @@ export function useWaveformData({
 	gap,
 	workerUrl,
 	forceMainThread,
+	precomputedPeaks,
 	onPeaksComputed,
 	onError,
 }: UseWaveformDataProps): UseWaveformDataReturn {
-	const [peaks, setPeaks] = useState<Float32Array | null>(null);
+	// Validate precomputedPeaks against the current bar count.
+	// useState and useRef only consume this value on the initial mount.
+	const validPrecomputed: Float32Array | null = (() => {
+		if (!precomputedPeaks) return null;
+		const converted =
+			precomputedPeaks instanceof Float32Array
+				? precomputedPeaks
+				: new Float32Array(precomputedPeaks);
+		return converted.length === Math.floor(width / (barWidth + gap))
+			? converted
+			: null;
+	})();
+
+	const [peaks, setPeaks] = useState<Float32Array | null>(
+		() => validPrecomputed
+	);
+	// Comparison baseline: holds the validated precomputed peaks until audio changes.
+	const precomputedPeaksRef = useRef<Float32Array | null>(validPrecomputed);
 	const audioCtxRef = useRef<AudioContext | null>(null);
 	const workerRef = useRef<Worker | null>(null);
 	const onPeaksComputedRef = useRef(onPeaksComputed);
@@ -36,6 +76,8 @@ export function useWaveformData({
 	const lastWidthRef = useRef<number | null>(null);
 	const lastBarWidthRef = useRef<number | null>(null);
 	const lastGapRef = useRef<number | null>(null);
+	// Tracks the previous audio value to detect genuine source changes vs. initial mount.
+	const prevAudioRef = useRef<string | File | null | undefined>(audio);
 
 	useEffect(() => {
 		onPeaksComputedRef.current = onPeaksComputed;
@@ -52,8 +94,16 @@ export function useWaveformData({
 				const msg = ev.data;
 				if (msg.type === 'progress') {
 					const peaksArrReceived = new Float32Array(msg.peaksBuffer);
-					setPeaks(peaksArrReceived);
-					onPeaksComputedRef.current?.(peaksArrReceived);
+					if (precomputedPeaksRef.current) {
+						// Only update if the worker result differs from precomputed peaks.
+						if (!peaksMatch(peaksArrReceived, precomputedPeaksRef.current)) {
+							setPeaks(peaksArrReceived);
+							onPeaksComputedRef.current?.(peaksArrReceived);
+						}
+					} else {
+						setPeaks(peaksArrReceived);
+						onPeaksComputedRef.current?.(peaksArrReceived);
+					}
 				}
 			};
 		}
@@ -83,10 +133,25 @@ export function useWaveformData({
 	// Load and decode audio data when audio prop changes
 	useEffect(() => {
 		if (!audio) {
-			setPeaks(null);
+			// Preserve the waveform shape when precomputed peaks are seeding the display;
+			// only reset to null when no precomputed baseline is active.
+			if (!precomputedPeaksRef.current) {
+				setPeaks(null);
+			}
 			audioBufferRef.current = null;
+			// Clear the comparison baseline so the next audio load always computes fresh.
+			precomputedPeaksRef.current = null;
+			prevAudioRef.current = audio;
 			return;
 		}
+
+		// When the audio source genuinely changes (not the initial mount), clear the
+		// precomputed comparison baseline so fresh peaks are always applied and
+		// onPeaksComputed fires without comparing against stale data.
+		if (prevAudioRef.current !== audio) {
+			precomputedPeaksRef.current = null;
+		}
+		prevAudioRef.current = audio;
 
 		const loadArrayBuffer = async () => {
 			try {
@@ -195,9 +260,20 @@ export function useWaveformData({
 			gap,
 		});
 
-		// Set initial peaks for immediate display
-		setPeaks(peaksArr);
-		onPeaksComputedRef.current?.(peaksArr);
+		if (precomputedPeaksRef.current) {
+			// Precomputed peaks were provided: only update state and fire the callback
+			// if the computed result actually differs. On a match the canvas already
+			// shows the correct waveform and the parent already has the peaks, so
+			// neither a re-render nor a duplicate callback is needed.
+			if (!peaksMatch(peaksArr, precomputedPeaksRef.current)) {
+				setPeaks(peaksArr);
+				onPeaksComputedRef.current?.(peaksArr);
+			}
+		} else {
+			// No precomputed peaks — existing behaviour: always update and notify.
+			setPeaks(peaksArr);
+			onPeaksComputedRef.current?.(peaksArr);
+		}
 
 		// Use worker for more accurate progressive computation if available
 		if (workerRef.current) {

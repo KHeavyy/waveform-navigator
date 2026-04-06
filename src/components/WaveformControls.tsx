@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { formatTime } from '../utils';
 
 /**
@@ -13,6 +13,7 @@ export interface WaveformControlsStyles {
 	forwardIconColor?: string;
 	volumeSliderFillColor?: string;
 	volumeIconColor?: string;
+	timeColor?: string;
 }
 
 export interface WaveformControlsProps {
@@ -50,7 +51,10 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 		forwardIconColor = '#111827',
 		volumeSliderFillColor = '#111827',
 		volumeIconColor = '#374151',
+		timeColor = '#374151',
 	} = styles;
+
+	const [volumeOpen, setVolumeOpen] = useState(false);
 
 	// Track previous volume for mute/restore functionality
 	const previousVolumeRef = useRef(volume);
@@ -136,23 +140,29 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 		}
 	};
 
-	// Toggle mute/restore volume
+	// Toggle mute/restore volume (desktop) or expand/collapse slider (mobile)
 	const handleVolumeIconClick = () => {
-		if (volume === 0) {
-			// Restore previous volume
-			const volumeToRestore =
-				previousVolumeRef.current > 0 ? previousVolumeRef.current : 0.5;
-			onVolumeChange(volumeToRestore);
+		const isMobile =
+			typeof window !== 'undefined' &&
+			typeof window.matchMedia === 'function' &&
+			window.matchMedia('(max-width: 480px)').matches;
+		if (isMobile) {
+			setVolumeOpen((prev) => !prev);
 		} else {
-			// Mute - save current volume and set to 0
-			previousVolumeRef.current = volume;
-			onVolumeChange(0);
+			if (volume === 0) {
+				const volumeToRestore =
+					previousVolumeRef.current > 0 ? previousVolumeRef.current : 0.5;
+				onVolumeChange(volumeToRestore);
+			} else {
+				previousVolumeRef.current = volume;
+				onVolumeChange(0);
+			}
 		}
 	};
 	return (
 		<div className="controls">
 			<div className="left">
-				<div className="time">
+				<div className="time" style={{ color: timeColor }}>
 					{formatTime(displayTime)} / {formatTime(duration)}
 				</div>
 			</div>
@@ -223,7 +233,7 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 				</button>
 			</div>
 
-			<div className="right">
+			<div className={`right${volumeOpen ? ' volume-open' : ''}`}>
 				<button
 					className="speaker"
 					onClick={handleVolumeIconClick}

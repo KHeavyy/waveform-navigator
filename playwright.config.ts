@@ -26,6 +26,7 @@ export default defineConfig({
 				deviceScaleFactor: 1,
 				viewport: { width: 1280, height: 720 },
 			},
+			testIgnore: ['**/mobile.spec.ts'],
 		},
 		{
 			name: 'chromium-dpr2',
@@ -34,6 +35,16 @@ export default defineConfig({
 				deviceScaleFactor: 2,
 				viewport: { width: 1280, height: 720 },
 			},
+			testIgnore: ['**/mobile.spec.ts'],
+		},
+		{
+			// Mobile Chrome – runs only the mobile spec so the viewport-switching
+			// tests in mobile.spec.ts start from a real mobile context.
+			name: 'mobile-chrome',
+			use: {
+				...devices['Pixel 5'],
+			},
+			testMatch: '**/mobile.spec.ts',
 		},
 	],
 

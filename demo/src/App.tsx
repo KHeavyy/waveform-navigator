@@ -30,6 +30,10 @@ export default function App() {
 	const [responsiveEnabled, setResponsiveEnabled] = useState(true);
 	const [containerWidth, setContainerWidth] = useState(900);
 
+	// Demo precomputed peaks
+	const [savedPeaks, setSavedPeaks] = useState<Float32Array | null>(null);
+	const [usePrecomputedPeaks, setUsePrecomputedPeaks] = useState(false);
+
 	// Demo worker mode
 	const [forceMainThread, setForceMainThread] = useState(false);
 
@@ -261,6 +265,60 @@ export default function App() {
 						? '✅ Waveform will automatically resize to match container width'
 						: '⚠️ Waveform uses fixed width prop (900px)'}
 				</p>
+			</div>
+
+			{/* Pre-computed peaks demo */}
+			<div
+				style={{
+					marginBottom: 12,
+					padding: 12,
+					backgroundColor: '#e8f8f0',
+					borderRadius: 4,
+				}}
+			>
+				<h3>⚡ Pre-computed Peaks Demo</h3>
+				<p style={{ fontSize: 13, marginBottom: 8 }}>
+					Simulates the pattern of saving peaks on first load and reusing them on
+					subsequent visits for instant waveform rendering (no audio decode
+					required).
+				</p>
+				<div style={{ marginBottom: 8 }}>
+					<strong>Step 1:</strong> Load the audio once so peaks are captured via
+					<code style={{ marginLeft: 4 }}>onPeaksComputed</code>.
+				</div>
+				<div style={{ marginBottom: 8 }}>
+					<strong>Peaks saved:</strong>{' '}
+					{savedPeaks ? (
+						<span style={{ color: '#166534' }}>
+							✅ {savedPeaks.length} bars captured
+						</span>
+					) : (
+						<span style={{ color: '#6b7280' }}>None yet — load the audio first</span>
+					)}
+				</div>
+				<div style={{ marginBottom: 8 }}>
+					<label>
+						<input
+							type="checkbox"
+							checked={usePrecomputedPeaks}
+							disabled={!savedPeaks}
+							onChange={(e) => setUsePrecomputedPeaks(e.target.checked)}
+						/>
+						<strong style={{ marginLeft: 4 }}>Use pre-computed peaks</strong>
+						{!savedPeaks && (
+							<span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 6 }}>
+								(load audio first)
+							</span>
+						)}
+					</label>
+				</div>
+				{usePrecomputedPeaks && savedPeaks && (
+					<p style={{ fontSize: 12, color: '#166534', margin: 0 }}>
+						✅ Waveform will render instantly from saved peaks — the worker still
+						verifies in the background. If the result matches,{' '}
+						<code>onPeaksComputed</code> is suppressed (no redundant update).
+					</p>
+				)}
 			</div>
 
 			{/* Worker mode demo */}
@@ -721,6 +779,9 @@ export default function App() {
 					forceMainThread={forceMainThread}
 					showControls={showControls}
 					markers={markers}
+					precomputedPeaks={
+						usePrecomputedPeaks && savedPeaks ? savedPeaks : undefined
+					}
 					controlledCurrentTime={useControlled ? controlledTime : undefined}
 					onCurrentTimeChange={(time) => {
 						setControlledTime(time);
@@ -737,6 +798,9 @@ export default function App() {
 					onPeaksComputed={(peaks) => {
 						console.log('Peaks computed:', peaks.length, 'bars');
 						setPeaksReady(true);
+						// Save a copy for the pre-computed peaks demo
+						setSavedPeaks(peaks.slice());
+						(window as any).__waveformReady = true;
 					}}
 					onError={(err, type) => {
 						console.error(`${type} error:`, err.message);
