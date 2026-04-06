@@ -12,17 +12,14 @@ import { test, expect } from '@playwright/test';
 
 const MOBILE_VIEWPORT = { width: 375, height: 812 };
 
-// Wait for the demo app to signal both peaks and audio metadata are ready.
+// Wait for the demo app to signal the waveform is ready.
 async function waitForWaveform(page: import('@playwright/test').Page) {
 	await page
-		.waitForFunction(
-			() =>
-				(window as any).__waveformReady === true &&
-				(window as any).__waveformDuration > 0,
-			{ timeout: 20000 }
-		)
+		.waitForFunction(() => (window as any).__waveformReady === true, {
+			timeout: 20000,
+		})
 		.catch(() => {
-			// If flags never fire the subsequent assertions will surface the failure.
+			// If flag never fires the subsequent assertions will surface the failure.
 		});
 }
 
@@ -100,17 +97,20 @@ test.describe('Touch seeking on mobile', () => {
 		const canvas = page.locator('canvas').first();
 		await expect(canvas).toBeVisible({ timeout: 10000 });
 
+		// Scroll canvas into view before reading coordinates or tapping —
+		// the demo page is long and the canvas can be far below the mobile
+		// viewport, causing page.touchscreen.tap() to be silently ignored.
+		await canvas.scrollIntoViewIfNeeded();
 		const box = await canvas.boundingBox();
 		expect(box).toBeTruthy();
 
 		// Read the time display before the tap
 		const timeBefore = await page.locator('.time').first().innerText();
 
-		// Tap 75 % of the way along the canvas
-		await page.touchscreen.tap(
-			box!.x + box!.width * 0.75,
-			box!.y + box!.height / 2
-		);
+		// Tap 75 % of the way along the canvas using locator.tap() so that
+		// position is relative to the element (not the page) and the element
+		// is guaranteed to be in the viewport before the tap lands.
+		await canvas.tap({ position: { x: box!.width * 0.75, y: box!.height / 2 } });
 
 		// The displayed time should change (or at least not throw an error)
 		await page.waitForFunction(
@@ -132,6 +132,9 @@ test.describe('Touch seeking on mobile', () => {
 		const canvas = page.locator('canvas').first();
 		await expect(canvas).toBeVisible({ timeout: 10000 });
 
+		// Scroll canvas into view so subsequent touchscreen/mouse coordinates
+		// fall within the viewport (canvas can be far below the fold on mobile).
+		await canvas.scrollIntoViewIfNeeded();
 		const box = await canvas.boundingBox();
 		expect(box).toBeTruthy();
 
