@@ -49,10 +49,11 @@ function TestComponent({
 
 describe('useWaveformData precomputedPeaks', () => {
 	afterEach(() => {
-		// Restore the default mock return value after each test
+		// Restore the default mock return value and clear call history after each test.
 		vi.mocked(computePeaksFromChannelData).mockReturnValue({
 			peaks: DEFAULT_COMPUTED,
 		});
+		vi.mocked(computePeaksFromChannelData).mockClear();
 	});
 
 	it('seeds peaks state immediately when bar count matches', () => {
@@ -77,8 +78,9 @@ describe('useWaveformData precomputedPeaks', () => {
 		expect(screen.getByTestId('peaks').textContent).toBe('null');
 	});
 
-	it('does not fire onPeaksComputed when computed peaks match precomputedPeaks', async () => {
-		// Default mock returns [0.1, 0.2] which matches MATCHING_PRECOMPUTED.
+	it('skips the fetch entirely when precomputedPeaks match the bar count', async () => {
+		// With fix #2, a matching precomputedPeaks set is trusted as-is — no network
+		// request or decode step is executed, and onPeaksComputed is never fired.
 		const onPeaksComputed = vi.fn();
 
 		render(
@@ -89,17 +91,22 @@ describe('useWaveformData precomputedPeaks', () => {
 			/>
 		);
 
-		// Give time for audio fetch + decode + computePeaks to run.
-		await waitFor(() => expect(computePeaksFromChannelData).toHaveBeenCalled());
+		// Allow any async work to settle.
+		await new Promise((r) => setTimeout(r, 50));
 
-		// Computed peaks match precomputed → callback must NOT have fired.
+		expect(computePeaksFromChannelData).not.toHaveBeenCalled();
 		expect(onPeaksComputed).not.toHaveBeenCalled();
+		// Precomputed peaks are still shown on the canvas.
+		expect(screen.getByTestId('peaks').textContent).toContain('0.1');
 	});
 
-	it('fires onPeaksComputed with fresh peaks when computed peaks differ', async () => {
-		const mismatchedPeaks = new Float32Array([0.8, 0.9]);
+	it('fires onPeaksComputed when precomputedPeaks have the wrong bar count', async () => {
+		// Bar count for width=10, barWidth=3, gap=2 is 2.
+		// Passing a 3-element array marks them as invalid, so the fetch still runs
+		// and onPeaksComputed fires with the freshly computed peaks.
+		const freshPeaks = new Float32Array([0.8, 0.9]);
 		vi.mocked(computePeaksFromChannelData).mockReturnValueOnce({
-			peaks: mismatchedPeaks,
+			peaks: freshPeaks,
 		});
 
 		const onPeaksComputed = vi.fn();
@@ -107,15 +114,14 @@ describe('useWaveformData precomputedPeaks', () => {
 		render(
 			<TestComponent
 				audio="/test.mp3"
-				precomputedPeaks={MATCHING_PRECOMPUTED}
+				precomputedPeaks={new Float32Array([0.1, 0.2, 0.3])}
 				onPeaksComputed={onPeaksComputed}
 			/>
 		);
 
 		await waitFor(() => expect(onPeaksComputed).toHaveBeenCalledTimes(1));
-		expect(onPeaksComputed).toHaveBeenCalledWith(mismatchedPeaks);
+		expect(onPeaksComputed).toHaveBeenCalledWith(freshPeaks);
 
-		// Canvas should now display the freshly computed peaks.
 		await waitFor(() =>
 			expect(screen.getByTestId('peaks').textContent).toContain('0.8')
 		);
@@ -130,10 +136,10 @@ describe('useWaveformData precomputedPeaks', () => {
 		expect(text).toContain('0.1');
 	});
 
-	it('ignores precomputedPeaks when audio changes to a different source', async () => {
+	it('fetches fresh peaks when audio changes and no precomputedPeaks are provided', async () => {
 		const onPeaksComputed = vi.fn();
 
-		// Initial render: precomputedPeaks matches computed → no callback.
+		// Initial render: matching precomputedPeaks → fetch is skipped.
 		const { rerender } = render(
 			<TestComponent
 				audio="/audio1.mp3"
@@ -142,22 +148,19 @@ describe('useWaveformData precomputedPeaks', () => {
 			/>
 		);
 
-		await waitFor(() => expect(computePeaksFromChannelData).toHaveBeenCalled());
+		await new Promise((r) => setTimeout(r, 50));
+		expect(computePeaksFromChannelData).not.toHaveBeenCalled();
 		expect(onPeaksComputed).not.toHaveBeenCalled();
 
 		onPeaksComputed.mockClear();
 		vi.mocked(computePeaksFromChannelData).mockClear();
 
-		// Switch to a different audio source — precomputedPeaks should be ignored.
+		// Switch to a different audio source without providing precomputedPeaks
+		// → no pre-computed baseline, so a fresh fetch + decode is triggered.
 		rerender(
-			<TestComponent
-				audio="/audio2.mp3"
-				precomputedPeaks={MATCHING_PRECOMPUTED}
-				onPeaksComputed={onPeaksComputed}
-			/>
+			<TestComponent audio="/audio2.mp3" onPeaksComputed={onPeaksComputed} />
 		);
 
-		// Fresh audio load always calls onPeaksComputed regardless of precomputedPeaks.
 		await waitFor(() => expect(onPeaksComputed).toHaveBeenCalledTimes(1));
 	});
 });

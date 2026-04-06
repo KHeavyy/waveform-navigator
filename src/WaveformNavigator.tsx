@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useImperativeHandle, useRef } from 'react';
 import './styles.css';
 import { useAudioPlayer } from './hooks/useAudioPlayer';
 import { useWaveformData } from './hooks/useWaveformData';
@@ -136,6 +136,22 @@ export interface WaveformNavigatorProps {
 	ariaLabel?: string;
 	// UI control props
 	showControls?: boolean;
+	/**
+	 * Controls the initial `preload` attribute of the underlying `<audio>` element.
+	 * Defaults to `'none'` — no bytes are downloaded until the user presses play.
+	 * Set to `'metadata'` to download just file headers (enabling duration display
+	 * before playback), or `'auto'` to restore eager loading.
+	 */
+	preload?: 'none' | 'metadata' | 'auto';
+	/**
+	 * Seed the displayed duration (in seconds) before the audio element loads metadata.
+	 * Required when combining `preload="none"` with `precomputedPeaks` — without it
+	 * the waveform renders but `duration` stays 0, blocking click-to-seek.
+	 * Persist this value alongside your peaks (e.g. from `onLoaded`) and pass it back
+	 * on subsequent renders. The real duration from the audio element overrides it
+	 * once `loadedmetadata` fires.
+	 */
+	initialDuration?: number;
 }
 
 const WaveformNavigator = React.forwardRef<
@@ -171,6 +187,8 @@ const WaveformNavigator = React.forwardRef<
 		disableKeyboardControls = false,
 		ariaLabel = 'Audio waveform seek bar',
 		showControls = true,
+		preload = 'none',
+		initialDuration,
 	} = props;
 	const [hoverX, setHoverX] = useState<number | null>(null);
 	const [hoverTime, setHoverTime] = useState<number | null>(null);
@@ -178,6 +196,19 @@ const WaveformNavigator = React.forwardRef<
 		message: string;
 		type: 'audio' | 'waveform';
 	} | null>(null);
+
+	// Blob URL lifecycle: created by useWaveformData from the shared fetch buffer;
+	// owned here so it can be revoked when the audio source changes or on unmount.
+	const [audioBlobUrl, setAudioBlobUrl] = useState<string | null>(null);
+	const audioBlobUrlRef = useRef<string | null>(null);
+
+	function handleBlobUrlReady(url: string) {
+		if (audioBlobUrlRef.current) {
+			URL.revokeObjectURL(audioBlobUrlRef.current);
+		}
+		audioBlobUrlRef.current = url;
+		setAudioBlobUrl(url);
+	}
 
 	// Extract style values with defaults
 	const {
@@ -203,6 +234,17 @@ const WaveformNavigator = React.forwardRef<
 		setErrorState(null);
 	}, [audio]);
 
+	// Revoke the shared Blob URL whenever the audio source changes or on unmount.
+	useEffect(() => {
+		return () => {
+			if (audioBlobUrlRef.current) {
+				URL.revokeObjectURL(audioBlobUrlRef.current);
+				audioBlobUrlRef.current = null;
+			}
+			setAudioBlobUrl(null);
+		};
+	}, [audio]);
+
 	// Use responsive width hook when responsive mode is enabled
 	const { width: responsiveWidth, containerRef } = useResponsiveWidth({
 		responsive,
@@ -226,6 +268,9 @@ const WaveformNavigator = React.forwardRef<
 		displayTime,
 	} = useAudioPlayer({
 		audio,
+		audioBlobUrl: audioBlobUrl ?? undefined,
+		initialDuration,
+		preload,
 		controlledCurrentTime,
 		onCurrentTimeChange,
 		audioElementRef,
@@ -252,6 +297,7 @@ const WaveformNavigator = React.forwardRef<
 		precomputedPeaks,
 		workerUrl,
 		forceMainThread,
+		onBlobUrlReady: handleBlobUrlReady,
 		onPeaksComputed: (peaks) => {
 			setErrorState(null); // Clear error on successful peaks computation
 			onPeaksComputed?.(peaks);
@@ -379,6 +425,7 @@ const WaveformNavigator = React.forwardRef<
 					return;
 				}
 				try {
+					a.preload = 'auto';
 					await a.play();
 				} catch (error) {
 					// Re-throw with context about common issues
