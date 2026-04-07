@@ -84,4 +84,45 @@ describe('useAudioPlayer', () => {
 		// In controlled mode seekTo should call onCurrentTimeChange instead of mutating audio
 		// We'll render a consumer to call seekTo indirectly by importing the hook directly.
 	});
+
+	it('sets isLoading true on waiting, false on playing or pause', async () => {
+		function TestComponent() {
+			const { audioRef, isLoading } = useAudioPlayer({ audio: '/test.mp3' });
+
+			React.useEffect(() => {
+				(window as any).__testAudio2 = audioRef.current;
+			}, [audioRef]);
+
+			return <div data-testid="isLoading">{String(isLoading)}</div>;
+		}
+
+		render(<TestComponent />);
+
+		const audioEl = (window as any).__testAudio2 as HTMLAudioElement;
+		expect(audioEl).toBeTruthy();
+		expect(screen.getByTestId('isLoading').textContent).toBe('false');
+
+		// Simulate the browser stalling to fetch audio
+		audioEl.dispatchEvent(new Event('waiting'));
+		await waitFor(() =>
+			expect(screen.getByTestId('isLoading').textContent).toBe('true')
+		);
+
+		// Simulate playback resuming once data is available
+		audioEl.dispatchEvent(new Event('playing'));
+		await waitFor(() =>
+			expect(screen.getByTestId('isLoading').textContent).toBe('false')
+		);
+
+		// Simulate waiting again, then pause clears it
+		audioEl.dispatchEvent(new Event('waiting'));
+		await waitFor(() =>
+			expect(screen.getByTestId('isLoading').textContent).toBe('true')
+		);
+
+		audioEl.dispatchEvent(new Event('pause'));
+		await waitFor(() =>
+			expect(screen.getByTestId('isLoading').textContent).toBe('false')
+		);
+	});
 });

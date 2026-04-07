@@ -154,6 +154,10 @@ The `styles` prop accepts an object with the following optional properties:
 - `volumeSliderFillColor` (string, default: '#111827'): Color of the volume slider fill and thumb.
 - `volumeIconColor` (string, default: '#374151'): Color of the volume icon. The icon dynamically changes based on volume level (muted, low, high).
 
+**Time Display Colors:**
+
+- `timeColor` (string, default: '#374151'): Color of the elapsed/total time display below the waveform.
+
 **Example:**
 
 ```tsx
@@ -285,6 +289,7 @@ The component supports both controlled and uncontrolled modes for playback posit
 - **`onLoaded`** ((duration: number) => void): Callback fired when audio metadata is loaded, providing the duration in seconds.
 - **`onTimeUpdate`** ((currentTime: number) => void): Callback fired during playback as the current time updates, providing the current time in seconds.
 - **`onPeaksComputed`** ((peaks: Float32Array) => void): Callback fired when waveform peaks are computed and differ from any provided `precomputedPeaks`. Use this to persist peaks for faster future loads. If `precomputedPeaks` were provided and the computed result matches, this callback is skipped — you already have the correct data.
+- **`onLoadingChange`** ((isLoading: boolean) => void): Callback fired whenever the audio loading/buffering state changes. Receives `true` while the browser is fetching or buffering after play is requested, and `false` once playback starts, pauses, or errors. Mirrors the spinner shown on the play button during loading.
 - **`onError`** ((error: Error, type: 'audio' | 'waveform') => void): Callback fired when an error occurs during audio loading or waveform computation. The `type` parameter indicates whether the error occurred during audio playback ('audio') or waveform generation ('waveform'). Common errors include CORS issues, unsupported audio formats, and decoding failures.
 
 #### Accessibility Props
@@ -677,6 +682,16 @@ function App() {
   );
 }
 ```
+
+#### Mobile-Adaptive Controls
+
+The playback controls automatically reflow based on the **component's own width** (not the viewport), using CSS Container Queries. This means the layout adapts correctly whether the component is embedded in a narrow column, a modal, or an actual mobile browser.
+
+- **≤ 640px container** — the horizontal volume slider narrows to save space.
+- **≤ 480px container** — all controls collapse onto a single compact row (time · buttons · speaker icon). Button sizes reduce and the horizontal volume slider is hidden.
+- **Volume on narrow containers** — tapping the speaker icon opens a floating vertical volume popup anchored above the speaker button. Tapping the icon again (or clicking anywhere outside) closes it. This keeps the layout stable without pushing content up or down.
+
+No configuration is needed — this behaviour is automatic.
 
 To disable responsive behavior and use fixed width:
 

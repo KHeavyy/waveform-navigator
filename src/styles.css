@@ -9,6 +9,7 @@
 	box-sizing: border-box;
 	padding: 0;
 	position: relative;
+	container-type: inline-size;
 }
 
 /* Interactive waveform container with keyboard support */
@@ -78,6 +79,32 @@
 	border: none;
 	cursor: pointer;
 }
+
+/* Spinner ring wrapper for the play button */
+.play-wrapper {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+@keyframes waveform-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.play-wrapper--loading::before {
+	content: '';
+	position: absolute;
+	inset: -5px;
+	border-radius: 9999px;
+	border: 3px solid transparent;
+	border-top-color: var(--play-spinner-color, #111827);
+	border-right-color: var(--play-spinner-color, #111827);
+	animation: waveform-spin 0.7s linear infinite;
+	pointer-events: none;
+}
 .controls .rewind,
 .controls .forward {
 	width: 44px;
@@ -90,6 +117,7 @@
 	display: flex;
 	align-items: center;
 	gap: 8px;
+	position: relative;
 }
 .controls .speaker {
 	display: flex;
@@ -219,8 +247,8 @@
 	line-height: 1.5;
 }
 
-/* Responsive controls — medium screens */
-@media (max-width: 640px) {
+/* Responsive controls — medium containers */
+@container (max-width: 640px) {
 	.controls .vol-range {
 		width: 100px;
 	}
@@ -229,53 +257,94 @@
 	}
 }
 
-/* Responsive controls — small screens: reflow to two rows */
-@media (max-width: 480px) {
+/* Responsive controls — small containers: single compact row */
+@container (max-width: 480px) {
 	.controls {
-		flex-wrap: wrap;
+		gap: 6px;
 		justify-content: space-between;
-		gap: 8px;
 	}
 	.controls .left {
-		order: 2;
 		min-width: unset;
-		flex: 1;
+		flex-shrink: 1;
 	}
 	.controls .center {
-		order: 1;
-		width: 100%;
-		justify-content: center;
-		gap: 10px;
-	}
-	.controls .right {
-		order: 3;
+		gap: 6px;
+		flex-shrink: 0;
 	}
 	.controls .play {
-		width: 44px;
-		height: 44px;
+		width: 36px;
+		height: 36px;
+	}
+	.play-wrapper--loading::before {
+		inset: -4px;
 	}
 	.controls .rewind,
 	.controls .forward {
-		width: 34px;
-		height: 34px;
+		width: 28px;
+		height: 28px;
+	}
+	.controls .rewind svg,
+	.controls .forward svg {
+		width: 14px;
+		height: 14px;
 	}
 	.controls .time {
-		font-size: 0.85rem;
+		font-size: 0.78rem;
 	}
 
-	/* Volume slider hidden on mobile by default; revealed when open */
+	/* Hide the horizontal volume slider; popup replaces it on narrow containers */
 	.controls .vol-range {
 		display: none;
 	}
-	.controls .right.volume-open {
-		order: 4;
-		width: 100%;
-		gap: 10px;
-	}
-	.controls .right.volume-open .vol-range {
-		display: block;
-		flex: 1;
-		width: unset;
-		max-width: none;
-	}
+}
+
+/* Floating vertical volume popup (shown via JS on narrow containers) */
+.vol-popup {
+	position: absolute;
+	bottom: calc(100% + 8px);
+	right: 0;
+	background: #fff;
+	border-radius: 10px;
+	box-shadow: 0 4px 16px rgba(16, 24, 40, 0.15);
+	padding: 12px 8px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	z-index: 20;
+}
+
+.vol-range-vertical {
+	-webkit-appearance: none;
+	appearance: none;
+	writing-mode: vertical-lr;
+	direction: rtl;
+	width: 4px;
+	height: 80px;
+	cursor: pointer;
+	border-radius: 2px;
+	outline: none;
+	background: linear-gradient(
+		to top,
+		var(--volume-fill-color, #111827) 0%,
+		var(--volume-fill-color, #111827) var(--volume-percent, 100%),
+		#e5e7eb var(--volume-percent, 100%),
+		#e5e7eb 100%
+	);
+}
+.vol-range-vertical::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	background: var(--volume-fill-color, #111827);
+	cursor: pointer;
+}
+.vol-range-vertical::-moz-range-thumb {
+	width: 12px;
+	height: 12px;
+	border: none;
+	border-radius: 50%;
+	background: var(--volume-fill-color, #111827);
+	cursor: pointer;
 }

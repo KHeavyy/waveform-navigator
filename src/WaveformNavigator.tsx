@@ -128,6 +128,13 @@ export interface WaveformNavigatorProps {
 	onLoaded?: (duration: number) => void;
 	onTimeUpdate?: (currentTime: number) => void;
 	onPeaksComputed?: (peaks: Float32Array) => void;
+	/**
+	 * Called whenever the audio loading state changes.
+	 * Receives `true` while the browser is fetching/buffering after play() is called,
+	 * and `false` once playback starts, pauses, or errors.
+	 * Mirrors the spinner that appears on the play button during loading.
+	 */
+	onLoadingChange?: (isLoading: boolean) => void;
 	onError?: (error: Error, type: 'audio' | 'waveform') => void;
 	// accessibility props
 	keyboardSmallStep?: number;
@@ -181,6 +188,7 @@ const WaveformNavigator = React.forwardRef<
 		onLoaded,
 		onTimeUpdate,
 		onPeaksComputed,
+		onLoadingChange,
 		onError,
 		keyboardSmallStep = 5,
 		keyboardLargeStep,
@@ -199,15 +207,19 @@ const WaveformNavigator = React.forwardRef<
 
 	// Blob URL lifecycle: created by useWaveformData from the shared fetch buffer;
 	// owned here so it can be revoked when the audio source changes or on unmount.
-	const [audioBlobUrl, setAudioBlobUrl] = useState<string | null>(null);
-	const audioBlobUrlRef = useRef<string | null>(null);
+	// The entry also carries the audio source it was created for so late-arriving
+	// fetches can be identified and rejected.
+	type BlobEntry = { url: string; forAudio: string | File | null | undefined };
+	const [audioBlobUrl, setAudioBlobUrl] = useState<BlobEntry | null>(null);
+	const audioBlobUrlRef = useRef<BlobEntry | null>(null);
 
 	function handleBlobUrlReady(url: string) {
 		if (audioBlobUrlRef.current) {
-			URL.revokeObjectURL(audioBlobUrlRef.current);
+			URL.revokeObjectURL(audioBlobUrlRef.current.url);
 		}
-		audioBlobUrlRef.current = url;
-		setAudioBlobUrl(url);
+		const entry: BlobEntry = { url, forAudio: audio };
+		audioBlobUrlRef.current = entry;
+		setAudioBlobUrl(entry);
 	}
 
 	// Extract style values with defaults
@@ -234,14 +246,21 @@ const WaveformNavigator = React.forwardRef<
 		setErrorState(null);
 	}, [audio]);
 
-	// Revoke the shared Blob URL whenever the audio source changes or on unmount.
+	// Clear and revoke any shared Blob URL as soon as the audio source changes,
+	// and also clean up on unmount. Clearing eagerly in the effect body ensures the
+	// new audio value is never paired with a blob URL from a previous source.
 	useEffect(() => {
+		if (audioBlobUrlRef.current) {
+			URL.revokeObjectURL(audioBlobUrlRef.current.url);
+			audioBlobUrlRef.current = null;
+		}
+		setAudioBlobUrl(null);
+
 		return () => {
 			if (audioBlobUrlRef.current) {
-				URL.revokeObjectURL(audioBlobUrlRef.current);
+				URL.revokeObjectURL(audioBlobUrlRef.current.url);
 				audioBlobUrlRef.current = null;
 			}
-			setAudioBlobUrl(null);
 		};
 	}, [audio]);
 
@@ -259,6 +278,7 @@ const WaveformNavigator = React.forwardRef<
 	const {
 		audioRef,
 		isPlaying,
+		isLoading,
 		duration,
 		volume,
 		setVolume,
@@ -282,6 +302,7 @@ const WaveformNavigator = React.forwardRef<
 			onLoaded?.(dur);
 		},
 		onTimeUpdate,
+		onLoadingChange,
 		onError: (error) => {
 			setErrorState({ message: error.message, type: 'audio' });
 			onError?.(error, 'audio');
@@ -527,6 +548,7 @@ const WaveformNavigator = React.forwardRef<
 			{showControls && (
 				<WaveformControls
 					isPlaying={isPlaying}
+					isLoading={isLoading}
 					displayTime={displayTime}
 					duration={duration}
 					volume={volume}

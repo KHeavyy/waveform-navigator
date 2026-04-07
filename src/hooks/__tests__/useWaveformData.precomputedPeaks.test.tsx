@@ -6,9 +6,14 @@ import React from 'react';
 const MATCHING_PRECOMPUTED = new Float32Array([0.1, 0.2]);
 const DEFAULT_COMPUTED = new Float32Array([0.1, 0.2]); // matches precomputed by default
 
-vi.mock('../../utils/peaksComputation', () => ({
-	computePeaksFromChannelData: vi.fn(() => ({ peaks: DEFAULT_COMPUTED })),
-}));
+vi.mock('../../utils/peaksComputation', async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import('../../utils/peaksComputation')>();
+	return {
+		...actual,
+		computePeaksFromChannelData: vi.fn(() => ({ peaks: DEFAULT_COMPUTED })),
+	};
+});
 
 vi.mock('../../utils/workerCreation', () => ({
 	// No worker for these tests — keeps async surface minimal.
@@ -54,6 +59,8 @@ describe('useWaveformData precomputedPeaks', () => {
 			peaks: DEFAULT_COMPUTED,
 		});
 		vi.mocked(computePeaksFromChannelData).mockClear();
+		// Always restore real timers so fake timers from one test don't leak into others.
+		vi.useRealTimers();
 	});
 
 	it('seeds peaks state immediately when bar count matches', () => {
@@ -69,18 +76,26 @@ describe('useWaveformData precomputedPeaks', () => {
 		expect(text).toContain('0.2');
 	});
 
-	it('ignores precomputedPeaks with a wrong bar count (initial state stays null)', () => {
-		// 3-element array but expected slots = 2 → invalid, fall back to null
+	it('resamples precomputedPeaks with a wrong bar count instead of discarding', () => {
+		// 3-element array but expected slots = 2 → resample to 2 bars and display immediately
 		render(
-			<TestComponent precomputedPeaks={new Float32Array([0.1, 0.2, 0.3])} />
+			<TestComponent precomputedPeaks={new Float32Array([0.2, 0.6, 0.4])} />
 		);
 
-		expect(screen.getByTestId('peaks').textContent).toBe('null');
+		const text = screen.getByTestId('peaks').textContent ?? '';
+		// Resampled result must not be null and must have 2 values (interpolated)
+		expect(text).not.toBe('null');
+		const values = text.split(',').map(Number);
+		expect(values).toHaveLength(2);
+		// First value = peaks[0] = 0.2, last value = peaks[2] = 0.4 (endpoints are exact)
+		expect(values[0]).toBeCloseTo(0.2, 4);
+		expect(values[1]).toBeCloseTo(0.4, 4);
 	});
 
 	it('skips the fetch entirely when precomputedPeaks match the bar count', async () => {
 		// With fix #2, a matching precomputedPeaks set is trusted as-is — no network
 		// request or decode step is executed, and onPeaksComputed is never fired.
+		vi.useFakeTimers();
 		const onPeaksComputed = vi.fn();
 
 		render(
@@ -91,40 +106,48 @@ describe('useWaveformData precomputedPeaks', () => {
 			/>
 		);
 
-		// Allow any async work to settle.
-		await new Promise((r) => setTimeout(r, 50));
+		// Flush all timers and microtasks so any async work has a chance to run.
+		await vi.runAllTimersAsync();
 
 		expect(computePeaksFromChannelData).not.toHaveBeenCalled();
 		expect(onPeaksComputed).not.toHaveBeenCalled();
 		// Precomputed peaks are still shown on the canvas.
 		expect(screen.getByTestId('peaks').textContent).toContain('0.1');
+
+		vi.useRealTimers();
 	});
 
-	it('fires onPeaksComputed when precomputedPeaks have the wrong bar count', async () => {
+	it('fires onPeaksComputed with resampled peaks when bar count mismatches, skipping the fetch', async () => {
 		// Bar count for width=10, barWidth=3, gap=2 is 2.
-		// Passing a 3-element array marks them as invalid, so the fetch still runs
-		// and onPeaksComputed fires with the freshly computed peaks.
-		const freshPeaks = new Float32Array([0.8, 0.9]);
-		vi.mocked(computePeaksFromChannelData).mockReturnValueOnce({
-			peaks: freshPeaks,
-		});
-
+		// Passing a 3-element array triggers resampling on initial mount.
+		// The audio fetch must NOT happen; onPeaksComputed fires with the resampled result.
 		const onPeaksComputed = vi.fn();
 
 		render(
 			<TestComponent
 				audio="/test.mp3"
-				precomputedPeaks={new Float32Array([0.1, 0.2, 0.3])}
+				precomputedPeaks={new Float32Array([0.2, 0.6, 0.4])}
 				onPeaksComputed={onPeaksComputed}
 			/>
 		);
 
 		await waitFor(() => expect(onPeaksComputed).toHaveBeenCalledTimes(1));
-		expect(onPeaksComputed).toHaveBeenCalledWith(freshPeaks);
 
-		await waitFor(() =>
-			expect(screen.getByTestId('peaks').textContent).toContain('0.8')
-		);
+		// No audio computation should have occurred — peaks came from resampling.
+		expect(computePeaksFromChannelData).not.toHaveBeenCalled();
+
+		const reported = onPeaksComputed.mock.calls[0][0] as Float32Array;
+		expect(reported).toBeInstanceOf(Float32Array);
+		expect(reported).toHaveLength(2);
+		// Endpoints of a linear resample are exact.
+		expect(reported[0]).toBeCloseTo(0.2, 4);
+		expect(reported[1]).toBeCloseTo(0.4, 4);
+
+		// Canvas must already show the resampled peaks.
+		const text = screen.getByTestId('peaks').textContent ?? '';
+		expect(text).not.toBe('null');
+		const values = text.split(',').map(Number);
+		expect(values[0]).toBeCloseTo(0.2, 4);
 	});
 
 	it('accepts a plain number[] and converts it to Float32Array', () => {
@@ -140,6 +163,7 @@ describe('useWaveformData precomputedPeaks', () => {
 		const onPeaksComputed = vi.fn();
 
 		// Initial render: matching precomputedPeaks → fetch is skipped.
+		vi.useFakeTimers();
 		const { rerender } = render(
 			<TestComponent
 				audio="/audio1.mp3"
@@ -148,9 +172,10 @@ describe('useWaveformData precomputedPeaks', () => {
 			/>
 		);
 
-		await new Promise((r) => setTimeout(r, 50));
+		await vi.runAllTimersAsync();
 		expect(computePeaksFromChannelData).not.toHaveBeenCalled();
 		expect(onPeaksComputed).not.toHaveBeenCalled();
+		vi.useRealTimers();
 
 		onPeaksComputed.mockClear();
 		vi.mocked(computePeaksFromChannelData).mockClear();

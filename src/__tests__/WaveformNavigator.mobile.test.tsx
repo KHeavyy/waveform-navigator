@@ -254,7 +254,7 @@ describe('WaveformNavigator – mobile features', () => {
 	// ── collapsible volume on mobile ───────────────────────────────────────
 
 	describe('collapsible volume control', () => {
-		it('speaker button adds volume-open class to .right on mobile', async () => {
+		it('speaker button shows vol-popup on narrow containers', async () => {
 			mockAudio();
 			mockMatchMedia(true); // simulate mobile
 
@@ -262,18 +262,17 @@ describe('WaveformNavigator – mobile features', () => {
 				<WaveformNavigator audio="/test.mp3" responsive={false} />
 			);
 
-			const right = container.querySelector('.right') as HTMLElement;
-			expect(right.classList.contains('volume-open')).toBe(false);
+			expect(container.querySelector('.vol-popup')).toBeNull();
 
 			const speaker = container.querySelector('.speaker') as HTMLButtonElement;
 			fireEvent.click(speaker);
 
 			await waitFor(() =>
-				expect(container.querySelector('.right.volume-open')).toBeTruthy()
+				expect(container.querySelector('.vol-popup')).toBeTruthy()
 			);
 		});
 
-		it('second speaker click removes volume-open class on mobile', async () => {
+		it('second speaker click hides vol-popup on narrow containers', async () => {
 			mockAudio();
 			mockMatchMedia(true);
 
@@ -286,19 +285,30 @@ describe('WaveformNavigator – mobile features', () => {
 			// Open
 			fireEvent.click(speaker);
 			await waitFor(() =>
-				expect(container.querySelector('.right.volume-open')).toBeTruthy()
+				expect(container.querySelector('.vol-popup')).toBeTruthy()
 			);
 
 			// Close
 			fireEvent.click(speaker);
 			await waitFor(() =>
-				expect(container.querySelector('.right.volume-open')).toBeFalsy()
+				expect(container.querySelector('.vol-popup')).toBeFalsy()
 			);
 		});
 
-		it('speaker button does NOT add volume-open class on desktop', async () => {
+		it('speaker button does NOT show vol-popup on wide containers', async () => {
 			mockAudio();
-			mockMatchMedia(false); // simulate desktop
+
+			// Simulate a wide container so clientWidth > 480
+			const originalClientWidth = Object.getOwnPropertyDescriptor(
+				HTMLElement.prototype,
+				'clientWidth'
+			);
+			Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+				configurable: true,
+				get() {
+					return 800;
+				},
+			});
 
 			const { container } = render(
 				<WaveformNavigator audio="/test.mp3" responsive={false} />
@@ -307,10 +317,21 @@ describe('WaveformNavigator – mobile features', () => {
 			const speaker = container.querySelector('.speaker') as HTMLButtonElement;
 			fireEvent.click(speaker);
 
-			// Allow a tick for any potential state update
 			await new Promise((r) => setTimeout(r, 50));
 
-			expect(container.querySelector('.right.volume-open')).toBeFalsy();
+			expect(container.querySelector('.vol-popup')).toBeFalsy();
+
+			// Restore
+			if (originalClientWidth) {
+				Object.defineProperty(
+					HTMLElement.prototype,
+					'clientWidth',
+					originalClientWidth
+				);
+			} else {
+				// @ts-expect-error restoring
+				delete HTMLElement.prototype.clientWidth;
+			}
 		});
 
 		it('volume slider is rendered inside .right regardless of open state', () => {

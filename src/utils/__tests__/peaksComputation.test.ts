@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { computePeaksFromChannelData } from '../peaksComputation';
+import {
+	computePeaksFromChannelData,
+	resamplePeaks,
+} from '../peaksComputation';
 
 describe('computePeaksFromChannelData', () => {
 	it('computes peaks for simple channel data', () => {
@@ -143,5 +146,63 @@ describe('computePeaksFromChannelData', () => {
 		});
 
 		expect(result.peaks.every((peak) => peak === 0)).toBe(true);
+	});
+});
+
+describe('resamplePeaks', () => {
+	it('returns a copy when source length equals target', () => {
+		const src = new Float32Array([0.1, 0.5, 0.9]);
+		const result = resamplePeaks(src, 3);
+		expect(result).toBeInstanceOf(Float32Array);
+		expect(result).toHaveLength(3);
+		expect(result[0]).toBeCloseTo(0.1, 5);
+		expect(result[1]).toBeCloseTo(0.5, 5);
+		expect(result[2]).toBeCloseTo(0.9, 5);
+	});
+
+	it('preserves endpoints exactly when downsampling', () => {
+		const src = new Float32Array([0.2, 0.6, 0.4]);
+		const result = resamplePeaks(src, 2);
+		expect(result).toHaveLength(2);
+		expect(result[0]).toBeCloseTo(0.2, 5);
+		expect(result[1]).toBeCloseTo(0.4, 5);
+	});
+
+	it('preserves endpoints exactly when upsampling', () => {
+		const src = new Float32Array([0.1, 0.9]);
+		const result = resamplePeaks(src, 5);
+		expect(result).toHaveLength(5);
+		expect(result[0]).toBeCloseTo(0.1, 5);
+		expect(result[4]).toBeCloseTo(0.9, 5);
+	});
+
+	it('interpolates midpoint linearly', () => {
+		const src = new Float32Array([0.0, 1.0]);
+		const result = resamplePeaks(src, 3);
+		expect(result[1]).toBeCloseTo(0.5, 5);
+	});
+
+	it('accepts a plain number[] input', () => {
+		const result = resamplePeaks([0.1, 0.5, 0.9], 2);
+		expect(result).toBeInstanceOf(Float32Array);
+		expect(result).toHaveLength(2);
+	});
+
+	it('handles empty input by returning a zero-filled array', () => {
+		const result = resamplePeaks([], 4);
+		expect(result).toHaveLength(4);
+		expect(Array.from(result)).toEqual([0, 0, 0, 0]);
+	});
+
+	it('handles targetCount of 1', () => {
+		const result = resamplePeaks([0.3, 0.7, 0.5], 1);
+		expect(result).toHaveLength(1);
+		expect(result[0]).toBeCloseTo(0.3, 5);
+	});
+
+	it('handles a single-sample source upsampled to multiple bars', () => {
+		const result = resamplePeaks([0.8], 4);
+		expect(result).toHaveLength(4);
+		for (const v of result) expect(v).toBeCloseTo(0.8, 4);
 	});
 });

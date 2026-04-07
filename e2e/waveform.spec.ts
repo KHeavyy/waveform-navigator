@@ -8,7 +8,7 @@ import AxeBuilder from '@axe-core/playwright';
 
 test.describe('WaveformNavigator Integration Tests', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/?tab=basic');
 		// Wait for the app to signal that the base waveform has been drawn
 		await page
 			.waitForFunction(() => (window as any).__waveformReady === true, {
@@ -153,7 +153,7 @@ test.describe('WaveformNavigator Integration Tests', () => {
 
 	test('should show loading state', async ({ page }) => {
 		// Navigate to page but don't wait for full load
-		await page.goto('/', { waitUntil: 'domcontentloaded' });
+		await page.goto('/?tab=basic', { waitUntil: 'domcontentloaded' });
 
 		// Should see canvas element quickly
 		const canvas = page.locator('canvas').first();

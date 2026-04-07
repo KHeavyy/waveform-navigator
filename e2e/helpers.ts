@@ -4,11 +4,20 @@ import { Page } from '@playwright/test';
  * Test helpers for WaveformNavigator e2e tests
  */
 
+export type DemoTab =
+	| 'basic'
+	| 'styles'
+	| 'markers'
+	| 'controlled'
+	| 'responsive'
+	| 'advanced';
+
 export class WaveformPage {
 	constructor(private page: Page) {}
 
-	async goto() {
-		await this.page.goto('/');
+	/** Navigate to the demo app, optionally to a specific tab. */
+	async goto(tab: DemoTab = 'basic') {
+		await this.page.goto(`/?tab=${tab}`);
 	}
 
 	async waitForWaveformLoad(timeout = 10000) {

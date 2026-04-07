@@ -1,6 +1,6 @@
 export { formatTime } from './formatTime';
 export { syncCanvasSize } from './syncCanvasSize';
-export { computePeaksFromChannelData } from './peaksComputation';
+export { computePeaksFromChannelData, resamplePeaks } from './peaksComputation';
 export type {
 	PeaksComputationParams,
 	PeaksComputationResult,

@@ -81,4 +81,38 @@ describe('WaveformControls', () => {
 		fireEvent.change(vol, { target: { value: '0.8' } });
 		expect(onVolumeChange).toHaveBeenCalledWith(0.8);
 	});
+
+	it('shows spinner wrapper class when isLoading is true', () => {
+		const { container, rerender } = render(
+			<WaveformControls
+				isPlaying={false}
+				isLoading={false}
+				displayTime={0}
+				duration={10}
+				volume={1}
+				onTogglePlay={vi.fn()}
+				onSeek={vi.fn()}
+				onVolumeChange={vi.fn()}
+			/>
+		);
+
+		const wrapper = container.querySelector('.play-wrapper');
+		expect(wrapper).toBeTruthy();
+		expect(wrapper?.classList.contains('play-wrapper--loading')).toBe(false);
+
+		rerender(
+			<WaveformControls
+				isPlaying={false}
+				isLoading={true}
+				displayTime={0}
+				duration={10}
+				volume={1}
+				onTogglePlay={vi.fn()}
+				onSeek={vi.fn()}
+				onVolumeChange={vi.fn()}
+			/>
+		);
+
+		expect(wrapper?.classList.contains('play-wrapper--loading')).toBe(true);
+	});
 });
