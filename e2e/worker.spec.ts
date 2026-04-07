@@ -43,8 +43,8 @@ test.describe('Web Worker Integration', () => {
 		});
 
 		// Find and enable "Force main-thread processing" checkbox
-		const mainThreadCheckbox = page.locator('input[type="checkbox"]').filter({
-			hasText: /Force main-thread processing/i,
+		const mainThreadCheckbox = page.getByRole('checkbox', {
+			name: /Force main-thread processing/i,
 		});
 
 		// If we can find it, test main thread mode

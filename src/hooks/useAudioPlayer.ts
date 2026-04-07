@@ -174,6 +174,9 @@ export function useAudioPlayer({
 			onLoadedRef.current?.(dur);
 		};
 		const onEndedEvent = () => {
+			setIsPlaying(false);
+			setIsLoading(false);
+			onLoadingChangeRef.current?.(false);
 			onEndedRef.current?.();
 		};
 		const onErrorEvent = () => {

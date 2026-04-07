@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import WaveformNavigator from '../../../src';
 
 const DEMO_AUDIO_PATH = '/media/Demo.mp3';
@@ -18,7 +18,9 @@ export default function AdvancedTab() {
 		const raw = localStorage.getItem('demo_duration');
 		return raw ? Number(raw) : 0;
 	});
-	const [usePrecomputedPeaks, setUsePrecomputedPeaks] = useState(true);
+	const [usePrecomputedPeaks, setUsePrecomputedPeaks] = useState<boolean>(
+		() => !!savedPeaks
+	);
 	const [duration, setDuration] = useState(0);
 
 	// Preload mode
@@ -37,6 +39,14 @@ export default function AdvancedTab() {
 
 	// Audio loading state
 	const [audioLoading, setAudioLoading] = useState(false);
+
+	// When rendering from saved/precomputed peaks, peaks computation is skipped,
+	// so set __waveformReady here so e2e waits don't hang.
+	useEffect(() => {
+		if (usePrecomputedPeaks && savedPeaks) {
+			(window as any).__waveformReady = true;
+		}
+	}, [usePrecomputedPeaks, savedPeaks]);
 
 	return (
 		<div>
