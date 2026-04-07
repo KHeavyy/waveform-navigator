@@ -346,8 +346,13 @@ export function useAudioPlayer({
 			// In controlled mode, notify parent
 			onCurrentTimeChangeRef.current?.(time);
 		} else {
-			// In uncontrolled mode, update directly
+			// In uncontrolled mode, update directly.
+			// Also update state immediately — with preload="none" the browser doesn't
+			// fire timeupdate when currentTime is set before media data is loaded,
+			// so we can't rely on the event to move the playhead.
 			a.currentTime = time;
+			setCurrentTime(time);
+			onCurrentTimeChangeRef.current?.(time);
 		}
 	}
 
