@@ -61,9 +61,22 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 	} = styles;
 
 	const [volumeOpen, setVolumeOpen] = useState(false);
+	const controlsRef = useRef<HTMLDivElement>(null);
 
 	// Track previous volume for mute/restore functionality
 	const previousVolumeRef = useRef(volume);
+
+	// Close the volume popup when clicking outside the controls
+	useEffect(() => {
+		if (!volumeOpen) return;
+		const handleOutside = (e: MouseEvent) => {
+			if (controlsRef.current && !controlsRef.current.contains(e.target as Node)) {
+				setVolumeOpen(false);
+			}
+		};
+		document.addEventListener('mousedown', handleOutside);
+		return () => document.removeEventListener('mousedown', handleOutside);
+	}, [volumeOpen]);
 
 	// Update previousVolume when volume changes to a non-zero value
 	useEffect(() => {
@@ -146,13 +159,10 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 		}
 	};
 
-	// Toggle mute/restore volume (desktop) or expand/collapse slider (mobile)
+	// Toggle mute/restore volume (wider containers) or expand/collapse slider (narrow containers)
 	const handleVolumeIconClick = () => {
-		const isMobile =
-			typeof window !== 'undefined' &&
-			typeof window.matchMedia === 'function' &&
-			window.matchMedia('(max-width: 480px)').matches;
-		if (isMobile) {
+		const isNarrow = (controlsRef.current?.clientWidth ?? Infinity) <= 480;
+		if (isNarrow) {
 			setVolumeOpen((prev) => !prev);
 		} else {
 			if (volume === 0) {
@@ -166,7 +176,7 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 		}
 	};
 	return (
-		<div className="controls">
+		<div ref={controlsRef} className="controls">
 			<div className="left">
 				<div className="time" style={{ color: timeColor }}>
 					{formatTime(displayTime)} / {formatTime(duration)}
@@ -244,7 +254,7 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 				</button>
 			</div>
 
-			<div className={`right${volumeOpen ? ' volume-open' : ''}`}>
+			<div className="right">
 				<button
 					className="speaker"
 					onClick={handleVolumeIconClick}
@@ -268,6 +278,26 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 						} as React.CSSProperties
 					}
 				/>
+				{volumeOpen && (
+					<div className="vol-popup">
+						<input
+							className="vol-range-vertical"
+							type="range"
+							min="0"
+							max="1"
+							step="0.01"
+							value={volume}
+							onChange={(e) => onVolumeChange(Number(e.target.value))}
+							aria-label="volume"
+							style={
+								{
+									'--volume-fill-color': volumeSliderFillColor,
+									'--volume-percent': `${volume * 100}%`,
+								} as React.CSSProperties
+							}
+						/>
+					</div>
+				)}
 			</div>
 		</div>
 	);
