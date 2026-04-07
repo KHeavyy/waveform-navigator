@@ -64,6 +64,7 @@ export default function ResponsiveTab() {
 				<WaveformNavigator
 					audio={DEMO_AUDIO_PATH}
 					height={140}
+					preload="metadata"
 					responsive={responsiveEnabled}
 					width={responsiveEnabled ? undefined : containerWidth}
 					onPeaksComputed={() => {

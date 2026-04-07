@@ -104,6 +104,7 @@ export default function MarkersTab() {
 				<WaveformNavigator
 					audio={DEMO_AUDIO_PATH}
 					height={140}
+					preload="metadata"
 					markers={markers}
 					onLoaded={(dur) => setDuration(dur)}
 					onPeaksComputed={() => {

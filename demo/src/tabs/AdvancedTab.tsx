@@ -18,7 +18,7 @@ export default function AdvancedTab() {
 		const raw = localStorage.getItem('demo_duration');
 		return raw ? Number(raw) : 0;
 	});
-	const [usePrecomputedPeaks, setUsePrecomputedPeaks] = useState(false);
+	const [usePrecomputedPeaks, setUsePrecomputedPeaks] = useState(true);
 	const [duration, setDuration] = useState(0);
 
 	// Preload mode
@@ -300,7 +300,7 @@ export default function AdvancedTab() {
 					onLoaded={(dur) => {
 						setDuration(dur);
 						setError(null);
-						if (savedPeaks && dur > 0) {
+						if (dur > 0) {
 							setSavedDuration(dur);
 							try {
 								localStorage.setItem('demo_duration', String(dur));

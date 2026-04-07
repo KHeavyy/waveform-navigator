@@ -79,6 +79,7 @@ export default function BasicTab() {
 					ref={waveformRef}
 					audio={DEMO_AUDIO_PATH}
 					height={140}
+					preload="metadata"
 					onPlay={() => setPlayState('playing')}
 					onPause={() => setPlayState('paused')}
 					onEnded={() => setPlayState('ended')}

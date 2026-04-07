@@ -181,6 +181,7 @@ export default function ControlledTab() {
 					ref={waveformRef}
 					audio={DEMO_AUDIO_PATH}
 					height={140}
+					preload="metadata"
 					showControls={showControls}
 					controlledCurrentTime={useControlled ? controlledTime : undefined}
 					onCurrentTimeChange={(time) => {
