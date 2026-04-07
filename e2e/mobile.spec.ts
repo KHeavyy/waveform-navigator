@@ -169,45 +169,38 @@ test.describe('Collapsible volume control on mobile', () => {
 		await expect(slider).toBeHidden({ timeout: 5000 });
 	});
 
-	test('tapping the speaker button reveals the volume slider', async ({
+	test('tapping the speaker button reveals the volume popup', async ({
 		page,
 	}) => {
 		const speaker = page.locator('.speaker').first();
 		await expect(speaker).toBeVisible({ timeout: 10000 });
 
-		const slider = page.locator('.vol-range').first();
-		await expect(slider).toBeHidden();
+		await expect(page.locator('.vol-popup')).toBeHidden();
 
 		await speaker.tap();
 
-		await expect(slider).toBeVisible({ timeout: 3000 });
+		await expect(page.locator('.vol-popup')).toBeVisible({ timeout: 3000 });
+		await expect(page.locator('.vol-range-vertical')).toBeVisible({
+			timeout: 3000,
+		});
 	});
 
-	test('tapping the speaker button again hides the volume slider', async ({
+	test('tapping the speaker button again hides the volume popup', async ({
 		page,
 	}) => {
 		const speaker = page.locator('.speaker').first();
 		await speaker.tap(); // open
-		await expect(page.locator('.vol-range').first()).toBeVisible({
-			timeout: 3000,
-		});
+		await expect(page.locator('.vol-popup')).toBeVisible({ timeout: 3000 });
 
 		await speaker.tap(); // close
-		await expect(page.locator('.vol-range').first()).toBeHidden({
-			timeout: 3000,
-		});
+		await expect(page.locator('.vol-popup')).toBeHidden({ timeout: 3000 });
 	});
 
-	test('volume-open class is present on .right while slider is expanded', async ({
-		page,
-	}) => {
+	test('vol-popup is present while speaker is expanded', async ({ page }) => {
 		const speaker = page.locator('.speaker').first();
 		await speaker.tap();
 
-		const hasClass = await page.evaluate(() =>
-			document.querySelector('.right')?.classList.contains('volume-open')
-		);
-		expect(hasClass).toBe(true);
+		await expect(page.locator('.vol-popup')).toBeVisible({ timeout: 3000 });
 	});
 
 	test('volume slider is always visible on desktop', async ({ page }) => {
