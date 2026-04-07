@@ -8,7 +8,142 @@ body {
 		Arial;
 	padding: 0;
 	margin: 0;
+	background: #fff;
+	color: #111827;
 }
+
 #root {
-	padding: 18px;
+	max-width: 960px;
+	margin: 0 auto;
+	padding: 24px 18px;
+}
+
+/* ── Tab navigation ─────────────────────────────────── */
+.tab-nav {
+	display: flex;
+	gap: 4px;
+	flex-wrap: wrap;
+	padding: 12px 0;
+	border-bottom: 1px solid #e5e7eb;
+	margin-bottom: 0;
+}
+
+.tab-button {
+	padding: 6px 16px;
+	border: 1px solid transparent;
+	border-radius: 6px;
+	background: none;
+	cursor: pointer;
+	font-size: 14px;
+	font-weight: 500;
+	color: #6b7280;
+	transition:
+		background 0.15s,
+		color 0.15s,
+		border-color 0.15s;
+}
+
+.tab-button:hover {
+	background: #f3f4f6;
+	color: #111827;
+}
+
+.tab-button--active {
+	background: #111827;
+	color: #fff;
+	border-color: #111827;
+}
+
+.tab-panel {
+	padding: 28px 0;
+}
+
+/* ── Demo section cards ─────────────────────────────── */
+.demo-section {
+	padding: 16px;
+	border-radius: 8px;
+	margin-bottom: 0;
+}
+
+.demo-section h3 {
+	font-size: 14px;
+	font-weight: 600;
+	color: #374151;
+	margin-bottom: 8px;
+}
+
+/* ── Shared status widgets ──────────────────────────── */
+.status-item {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.status-label {
+	font-size: 11px;
+	color: #4b5563;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+
+.status-value {
+	font-size: 14px;
+	font-weight: 600;
+	color: #111827;
+}
+
+.status-badge {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 4px;
+	font-size: 12px;
+	font-weight: 600;
+	width: fit-content;
+}
+
+.badge-green {
+	background: #f0fdf4;
+	color: #166534;
+}
+
+.badge-yellow {
+	background: #fef3c7;
+	color: #92400e;
+}
+
+.badge-grey {
+	background: #f3f4f6;
+	color: #374151;
+}
+
+/* ── Shared demo buttons ────────────────────────────── */
+.demo-button {
+	padding: 5px 12px;
+	border: 1px solid #d1d5db;
+	border-radius: 6px;
+	background: #fff;
+	cursor: pointer;
+	font-size: 13px;
+	font-weight: 500;
+	color: #374151;
+	transition: background 0.1s;
+}
+
+.demo-button:hover {
+	background: #f9fafb;
+}
+
+/* ── Shared checkbox rows ───────────────────────────── */
+.demo-checkbox {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 14px;
+	cursor: pointer;
+}
+
+.demo-checkbox input[type='checkbox'] {
+	width: 16px;
+	height: 16px;
+	cursor: pointer;
 }

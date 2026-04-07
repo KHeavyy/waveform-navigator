@@ -19,7 +19,7 @@ if (!fs.existsSync(SNAPSHOT_DIR)) {
 
 test.describe('Visual Regression Tests', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/?tab=basic');
 		await page
 			.waitForFunction(() => (window as any).__waveformReady === true, {
 				timeout: 15000,

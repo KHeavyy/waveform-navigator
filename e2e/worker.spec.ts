@@ -2,12 +2,15 @@ import { test, expect } from '@playwright/test';
 
 /**
  * Worker integration tests
- * Tests that the Web Worker peaks computation works correctly in a real browser environment
+ * Tests that the Web Worker peaks computation works correctly in a real browser environment.
+ *
+ * The worker toggle lives on the Advanced tab (?tab=advanced).
+ * Default worker behaviour is also tested via the Basic tab (?tab=basic).
  */
 
 test.describe('Web Worker Integration', () => {
 	test('should compute peaks using web worker by default', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/?tab=basic');
 
 		// Wait for waveform to load
 		const canvas = page.locator('canvas').first();
@@ -31,16 +34,26 @@ test.describe('Web Worker Integration', () => {
 	test('should compute peaks on main thread when worker disabled', async ({
 		page,
 	}) => {
-		await page.goto('/');
+		// Navigate to the Advanced tab where the worker toggle lives
+		await page.goto('/?tab=advanced');
 
-		// Find and enable "Force Main-Thread Processing" checkbox
+		// Wait for initial waveform to be ready before toggling worker off
+		await page.waitForFunction(() => (window as any).__waveformReady === true, {
+			timeout: 20000,
+		});
+
+		// Find and enable "Force main-thread processing" checkbox
 		const mainThreadCheckbox = page.locator('input[type="checkbox"]').filter({
-			hasText: /Force Main-Thread Processing/i,
+			hasText: /Force main-thread processing/i,
 		});
 
 		// If we can find it, test main thread mode
 		const checkboxCount = await mainThreadCheckbox.count();
 		if (checkboxCount > 0) {
+			// Reset the ready flag so we can wait for the recomputed waveform
+			await page.evaluate(() => {
+				(window as any).__waveformReady = false;
+			});
 			await mainThreadCheckbox.check();
 
 			// Wait for waveform to reload and be ready
@@ -61,7 +74,7 @@ test.describe('Web Worker Integration', () => {
 	test('should handle worker computation with different audio sources', async ({
 		page,
 	}) => {
-		await page.goto('/');
+		await page.goto('/?tab=basic');
 
 		// Wait for initial audio to load
 		const canvas = page.locator('canvas').first();
@@ -81,15 +94,7 @@ test.describe('Web Worker Integration', () => {
 	test('should progressively render waveform as peaks are computed', async ({
 		page,
 	}) => {
-		// Monitor console for peaks computed message
-		const peaksMessages: string[] = [];
-		page.on('console', (msg) => {
-			if (msg.text().includes('Peaks computed')) {
-				peaksMessages.push(msg.text());
-			}
-		});
-
-		await page.goto('/');
+		await page.goto('/?tab=basic');
 
 		// Wait for waveform to load
 		const canvas = page.locator('canvas').first();
@@ -100,8 +105,9 @@ test.describe('Web Worker Integration', () => {
 			timeout: 20000,
 		});
 
-		// Should have logged peaks computation
-		expect(peaksMessages.length).toBeGreaterThan(0);
+		// Canvas should have real visual content once peaks are ready
+		const screenshot = await canvas.screenshot();
+		expect(screenshot.length).toBeGreaterThan(1000);
 	});
 
 	test('should handle worker errors gracefully', async ({ page }) => {
@@ -111,7 +117,7 @@ test.describe('Web Worker Integration', () => {
 			errors.push(error.message);
 		});
 
-		await page.goto('/');
+		await page.goto('/?tab=basic');
 
 		// Wait for page to load and waveform ready flag (if available)
 		await page.waitForFunction(() => (window as any).__waveformReady === true, {

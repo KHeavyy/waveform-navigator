@@ -26,7 +26,7 @@ async function waitForWaveform(page: import('@playwright/test').Page) {
 test.describe('Mobile layout and controls', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.setViewportSize(MOBILE_VIEWPORT);
-		await page.goto('/');
+		await page.goto('/?tab=basic');
 		await waitForWaveform(page);
 	});
 
@@ -87,7 +87,7 @@ test.describe('Mobile layout and controls', () => {
 test.describe('Touch seeking on mobile', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.setViewportSize(MOBILE_VIEWPORT);
-		await page.goto('/');
+		await page.goto('/?tab=basic');
 		await waitForWaveform(page);
 	});
 
@@ -159,7 +159,7 @@ test.describe('Touch seeking on mobile', () => {
 test.describe('Collapsible volume control on mobile', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.setViewportSize(MOBILE_VIEWPORT);
-		await page.goto('/');
+		await page.goto('/?tab=basic');
 		await waitForWaveform(page);
 	});
 
