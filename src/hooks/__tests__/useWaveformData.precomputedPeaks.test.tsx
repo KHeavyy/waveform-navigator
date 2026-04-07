@@ -59,6 +59,8 @@ describe('useWaveformData precomputedPeaks', () => {
 			peaks: DEFAULT_COMPUTED,
 		});
 		vi.mocked(computePeaksFromChannelData).mockClear();
+		// Always restore real timers so fake timers from one test don't leak into others.
+		vi.useRealTimers();
 	});
 
 	it('seeds peaks state immediately when bar count matches', () => {
@@ -93,6 +95,7 @@ describe('useWaveformData precomputedPeaks', () => {
 	it('skips the fetch entirely when precomputedPeaks match the bar count', async () => {
 		// With fix #2, a matching precomputedPeaks set is trusted as-is — no network
 		// request or decode step is executed, and onPeaksComputed is never fired.
+		vi.useFakeTimers();
 		const onPeaksComputed = vi.fn();
 
 		render(
@@ -103,13 +106,15 @@ describe('useWaveformData precomputedPeaks', () => {
 			/>
 		);
 
-		// Allow any async work to settle.
-		await new Promise((r) => setTimeout(r, 50));
+		// Flush all timers and microtasks so any async work has a chance to run.
+		await vi.runAllTimersAsync();
 
 		expect(computePeaksFromChannelData).not.toHaveBeenCalled();
 		expect(onPeaksComputed).not.toHaveBeenCalled();
 		// Precomputed peaks are still shown on the canvas.
 		expect(screen.getByTestId('peaks').textContent).toContain('0.1');
+
+		vi.useRealTimers();
 	});
 
 	it('fires onPeaksComputed with resampled peaks when bar count mismatches, skipping the fetch', async () => {
@@ -158,6 +163,7 @@ describe('useWaveformData precomputedPeaks', () => {
 		const onPeaksComputed = vi.fn();
 
 		// Initial render: matching precomputedPeaks → fetch is skipped.
+		vi.useFakeTimers();
 		const { rerender } = render(
 			<TestComponent
 				audio="/audio1.mp3"
@@ -166,9 +172,10 @@ describe('useWaveformData precomputedPeaks', () => {
 			/>
 		);
 
-		await new Promise((r) => setTimeout(r, 50));
+		await vi.runAllTimersAsync();
 		expect(computePeaksFromChannelData).not.toHaveBeenCalled();
 		expect(onPeaksComputed).not.toHaveBeenCalled();
+		vi.useRealTimers();
 
 		onPeaksComputed.mockClear();
 		vi.mocked(computePeaksFromChannelData).mockClear();

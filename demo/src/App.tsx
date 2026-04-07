@@ -21,6 +21,7 @@ export default function App() {
 
 	// Demo callbacks
 	const [playState, setPlayState] = useState('paused');
+	const [audioLoading, setAudioLoading] = useState(false);
 	const [duration, setDuration] = useState(0);
 	const [currentTime, setCurrentTime] = useState(0);
 	const [peaksReady, setPeaksReady] = useState(false);
@@ -158,6 +159,22 @@ export default function App() {
 				<h3>Status</h3>
 				<p>
 					<strong>Play State:</strong> {playState}
+				</p>
+				<p>
+					<strong>Audio Loading:</strong>{' '}
+					<span
+						style={{
+							display: 'inline-block',
+							padding: '2px 8px',
+							borderRadius: 4,
+							fontSize: 12,
+							fontWeight: 600,
+							background: audioLoading ? '#fef3c7' : '#f0fdf4',
+							color: audioLoading ? '#92400e' : '#166534',
+						}}
+					>
+						{audioLoading ? '⏳ loading…' : '✅ ready'}
+					</span>
 				</p>
 				<p>
 					<strong>Duration:</strong> {duration.toFixed(2)}s
@@ -820,6 +837,59 @@ export default function App() {
 				</p>
 			</div>
 
+			{/* Loading state demo */}
+			<div
+				style={{
+					marginBottom: 12,
+					padding: 12,
+					backgroundColor: '#fdf4ff',
+					borderRadius: 4,
+				}}
+			>
+				<h3>⏳ Loading State Demo</h3>
+				<p style={{ fontSize: 13, marginBottom: 10 }}>
+					When <code>preload="none"</code> (the default) is combined with
+					<code style={{ marginLeft: 4 }}>precomputedPeaks</code>, the waveform
+					renders instantly but the audio file hasn't been fetched yet. Pressing play
+					triggers the fetch — which can take a moment on slow connections. During
+					that window the play button shows a <strong>spinning ring</strong> to
+					indicate the load is in progress.
+				</p>
+				<div
+					style={{
+						display: 'flex',
+						alignItems: 'center',
+						gap: 12,
+						marginBottom: 10,
+					}}
+				>
+					<span style={{ fontSize: 13 }}>
+						<strong>Current loading state:</strong>
+					</span>
+					<span
+						style={{
+							display: 'inline-block',
+							padding: '4px 12px',
+							borderRadius: 6,
+							fontSize: 13,
+							fontWeight: 600,
+							background: audioLoading ? '#fef3c7' : '#f0fdf4',
+							color: audioLoading ? '#92400e' : '#166534',
+							transition: 'background 0.2s, color 0.2s',
+						}}
+					>
+						{audioLoading ? '⏳ Fetching / buffering…' : '✅ Idle / playing'}
+					</span>
+				</div>
+				<p style={{ fontSize: 12, color: '#6b7280', margin: 0 }}>
+					💡 To make the spinner easy to observe, open DevTools → Network → set
+					throttling to <strong>Slow 3G</strong>, then press play. The ring appears
+					on the play button and vanishes once the browser has buffered enough to
+					start playback. The <code>onLoadingChange</code> callback mirrors this
+					state so your app can show its own indicator.
+				</p>
+			</div>
+
 			{/* Error handling demo */}
 			<div
 				style={{
@@ -900,9 +970,21 @@ export default function App() {
 					onPlay={() => setPlayState('playing')}
 					onPause={() => setPlayState('paused')}
 					onEnded={() => setPlayState('ended')}
+					onLoadingChange={(loading) => setAudioLoading(loading)}
 					onLoaded={(dur) => {
 						setDuration(dur);
 						setError(null); // Clear error on successful load
+						// Persist duration from metadata so preload=none + precomputedPeaks
+						// remains seekable across reloads (onPeaksComputed may fire before
+						// loadedmetadata and see duration=0 when preload="none").
+						if (savedPeaks && dur > 0) {
+							setSavedDuration(dur);
+							try {
+								localStorage.setItem('demo_duration', String(dur));
+							} catch {
+								// localStorage may be unavailable
+							}
+						}
 					}}
 					onTimeUpdate={(time) => setCurrentTime(time)}
 					onPeaksComputed={(peaks) => {

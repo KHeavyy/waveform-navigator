@@ -6,11 +6,15 @@ const CONTROLLED_TIME_THRESHOLD = 0.01;
 interface UseAudioPlayerProps {
 	audio: string | File | null | undefined;
 	/**
-	 * Blob URL created from the same ArrayBuffer fetched for peak computation.
-	 * When provided, the audio element's src is replaced with this URL so the
-	 * browser does not issue a second network request for the same file.
+	 * Blob URL created from the same ArrayBuffer fetched for peak computation,
+	 * paired with the audio source it was created for. When provided and the source
+	 * matches the current `audio` prop, the audio element's src is replaced with
+	 * this URL so the browser does not issue a second network request.
 	 */
-	audioBlobUrl?: string;
+	audioBlobUrl?: {
+		url: string;
+		forAudio: string | File | null | undefined;
+	} | null;
 	/**
 	 * Seed the duration display before the audio element loads metadata.
 	 * Use this alongside `preload="none"` and `precomputedPeaks` so the
@@ -33,6 +37,12 @@ interface UseAudioPlayerProps {
 	onEnded?: () => void;
 	onLoaded?: (duration: number) => void;
 	onTimeUpdate?: (currentTime: number) => void;
+	/**
+	 * Fired whenever the loading state changes. Called with `true` when the browser
+	 * is fetching or buffering audio (between play() and the first `playing` event),
+	 * and with `false` once playback starts, pauses, or errors.
+	 */
+	onLoadingChange?: (isLoading: boolean) => void;
 	onError?: (error: Error) => void;
 }
 
@@ -68,6 +78,7 @@ export function useAudioPlayer({
 	onEnded,
 	onLoaded,
 	onTimeUpdate,
+	onLoadingChange,
 	onError,
 }: UseAudioPlayerProps): UseAudioPlayerReturn {
 	const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -86,6 +97,7 @@ export function useAudioPlayer({
 	const onLoadedRef = useRef(onLoaded);
 	const onTimeUpdateRef = useRef(onTimeUpdate);
 	const onCurrentTimeChangeRef = useRef(onCurrentTimeChange);
+	const onLoadingChangeRef = useRef(onLoadingChange);
 	const onErrorRef = useRef(onError);
 
 	useEffect(() => {
@@ -95,6 +107,7 @@ export function useAudioPlayer({
 		onLoadedRef.current = onLoaded;
 		onTimeUpdateRef.current = onTimeUpdate;
 		onCurrentTimeChangeRef.current = onCurrentTimeChange;
+		onLoadingChangeRef.current = onLoadingChange;
 		onErrorRef.current = onError;
 	}, [
 		onPlay,
@@ -103,6 +116,7 @@ export function useAudioPlayer({
 		onLoaded,
 		onTimeUpdate,
 		onCurrentTimeChange,
+		onLoadingChange,
 		onError,
 	]);
 
@@ -132,13 +146,16 @@ export function useAudioPlayer({
 		};
 		const onPlayingEvent = () => {
 			setIsLoading(false);
+			onLoadingChangeRef.current?.(false);
 		};
 		const onWaitingEvent = () => {
 			setIsLoading(true);
+			onLoadingChangeRef.current?.(true);
 		};
 		const onPauseEvent = () => {
 			setIsPlaying(false);
 			setIsLoading(false);
+			onLoadingChangeRef.current?.(false);
 			onPauseRef.current?.();
 		};
 		const onTimeEvent = () => {
@@ -161,6 +178,7 @@ export function useAudioPlayer({
 		};
 		const onErrorEvent = () => {
 			setIsLoading(false);
+			onLoadingChangeRef.current?.(false);
 			const error = el.error;
 			if (error) {
 				let errorMessage: string;
@@ -220,15 +238,27 @@ export function useAudioPlayer({
 	// audio element at it so the browser reuses the already-downloaded data.
 	// Only switch if playback has not yet started to avoid interrupting a stream
 	// that the user initiated before the fetch completed.
+	// Guard: reject blob URLs that were created for a different audio source to
+	// prevent a late-arriving fetch from overriding a subsequently loaded track.
 	useEffect(() => {
 		if (!audioBlobUrl || !audioRef.current || typeof audio !== 'string') {
 			return;
 		}
+		if (audioBlobUrl.forAudio !== audio) {
+			return;
+		}
 		const el = audioRef.current;
 		if (el.paused && el.currentTime === 0) {
-			el.src = audioBlobUrl;
+			el.src = audioBlobUrl.url;
 		}
 	}, [audioBlobUrl, audio]);
+
+	// Sync the preload attribute whenever the prop changes after mount.
+	useEffect(() => {
+		if (audioRef.current) {
+			audioRef.current.preload = preload;
+		}
+	}, [preload]);
 
 	// Set audio source when `audio` prop changes
 	useEffect(() => {
