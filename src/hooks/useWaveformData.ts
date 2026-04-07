@@ -157,6 +157,18 @@ export function useWaveformData({
 		};
 	}, [workerUrl, forceMainThread]);
 
+	// Re-compute peaks when forceMainThread changes so the new computation path is
+	// exercised and onPeaksComputed fires, allowing listeners (e.g. e2e tests) to
+	// detect that the waveform is ready after switching between worker / main-thread
+	// modes. This effect intentionally runs after the worker init effect above so
+	// workerRef.current already reflects the new mode.
+	useEffect(() => {
+		if (audioBufferRef.current) {
+			computePeaks(audioBufferRef.current);
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [forceMainThread]);
+
 	// Cleanup audio context on unmount
 	useEffect(() => {
 		return () => {
