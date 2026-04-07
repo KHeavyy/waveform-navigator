@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import WaveformNavigator from '../../../src';
 
-const DEMO_AUDIO_PATH = '/media/Demo.mp3';
+const DEMO_AUDIO_PATH = `${import.meta.env.BASE_URL}media/Demo.mp3`;
 
 export default function ResponsiveTab() {
 	const [responsiveEnabled, setResponsiveEnabled] = useState(true);
