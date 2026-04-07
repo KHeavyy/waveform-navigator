@@ -136,6 +136,23 @@ npm run dev           # Watch mode: concurrent tsc watch + demo dev server
 - **Code Comments:** Add comments for complex logic, especially in audio/canvas processing
 - **Examples:** Include usage examples in README for common patterns
 
+### README Update Checklist
+
+Whenever any of the following change, **update README.md in the same task**:
+
+| What changed                                                                     | Where to update in README                                                                                                                                                                                                       |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| New prop added to `WaveformNavigatorProps`                                       | "Basic Props", "Responsive Props", "Worker Configuration Props", "Controlled Props", "Event Callbacks", "Accessibility Props", or "UI Control Props" section — whichever matches. Include type, default value, and description. |
+| Prop removed or renamed                                                          | Remove or rename the corresponding entry and update any code examples that reference it.                                                                                                                                        |
+| New field added to `WaveformNavigatorStyles`                                     | Add a bullet under the relevant colour group in the "WaveformNavigatorStyles Interface" table. Include the type, default value, and a short description.                                                                        |
+| New method added to `WaveformNavigatorHandle`                                    | Add to the "Ref Handle Type" block and the "Methods" list under "Programmatic Control".                                                                                                                                         |
+| CSS class added or renamed that is referenced in tests or user-facing behaviour  | Update any prose in README that describes that class (e.g. collapsible volume, responsive breakpoints).                                                                                                                         |
+| Responsive/layout behaviour changes (breakpoints, reflow rules, mobile controls) | Update the "Mobile-Adaptive Controls" subsection under "Responsive Mode".                                                                                                                                                       |
+| New callback event added                                                         | Add to "Event Callbacks" section.                                                                                                                                                                                               |
+| Hook or utility extracted that affects the public API                            | Update relevant sections.                                                                                                                                                                                                       |
+
+When in doubt, check the existing README structure and add the new content under the most appropriate heading rather than appending it at the end.
+
 ## Dependencies
 
 - **Minimize Dependencies:** Keep the package lightweight; avoid adding unnecessary dependencies
