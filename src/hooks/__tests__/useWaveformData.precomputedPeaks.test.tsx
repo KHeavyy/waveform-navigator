@@ -117,10 +117,12 @@ describe('useWaveformData precomputedPeaks', () => {
 		vi.useRealTimers();
 	});
 
-	it('fires onPeaksComputed with resampled peaks when bar count mismatches, skipping the fetch', async () => {
-		// Bar count for width=10, barWidth=3, gap=2 is 2.
-		// Passing a 3-element array triggers resampling on initial mount.
-		// The audio fetch must NOT happen; onPeaksComputed fires with the resampled result.
+	it('treats precomputedPeaks as canonical regardless of length, without firing onPeaksComputed or fetching audio', async () => {
+		// Precomputed peaks are the canonical (high-resolution) source of truth.
+		// They are resampled to the display bar count for rendering, but the
+		// canonical version is preserved — the hook must NOT overwrite the saved
+		// version with a smaller resampled copy or fire onPeaksComputed.
+		vi.useFakeTimers();
 		const onPeaksComputed = vi.fn();
 
 		render(
@@ -131,23 +133,23 @@ describe('useWaveformData precomputedPeaks', () => {
 			/>
 		);
 
-		await waitFor(() => expect(onPeaksComputed).toHaveBeenCalledTimes(1));
+		await vi.runAllTimersAsync();
 
-		// No audio computation should have occurred — peaks came from resampling.
+		// No audio computation should have occurred — peaks came from precomputed.
 		expect(computePeaksFromChannelData).not.toHaveBeenCalled();
-
-		const reported = onPeaksComputed.mock.calls[0][0] as Float32Array;
-		expect(reported).toBeInstanceOf(Float32Array);
-		expect(reported).toHaveLength(2);
-		// Endpoints of a linear resample are exact.
-		expect(reported[0]).toBeCloseTo(0.2, 4);
-		expect(reported[1]).toBeCloseTo(0.4, 4);
+		// onPeaksComputed must not fire on resampling — canonical hasn't changed.
+		expect(onPeaksComputed).not.toHaveBeenCalled();
 
 		// Canvas must already show the resampled peaks.
 		const text = screen.getByTestId('peaks').textContent ?? '';
 		expect(text).not.toBe('null');
 		const values = text.split(',').map(Number);
+		expect(values).toHaveLength(2);
+		// Endpoints of a linear resample are exact.
 		expect(values[0]).toBeCloseTo(0.2, 4);
+		expect(values[1]).toBeCloseTo(0.4, 4);
+
+		vi.useRealTimers();
 	});
 
 	it('accepts a plain number[] and converts it to Float32Array', () => {

@@ -111,6 +111,15 @@ export interface WaveformNavigatorProps {
 	 * Example: `precomputedPeaks={savedPeaksArray}`
 	 */
 	precomputedPeaks?: Float32Array | number[];
+	/**
+	 * Width in pixels used to determine how many peak samples are computed from
+	 * the audio, independent of the rendered component width. Peaks are
+	 * resampled at render time so the waveform fits the responsive display
+	 * width. Setting this to a typical desktop width (e.g. 1400) ensures peaks
+	 * captured on a small screen still look good when reloaded on a large one.
+	 * @default 1400
+	 */
+	peakComputationWidth?: number;
 	// responsive props
 	responsive?: boolean;
 	responsiveDebounceMs?: number;
@@ -175,6 +184,7 @@ const WaveformNavigator = React.forwardRef<
 		styles = {},
 		markers = [],
 		precomputedPeaks,
+		peakComputationWidth = 1400,
 		responsive = true,
 		responsiveDebounceMs = 150,
 		workerUrl,
@@ -316,6 +326,7 @@ const WaveformNavigator = React.forwardRef<
 		barWidth,
 		gap,
 		precomputedPeaks,
+		peakComputationWidth,
 		workerUrl,
 		forceMainThread,
 		onBlobUrlReady: handleBlobUrlReady,

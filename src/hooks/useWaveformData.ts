@@ -22,13 +22,20 @@ interface UseWaveformDataProps {
 	width: number;
 	barWidth: number;
 	gap: number;
+	/**
+	 * Standard width used for the canonical peak computation (independent of
+	 * the rendered component width). Peaks are computed once at this width and
+	 * resampled down to the display width for rendering, so peaks captured on
+	 * a small screen still look good when reloaded on a larger one.
+	 */
+	peakComputationWidth?: number;
 	workerUrl?: string;
 	forceMainThread?: boolean;
 	/**
 	 * Optional pre-computed peaks data for instant waveform rendering.
 	 * Accepts a `Float32Array` or plain `number[]` (e.g. from JSON storage).
-	 * If the bar count matches current dimensions, the waveform renders immediately
-	 * without waiting for the audio to load and decode.
+	 * Treated as the canonical (high-resolution) peaks regardless of length;
+	 * the waveform resamples them to fit the responsive display width.
 	 * The worker still runs in the background for verification; if the result
 	 * differs, the canvas updates and `onPeaksComputed` fires with fresh data.
 	 * Cleared when the `audio` prop changes so new audio always computes fresh.
@@ -40,6 +47,11 @@ interface UseWaveformDataProps {
 	 * The caller is responsible for revoking the URL when it is no longer needed.
 	 */
 	onBlobUrlReady?: (blobUrl: string) => void;
+	/**
+	 * Fires with the canonical (high-resolution) peak array — the same shape
+	 * regardless of the current responsive display width — so consumers can
+	 * persist a single version that renders well on any screen size.
+	 */
 	onPeaksComputed?: (peaks: Float32Array) => void;
 	onError?: (error: Error) => void;
 }
@@ -48,11 +60,16 @@ interface UseWaveformDataReturn {
 	peaks: Float32Array | null;
 }
 
+function toFloat32(peaks: Float32Array | number[]): Float32Array {
+	return peaks instanceof Float32Array ? peaks : new Float32Array(peaks);
+}
+
 export function useWaveformData({
 	audio,
 	width,
 	barWidth,
 	gap,
+	peakComputationWidth = 1400,
 	workerUrl,
 	forceMainThread,
 	precomputedPeaks,
@@ -60,40 +77,31 @@ export function useWaveformData({
 	onPeaksComputed,
 	onError,
 }: UseWaveformDataProps): UseWaveformDataReturn {
-	// Resample or adopt precomputedPeaks to match the current expected bar count.
-	// useState and useRef only consume these values on the initial mount.
-	const expectedBarCount = Math.max(1, Math.floor(width / (barWidth + gap)));
-	let initialResampledPeaks: Float32Array | null = null;
-	const validPrecomputed: Float32Array | null = (() => {
-		if (!precomputedPeaks) return null;
-		const converted =
-			precomputedPeaks instanceof Float32Array
-				? precomputedPeaks
-				: new Float32Array(precomputedPeaks);
-		const resampled = resamplePeaks(converted, expectedBarCount);
-		// Track when the bar count changed so the mount effect can fire onPeaksComputed.
-		if (converted.length !== expectedBarCount) {
-			initialResampledPeaks = resampled;
-		}
-		return resampled;
-	})();
+	const displayBarCount = Math.max(1, Math.floor(width / (barWidth + gap)));
 
-	const [peaks, setPeaks] = useState<Float32Array | null>(
-		() => validPrecomputed
-	);
-	// Comparison baseline: holds the validated precomputed peaks until audio changes.
-	const precomputedPeaksRef = useRef<Float32Array | null>(validPrecomputed);
-	// Holds resampled peaks from the initial mount that need to be reported via onPeaksComputed.
-	const initialResampledRef = useRef<Float32Array | null>(initialResampledPeaks);
+	// Adopt precomputedPeaks as canonical on the initial mount and seed the
+	// display state with a resampled copy. useState/useRef only consume these
+	// initializers on first render.
+	const initialCanonical: Float32Array | null = precomputedPeaks
+		? toFloat32(precomputedPeaks)
+		: null;
+	const initialDisplay: Float32Array | null = initialCanonical
+		? resamplePeaks(initialCanonical, displayBarCount)
+		: null;
+
+	const [peaks, setPeaks] = useState<Float32Array | null>(() => initialDisplay);
+	// Canonical (high-resolution) peaks. The display peaks are always derived
+	// from this via resampling. Stays stable across responsive width changes.
+	const canonicalPeaksRef = useRef<Float32Array | null>(initialCanonical);
 	const audioCtxRef = useRef<AudioContext | null>(null);
 	const workerRef = useRef<Worker | null>(null);
 	const onPeaksComputedRef = useRef(onPeaksComputed);
 	const onBlobUrlReadyRef = useRef(onBlobUrlReady);
 	const onErrorRef = useRef(onError);
 	const audioBufferRef = useRef<Float32Array | null>(null);
-	const lastWidthRef = useRef<number>(width);
 	const lastBarWidthRef = useRef<number>(barWidth);
 	const lastGapRef = useRef<number>(gap);
+	const lastPeakComputationWidthRef = useRef<number>(peakComputationWidth);
 	// Tracks the previous audio value to detect genuine source changes vs. initial mount.
 	const prevAudioRef = useRef<string | File | null | undefined>(audio);
 	// Tracks the previous precomputedPeaks reference to detect whether it changed
@@ -101,24 +109,12 @@ export function useWaveformData({
 	const prevPrecomputedPeaksRef = useRef<
 		Float32Array | number[] | null | undefined
 	>(precomputedPeaks);
-	// Always-current reference to the raw precomputedPeaks prop, for use in effects.
-	const precomputedPeaksPropRef = useRef(precomputedPeaks);
-	precomputedPeaksPropRef.current = precomputedPeaks;
 
 	useEffect(() => {
 		onPeaksComputedRef.current = onPeaksComputed;
 		onBlobUrlReadyRef.current = onBlobUrlReady;
 		onErrorRef.current = onError;
 	}, [onPeaksComputed, onBlobUrlReady, onError]);
-
-	// Fire onPeaksComputed once on mount when precomputedPeaks were resampled to a
-	// different bar count, so callers can persist the adjusted version for future loads.
-	useEffect(() => {
-		if (initialResampledRef.current) {
-			onPeaksComputedRef.current?.(initialResampledRef.current);
-		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
 
 	// Initialize worker and cleanup when props change
 	useEffect(() => {
@@ -129,17 +125,14 @@ export function useWaveformData({
 			worker.onmessage = (ev: MessageEvent) => {
 				const msg = ev.data;
 				if (msg.type === 'progress') {
-					const peaksArrReceived = new Float32Array(msg.peaksBuffer);
-					if (precomputedPeaksRef.current) {
-						// Only update if the worker result differs from precomputed peaks.
-						if (!peaksMatch(peaksArrReceived, precomputedPeaksRef.current)) {
-							setPeaks(peaksArrReceived);
-							onPeaksComputedRef.current?.(peaksArrReceived);
-						}
-					} else {
-						setPeaks(peaksArrReceived);
-						onPeaksComputedRef.current?.(peaksArrReceived);
+					const fresh = new Float32Array(msg.peaksBuffer);
+					const existing = canonicalPeaksRef.current;
+					if (existing && peaksMatch(fresh, existing)) {
+						return;
 					}
+					canonicalPeaksRef.current = fresh;
+					setPeaks(resamplePeaks(fresh, displayBarCount));
+					onPeaksComputedRef.current?.(fresh);
 				}
 			};
 		}
@@ -155,6 +148,10 @@ export function useWaveformData({
 				}
 			}
 		};
+		// displayBarCount is read inside the handler via closure — but we
+		// intentionally don't re-bind on every width change. The canonical
+		// peaks are width-independent and we resample fresh on each message.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [workerUrl, forceMainThread]);
 
 	// Re-compute peaks when forceMainThread changes so the new computation path is
@@ -182,57 +179,49 @@ export function useWaveformData({
 	useEffect(() => {
 		if (!audio) {
 			// Preserve the waveform shape when precomputed peaks are seeding the display;
-			// only reset to null when no precomputed baseline is active.
-			if (!precomputedPeaksRef.current) {
+			// only reset to null when no canonical baseline is active.
+			if (!canonicalPeaksRef.current) {
 				setPeaks(null);
 			}
 			audioBufferRef.current = null;
-			// Clear the comparison baseline so the next audio load always computes fresh.
-			precomputedPeaksRef.current = null;
+			// Clear the canonical baseline so the next audio load always computes fresh.
+			canonicalPeaksRef.current = null;
 			prevAudioRef.current = audio;
 			return;
 		}
 
 		// When the audio source genuinely changes (not the initial mount), clear the
-		// precomputed comparison baseline so fresh peaks are always applied and
-		// onPeaksComputed fires without comparing against stale data.
+		// canonical baseline so fresh peaks are always applied and onPeaksComputed
+		// fires without comparing against stale data.
 		const audioChanged = prevAudioRef.current !== audio;
 		if (audioChanged) {
-			precomputedPeaksRef.current = null;
+			canonicalPeaksRef.current = null;
 		}
 		prevAudioRef.current = audio;
 
-		// Only re-seed precomputedPeaksRef when precomputedPeaks itself has also changed.
+		// Only re-seed canonicalPeaksRef when precomputedPeaks itself has also changed.
 		// This prevents stale peaks from seeding a newly switched audio source when the
 		// parent forgets to update precomputedPeaks alongside audio.
 		const precomputedChanged =
 			precomputedPeaks !== prevPrecomputedPeaksRef.current;
 		prevPrecomputedPeaksRef.current = precomputedPeaks;
 
-		// Re-resample precomputed peaks for the new audio source/dimensions when the
+		// Adopt precomputed peaks as canonical for the current audio source when the
 		// ref was just cleared (audio changed) or was never populated, but only when
 		// precomputedPeaks also changed (or audio didn't change) to avoid stale data.
 		if (
 			precomputedPeaks &&
-			!precomputedPeaksRef.current &&
+			!canonicalPeaksRef.current &&
 			(!audioChanged || precomputedChanged)
 		) {
-			const converted =
-				precomputedPeaks instanceof Float32Array
-					? precomputedPeaks
-					: new Float32Array(precomputedPeaks);
-			const target = Math.max(1, Math.floor(width / (barWidth + gap)));
-			const resampled = resamplePeaks(converted, target);
-			precomputedPeaksRef.current = resampled;
-			setPeaks(resampled);
-			if (converted.length !== target) {
-				onPeaksComputedRef.current?.(resampled);
-			}
+			const canonical = toFloat32(precomputedPeaks);
+			canonicalPeaksRef.current = canonical;
+			setPeaks(resamplePeaks(canonical, displayBarCount));
 		}
 
-		// Skip the fetch entirely when valid pre-computed peaks are already available.
+		// Skip the fetch entirely when canonical peaks are already available.
 		// There is nothing to compute — the canvas already shows the correct waveform.
-		if (precomputedPeaksRef.current) {
+		if (canonicalPeaksRef.current) {
 			return;
 		}
 
@@ -291,9 +280,9 @@ export function useWaveformData({
 					// Store the audio buffer for resampling
 					if (channelData) {
 						audioBufferRef.current = channelData;
-						lastWidthRef.current = width;
 						lastBarWidthRef.current = barWidth;
 						lastGapRef.current = gap;
+						lastPeakComputationWidthRef.current = peakComputationWidth;
 						computePeaks(channelData);
 					}
 				} catch (decodeError: any) {
@@ -329,58 +318,58 @@ export function useWaveformData({
 		loadArrayBuffer();
 	}, [audio]);
 
-	// Recompute peaks when width, barWidth, or gap changes (without re-fetching audio)
+	// Re-derive display peaks when the responsive width changes, without
+	// recomputing from the audio buffer. Canonical peaks are independent of
+	// display width, so onPeaksComputed must not fire here — only the resampled
+	// view changes. Skipped on the first render: the initial peaks state is
+	// already seeded from useState's lazy initializer.
+	const lastDisplayBarCountRef = useRef<number>(displayBarCount);
 	useEffect(() => {
-		const widthChanged = Math.abs(width - lastWidthRef.current) > 1;
+		if (lastDisplayBarCountRef.current === displayBarCount) return;
+		lastDisplayBarCountRef.current = displayBarCount;
+		const canonical = canonicalPeaksRef.current;
+		if (!canonical) return;
+		setPeaks(resamplePeaks(canonical, displayBarCount));
+	}, [displayBarCount]);
+
+	// Recompute canonical peaks when barWidth, gap, or peakComputationWidth
+	// changes — these affect how many canonical samples we produce. Responsive
+	// width changes are handled separately above.
+	useEffect(() => {
 		const barWidthChanged = barWidth !== lastBarWidthRef.current;
 		const gapChanged = gap !== lastGapRef.current;
+		const peakWidthChanged =
+			peakComputationWidth !== lastPeakComputationWidthRef.current;
 
-		if (!widthChanged && !barWidthChanged && !gapChanged) return;
+		if (!barWidthChanged && !gapChanged && !peakWidthChanged) return;
 
-		lastWidthRef.current = width;
 		lastBarWidthRef.current = barWidth;
 		lastGapRef.current = gap;
+		lastPeakComputationWidthRef.current = peakComputationWidth;
 
 		if (audioBufferRef.current) {
-			// Normal path: decoded audio is available, recompute from channel data.
 			computePeaks(audioBufferRef.current);
-		} else if (precomputedPeaksRef.current && precomputedPeaksPropRef.current) {
-			// Responsive path with precomputedPeaks: no decoded audio buffer is available
-			// because the fetch was skipped, so resample the original peaks instead.
-			const converted =
-				precomputedPeaksPropRef.current instanceof Float32Array
-					? precomputedPeaksPropRef.current
-					: new Float32Array(precomputedPeaksPropRef.current);
-			const target = Math.max(1, Math.floor(width / (barWidth + gap)));
-			const resampled = resamplePeaks(converted, target);
-			precomputedPeaksRef.current = resampled;
-			setPeaks(resampled);
-			onPeaksComputedRef.current?.(resampled);
 		}
-	}, [width, barWidth, gap]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [barWidth, gap, peakComputationWidth]);
 
 	function computePeaks(channelData: Float32Array) {
-		// Always compute peaks immediately on main thread for instant display
-		const { peaks: peaksArr } = computePeaksFromChannelData({
+		// Always compute canonical peaks at the standard width so the saved
+		// version is independent of the current responsive display width.
+		const { peaks: canonicalPeaks } = computePeaksFromChannelData({
 			channelData,
-			width,
+			width: peakComputationWidth,
 			barWidth,
 			gap,
 		});
 
-		if (precomputedPeaksRef.current) {
-			// Precomputed peaks were provided: only update state and fire the callback
-			// if the computed result actually differs. On a match the canvas already
-			// shows the correct waveform and the parent already has the peaks, so
-			// neither a re-render nor a duplicate callback is needed.
-			if (!peaksMatch(peaksArr, precomputedPeaksRef.current)) {
-				setPeaks(peaksArr);
-				onPeaksComputedRef.current?.(peaksArr);
-			}
+		const existing = canonicalPeaksRef.current;
+		if (existing && peaksMatch(canonicalPeaks, existing)) {
+			// Canonical hasn't changed — display already reflects it; no callback needed.
 		} else {
-			// No precomputed peaks — existing behaviour: always update and notify.
-			setPeaks(peaksArr);
-			onPeaksComputedRef.current?.(peaksArr);
+			canonicalPeaksRef.current = canonicalPeaks;
+			setPeaks(resamplePeaks(canonicalPeaks, displayBarCount));
+			onPeaksComputedRef.current?.(canonicalPeaks);
 		}
 
 		// Use worker for more accurate progressive computation if available
@@ -393,7 +382,7 @@ export function useWaveformData({
 						type: 'compute',
 						channelBuffer: channelCopy.buffer,
 						channelLength: channelCopy.length,
-						width,
+						width: peakComputationWidth,
 						barWidth,
 						gap,
 						chunkSize: 262144,

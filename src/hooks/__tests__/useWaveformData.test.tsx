@@ -3,9 +3,14 @@ import { describe, it, expect, vi } from 'vitest';
 
 // Top-level mocks so they apply before the hook module is imported
 const fakeInitialPeaks = new Float32Array([0.1, 0.2]);
-vi.mock('../../utils/peaksComputation', () => ({
-	computePeaksFromChannelData: vi.fn(() => ({ peaks: fakeInitialPeaks })),
-}));
+vi.mock('../../utils/peaksComputation', async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import('../../utils/peaksComputation')>();
+	return {
+		...actual,
+		computePeaksFromChannelData: vi.fn(() => ({ peaks: fakeInitialPeaks })),
+	};
+});
 
 // Prepare a fake worker object the hook will receive
 const worker: any = {
