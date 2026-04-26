@@ -93,6 +93,11 @@ export function useWaveformData({
 	// Canonical (high-resolution) peaks. The display peaks are always derived
 	// from this via resampling. Stays stable across responsive width changes.
 	const canonicalPeaksRef = useRef<Float32Array | null>(initialCanonical);
+	// Always-current display bar count, read by the worker handler whose effect
+	// closure was bound once at mount. Without this, a resize that arrives
+	// before a worker progress message would leave peaks at a stale length.
+	const displayBarCountRef = useRef<number>(displayBarCount);
+	displayBarCountRef.current = displayBarCount;
 	const audioCtxRef = useRef<AudioContext | null>(null);
 	const workerRef = useRef<Worker | null>(null);
 	const onPeaksComputedRef = useRef(onPeaksComputed);
@@ -131,7 +136,7 @@ export function useWaveformData({
 						return;
 					}
 					canonicalPeaksRef.current = fresh;
-					setPeaks(resamplePeaks(fresh, displayBarCount));
+					setPeaks(resamplePeaks(fresh, displayBarCountRef.current));
 					onPeaksComputedRef.current?.(fresh);
 				}
 			};
@@ -148,10 +153,6 @@ export function useWaveformData({
 				}
 			}
 		};
-		// displayBarCount is read inside the handler via closure — but we
-		// intentionally don't re-bind on every width change. The canonical
-		// peaks are width-independent and we resample fresh on each message.
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [workerUrl, forceMainThread]);
 
 	// Re-compute peaks when forceMainThread changes so the new computation path is
