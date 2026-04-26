@@ -162,7 +162,7 @@ export function useWaveformData({
 	// workerRef.current already reflects the new mode.
 	useEffect(() => {
 		if (audioBufferRef.current) {
-			computePeaks(audioBufferRef.current);
+			computePeaks(audioBufferRef.current, { forceNotify: true });
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [forceMainThread]);
@@ -354,7 +354,11 @@ export function useWaveformData({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [barWidth, gap, peakComputationWidth]);
 
-	function computePeaks(channelData: Float32Array) {
+	function computePeaks(
+		channelData: Float32Array,
+		options?: { forceNotify?: boolean }
+	) {
+		const forceNotify = !!options?.forceNotify;
 		// Always compute canonical peaks at the standard width so the saved
 		// version is independent of the current responsive display width.
 		const { peaks: canonicalPeaks } = computePeaksFromChannelData({
@@ -366,7 +370,9 @@ export function useWaveformData({
 
 		const existing = canonicalPeaksRef.current;
 		if (existing && peaksMatch(canonicalPeaks, existing)) {
-			// Canonical hasn't changed — display already reflects it; no callback needed.
+			if (forceNotify) {
+				onPeaksComputedRef.current?.(existing);
+			}
 		} else {
 			canonicalPeaksRef.current = canonicalPeaks;
 			setPeaks(resamplePeaks(canonicalPeaks, displayBarCount));
