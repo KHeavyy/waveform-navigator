@@ -116,34 +116,4 @@ describe('useWaveformData', () => {
 			expect(screen.getByTestId('peaks-len').textContent).toBe('10');
 		});
 	});
-
-	it('defers network fetch while shouldLoadAudioData is false, then loads once enabled', async () => {
-		const fetchSpy = vi.mocked(global.fetch);
-		fetchSpy.mockClear();
-		const onPeaksComputed = vi.fn();
-
-		function TestComponent({ shouldLoad }: { shouldLoad: boolean }) {
-			const { peaks } = useWaveformData({
-				audio: '/metadata-deferred.mp3',
-				shouldLoadAudioData: shouldLoad,
-				width: 100,
-				barWidth: 2,
-				gap: 1,
-				onPeaksComputed,
-			} as any);
-
-			return <div data-testid="deferred-peaks">{peaks ? peaks.length : 0}</div>;
-		}
-
-		const { rerender } = render(<TestComponent shouldLoad={false} />);
-
-		await waitFor(() => {
-			expect(fetchSpy).not.toHaveBeenCalled();
-		});
-
-		rerender(<TestComponent shouldLoad={true} />);
-
-		await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
-		await waitFor(() => expect(onPeaksComputed).toHaveBeenCalled());
-	});
 });

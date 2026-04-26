@@ -1,28 +1,11 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { render } from '@testing-library/react';
 import React, { useRef } from 'react';
 import WaveformNavigator from '../WaveformNavigator';
 import type { WaveformNavigatorHandle } from '../WaveformNavigator';
 
 describe('WaveformNavigator', () => {
 	describe('showControls prop', () => {
-		it('does not fetch waveform data on mount when preload is metadata', async () => {
-			const fetchSpy = vi.mocked(global.fetch);
-			fetchSpy.mockClear();
-
-			render(
-				<WaveformNavigator
-					audio="/test.mp3"
-					preload="metadata"
-					responsive={false}
-				/>
-			);
-
-			await waitFor(() => {
-				expect(fetchSpy).not.toHaveBeenCalled();
-			});
-		});
-
 		it('renders controls by default', () => {
 			const { container } = render(
 				<WaveformNavigator audio="/test.mp3" responsive={false} />

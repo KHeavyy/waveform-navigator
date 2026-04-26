@@ -305,8 +305,8 @@ The component supports both controlled and uncontrolled modes for playback posit
 
 - **`showControls`** (boolean, default: true): Show or hide the built-in playback controls. Set to `false` to display only the waveform, useful when implementing custom controls or minimal UI. When hidden, you can control playback programmatically using the component ref.
 - **`preload`** (`'none'` | `'metadata'` | `'auto'`, default: `'none'`): Controls the initial [`preload`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/audio#preload) attribute of the underlying `<audio>` element.
-  - `'none'` (default) — no bytes are downloaded until the user presses play. Waveform peak computation for URL audio is also deferred until playback is requested, unless `precomputedPeaks` is provided.
-  - `'metadata'` — requests metadata loading on mount so duration can become available before the user interacts. Browsers may still download more than headers depending on codec/container/server behavior. Full-file waveform peak computation for URL audio is deferred until playback is requested, unless `precomputedPeaks` is provided.
+  - `'none'` (default) — no bytes are downloaded until the user presses play. Combine with `precomputedPeaks` for a fully deferred-load experience.
+  - `'metadata'` — only file headers are fetched on mount, enabling accurate duration display before the user interacts.
   - `'auto'` — the browser eagerly downloads the full file on mount (pre-v2 behaviour).
 - **`initialDuration`** (number | undefined): Seed the displayed duration (in seconds) before the audio element has loaded any metadata. This is required when using `preload="none"` together with `precomputedPeaks` — without it `duration` stays at 0 and click-to-seek is disabled. Persist this value alongside your peaks (e.g. save it from `onLoaded`) and pass it back on subsequent page loads. The real duration reported by the audio element will override it once `loadedmetadata` fires.
 

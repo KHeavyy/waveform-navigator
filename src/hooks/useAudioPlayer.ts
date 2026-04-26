@@ -25,8 +25,7 @@ interface UseAudioPlayerProps {
 	/**
 	 * Controls the initial `preload` attribute of the underlying `<audio>` element.
 	 * Defaults to `'none'` so no bytes are downloaded until the user presses play.
-	 * Set to `'metadata'` to request metadata loading on mount (browser hint;
-	 * some codecs/servers may still transfer more than headers), or
+	 * Set to `'metadata'` to download just file headers (duration) on mount, or
 	 * `'auto'` to restore the previous eager-loading behaviour.
 	 */
 	preload?: 'none' | 'metadata' | 'auto';
