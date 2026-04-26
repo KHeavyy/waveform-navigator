@@ -73,8 +73,8 @@ import type { WaveformNavigatorProps } from 'waveform-navigator';
 
 #### Responsive Props
 
-- **`responsive`** (boolean, default: true): Enable automatic resizing to match container width using ResizeObserver. When enabled, the waveform automatically adjusts the number of bars and resamples peaks when the container is resized.
-- **`responsiveDebounceMs`** (number, default: 150): Debounce delay in milliseconds for resize events. Higher values reduce recomputation frequency during continuous resizing.
+- **`responsive`** (boolean, default: true): Enable automatic resizing to match container width using ResizeObserver. When enabled, the waveform adjusts the number of displayed bars by resampling the canonical peaks for the new width — the audio is not re-decoded and the saved canonical version is preserved.
+- **`responsiveDebounceMs`** (number, default: 150): Debounce delay in milliseconds for resize events. Higher values reduce resample frequency during continuous resizing.
 
 #### Worker Configuration Props
 
@@ -84,14 +84,16 @@ import type { WaveformNavigatorProps } from 'waveform-navigator';
 #### Pre-computed Peaks
 
 - **`precomputedPeaks`** (Float32Array | number[] | undefined): Optional pre-computed peaks data for instant waveform rendering without waiting for audio to load and decode.
+- **`peakComputationWidth`** (number, default: 1400): Standard width in pixels used to determine how many peak samples are computed from the audio, independent of the rendered component width. Peaks are resampled at render time so the waveform fits the responsive display width. Setting this to a typical desktop width ensures peaks captured on a small screen still look good when reloaded on a large one.
 
-Accepts either a `Float32Array` (as returned by `onPeaksComputed`) or a plain `number[]` (e.g. after deserializing from JSON storage).
+`precomputedPeaks` accepts either a `Float32Array` (as returned by `onPeaksComputed`) or a plain `number[]` (e.g. after deserializing from JSON storage).
 
 **How it works:**
-- If the provided array's length matches the expected bar count (`Math.floor(width / (barWidth + gap))`), the waveform renders immediately on the first frame — before any audio fetch or decoding occurs.
-- When peaks are valid, the fetch and decode steps are **skipped entirely** — no network request is made for peak computation on subsequent views.
+- Peaks are always computed at `peakComputationWidth` (default 1400), so the canonical (saved) version is independent of the rendered width.
+- For display, the canonical peaks are resampled to `Math.floor(width / (barWidth + gap))` so the waveform fits the responsive container.
+- When `precomputedPeaks` is provided, it is treated as the canonical source — regardless of length — and the fetch and decode steps are **skipped entirely**. No network request is made for peak computation on subsequent views.
 - When the `audio` prop changes, `precomputedPeaks` is treated as stale and ignored — the new audio always produces a freshly computed waveform.
-- If the provided array's length does not match the expected bar count, it is ignored and a fresh fetch + decode is performed, after which `onPeaksComputed` fires with the result.
+- `onPeaksComputed` only fires when fresh peaks have actually been computed from the audio buffer (or progressively refined by the worker). It never fires for display-only resampling — your saved version is not overwritten with a smaller resampled copy when the user loads on a small screen.
 
 **Typical workflow:**
 
@@ -112,7 +114,7 @@ const savedPeaks = JSON.parse(localStorage.getItem('peaks') ?? 'null');
   audio={audioUrl}
   precomputedPeaks={savedPeaks ?? undefined}
   onPeaksComputed={(peaks) => {
-    // Only called when computed peaks differ from precomputedPeaks
+    // Only called when freshly computed peaks differ from precomputedPeaks
     localStorage.setItem('peaks', JSON.stringify(Array.from(peaks)));
   }}
 />
@@ -288,7 +290,7 @@ The component supports both controlled and uncontrolled modes for playback posit
 - **`onEnded`** (() => void): Callback fired when audio playback ends.
 - **`onLoaded`** ((duration: number) => void): Callback fired when audio metadata is loaded, providing the duration in seconds.
 - **`onTimeUpdate`** ((currentTime: number) => void): Callback fired during playback as the current time updates, providing the current time in seconds.
-- **`onPeaksComputed`** ((peaks: Float32Array) => void): Callback fired when waveform peaks are computed and differ from any provided `precomputedPeaks`. Use this to persist peaks for faster future loads. If `precomputedPeaks` were provided and the computed result matches, this callback is skipped — you already have the correct data.
+- **`onPeaksComputed`** ((peaks: Float32Array) => void): Callback fired when canonical waveform peaks are freshly computed (and differ from any provided `precomputedPeaks`). The reported peaks are sampled at `peakComputationWidth`, not the current rendered width, so the same value renders well on any screen size. Use this to persist peaks for faster future loads. If `precomputedPeaks` were provided and the computed result matches, this callback is skipped. It does not fire for display-only resampling on resize.
 - **`onLoadingChange`** ((isLoading: boolean) => void): Callback fired whenever the audio loading/buffering state changes. Receives `true` while the browser is fetching or buffering after play is requested, and `false` once playback starts, pauses, or errors. Mirrors the spinner shown on the play button during loading.
 - **`onError`** ((error: Error, type: 'audio' | 'waveform') => void): Callback fired when an error occurs during audio loading or waveform computation. The `type` parameter indicates whether the error occurred during audio playback ('audio') or waveform generation ('waveform'). Common errors include CORS issues, unsupported audio formats, and decoding failures.
 
@@ -602,10 +604,11 @@ function AudioPlayer({ audioUrl }: { audioUrl: string }) {
   return (
     <WaveformNavigator
       audio={audioUrl}
-      // If savedPeaks exist with the right bar count, the waveform renders immediately
+      // savedPeaks (if present) seed the waveform instantly and are
+      // resampled to fit the current display width
       precomputedPeaks={savedPeaks ?? undefined}
       onPeaksComputed={(peaks) => {
-        // Fired only when computed peaks differ from savedPeaks
+        // Fired only when freshly computed peaks differ from savedPeaks
         // (or when no savedPeaks were provided)
         localStorage.setItem(storageKey, JSON.stringify(Array.from(peaks)));
       }}
@@ -616,7 +619,7 @@ function AudioPlayer({ audioUrl }: { audioUrl: string }) {
 
 **Notes:**
 - `precomputedPeaks` accepts both `Float32Array` (direct from `onPeaksComputed`) and `number[]` (JSON-deserialized).
-- If the array length does not match the expected bar count for the current dimensions, it is silently ignored and a fresh waveform is computed.
+- The provided array is treated as the canonical source regardless of length and resampled to fit the current display width — saved peaks always render even if their length doesn't match the current dimensions.
 - When `audio` changes (e.g. user selects a different file), `precomputedPeaks` is ignored for the new load so fresh peaks are always computed and exposed.
 
 ### Error Handling

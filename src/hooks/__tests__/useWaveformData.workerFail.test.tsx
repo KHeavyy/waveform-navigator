@@ -2,11 +2,16 @@ import { render, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 // Mock computePeaksFromChannelData to return deterministic peaks
-vi.mock('../../utils/peaksComputation', () => ({
-	computePeaksFromChannelData: vi.fn(() => ({
-		peaks: new Float32Array([0.2, 0.8]),
-	})),
-}));
+vi.mock('../../utils/peaksComputation', async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import('../../utils/peaksComputation')>();
+	return {
+		...actual,
+		computePeaksFromChannelData: vi.fn(() => ({
+			peaks: new Float32Array([0.2, 0.8]),
+		})),
+	};
+});
 
 // Provide a worker that throws only when asked to compute, but accepts terminate
 vi.mock('../../utils/workerCreation', () => ({

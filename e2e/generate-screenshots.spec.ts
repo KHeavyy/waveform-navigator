@@ -90,7 +90,7 @@ test.describe('Generate README Screenshots', () => {
 		await waitForWaveform(page);
 
 		// Uncheck the "Show built-in controls" checkbox
-		const checkbox = page.locator('input[type="checkbox"]').first();
+		const checkbox = page.getByLabel('Show built-in controls');
 		await checkbox.uncheck();
 		await page.waitForTimeout(800);
 
