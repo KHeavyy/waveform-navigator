@@ -171,8 +171,9 @@ export default function AdvancedTab() {
 					)}
 					{preloadMode === 'metadata' && (
 						<>
-							<strong>metadata</strong> — only file headers are fetched on mount so
-							duration is available immediately.
+							<strong>metadata</strong> — requests metadata loading on mount so
+							duration is available immediately. Some browsers/codecs may still fetch
+							more than headers.
 						</>
 					)}
 					{preloadMode === 'auto' && (

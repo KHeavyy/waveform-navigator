@@ -19,6 +19,13 @@ function peaksMatch(
 
 interface UseWaveformDataProps {
 	audio: string | File | null | undefined;
+	/**
+	 * When false, skip loading/decoding audio for waveform computation.
+	 * Useful for honoring `preload="none"` / `preload="metadata"` until
+	 * playback is user-initiated.
+	 * @default true
+	 */
+	shouldLoadAudioData?: boolean;
 	width: number;
 	barWidth: number;
 	gap: number;
@@ -66,6 +73,7 @@ function toFloat32(peaks: Float32Array | number[]): Float32Array {
 
 export function useWaveformData({
 	audio,
+	shouldLoadAudioData = true,
 	width,
 	barWidth,
 	gap,
@@ -226,6 +234,12 @@ export function useWaveformData({
 			return;
 		}
 
+		// Respect deferred loading modes (e.g. preload="none"/"metadata").
+		// The caller can flip this to true after user-initiated playback.
+		if (!shouldLoadAudioData) {
+			return;
+		}
+
 		const loadArrayBuffer = async () => {
 			try {
 				// Close previous AudioContext if it exists
@@ -317,7 +331,7 @@ export function useWaveformData({
 		};
 
 		loadArrayBuffer();
-	}, [audio]);
+	}, [audio, shouldLoadAudioData]);
 
 	// Re-derive display peaks when the responsive width changes, without
 	// recomputing from the audio buffer. Canonical peaks are independent of

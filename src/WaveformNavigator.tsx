@@ -155,8 +155,9 @@ export interface WaveformNavigatorProps {
 	/**
 	 * Controls the initial `preload` attribute of the underlying `<audio>` element.
 	 * Defaults to `'none'` — no bytes are downloaded until the user presses play.
-	 * Set to `'metadata'` to download just file headers (enabling duration display
-	 * before playback), or `'auto'` to restore eager loading.
+	 * Set to `'metadata'` to request metadata loading (enabling duration display
+	 * before playback). Browsers may still download more than headers depending
+	 * on codec/container/server behavior. Use `'auto'` to restore eager loading.
 	 */
 	preload?: 'none' | 'metadata' | 'auto';
 	/**
@@ -210,6 +211,7 @@ const WaveformNavigator = React.forwardRef<
 	} = props;
 	const [hoverX, setHoverX] = useState<number | null>(null);
 	const [hoverTime, setHoverTime] = useState<number | null>(null);
+	const [hasPlaybackStarted, setHasPlaybackStarted] = useState(false);
 	const [errorState, setErrorState] = useState<{
 		message: string;
 		type: 'audio' | 'waveform';
@@ -254,6 +256,7 @@ const WaveformNavigator = React.forwardRef<
 	// Clear error state when audio prop changes
 	useEffect(() => {
 		setErrorState(null);
+		setHasPlaybackStarted(false);
 	}, [audio]);
 
 	// Clear and revoke any shared Blob URL as soon as the audio source changes,
@@ -304,7 +307,10 @@ const WaveformNavigator = React.forwardRef<
 		controlledCurrentTime,
 		onCurrentTimeChange,
 		audioElementRef,
-		onPlay,
+		onPlay: () => {
+			setHasPlaybackStarted(true);
+			onPlay?.();
+		},
 		onPause,
 		onEnded,
 		onLoaded: (dur) => {
@@ -319,9 +325,13 @@ const WaveformNavigator = React.forwardRef<
 		},
 	});
 
+	const shouldLoadWaveformAudioData =
+		typeof audio !== 'string' || preload === 'auto' || hasPlaybackStarted;
+
 	// Use waveform data hook
 	const { peaks } = useWaveformData({
 		audio,
+		shouldLoadAudioData: shouldLoadWaveformAudioData,
 		width: effectiveWidth,
 		barWidth,
 		gap,
