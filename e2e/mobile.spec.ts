@@ -7,7 +7,9 @@ import { test, expect } from '@playwright/test';
  * and verify:
  *   - responsive layout at mobile breakpoints
  *   - touch seeking on the waveform canvas
- *   - collapsible volume control behaviour (hidden by default, shown on tap)
+ *   - playback controls are horizontally centered
+ *   - volume controls are hidden on touch-only devices (HTML5 audio volume
+ *     is read-only on iOS Safari, so the on-screen slider can't change it)
  */
 
 const MOBILE_VIEWPORT = { width: 375, height: 812 };
@@ -81,6 +83,26 @@ test.describe('Mobile layout and controls', () => {
 		const forward = page.getByRole('button', { name: /forward/i });
 		await expect(rewind).toBeVisible({ timeout: 10000 });
 		await expect(forward).toBeVisible({ timeout: 10000 });
+	});
+
+	test('play, rewind, forward buttons are horizontally centered', async ({
+		page,
+	}) => {
+		const controls = page.locator('.controls').first();
+		const center = page.locator('.controls .center').first();
+		await expect(controls).toBeVisible({ timeout: 10000 });
+
+		const controlsBox = await controls.boundingBox();
+		const centerBox = await center.boundingBox();
+		expect(controlsBox).toBeTruthy();
+		expect(centerBox).toBeTruthy();
+
+		// Midpoint of the .center group should sit within a few pixels of the
+		// midpoint of the full controls container — the grid layout guarantees
+		// this regardless of the time text or volume control widths.
+		const controlsMid = controlsBox!.x + controlsBox!.width / 2;
+		const centerMid = centerBox!.x + centerBox!.width / 2;
+		expect(Math.abs(centerMid - controlsMid)).toBeLessThanOrEqual(2);
 	});
 });
 
@@ -156,59 +178,27 @@ test.describe('Touch seeking on mobile', () => {
 	});
 });
 
-test.describe('Collapsible volume control on mobile', () => {
+test.describe('Volume controls are hidden on mobile', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.setViewportSize(MOBILE_VIEWPORT);
 		await page.goto('/?tab=basic');
 		await waitForWaveform(page);
 	});
 
-	test('volume slider is hidden by default on mobile', async ({ page }) => {
+	test('volume slider is hidden on mobile', async ({ page }) => {
 		const slider = page.locator('.vol-range').first();
-		// The slider is in the DOM but CSS hides it at ≤480 px
 		await expect(slider).toBeHidden({ timeout: 5000 });
 	});
 
-	test('tapping the speaker button reveals the volume popup', async ({
-		page,
-	}) => {
+	test('speaker button is hidden on mobile', async ({ page }) => {
+		// Volume can't be controlled programmatically on iOS Safari and is
+		// unreliable elsewhere on mobile, so the entire .right group is hidden
+		// on touch-only devices.
 		const speaker = page.locator('.speaker').first();
-		await expect(speaker).toBeVisible({ timeout: 10000 });
-
-		await expect(page.locator('.vol-popup')).toBeHidden();
-
-		await speaker.tap();
-
-		await expect(page.locator('.vol-popup')).toBeVisible({ timeout: 3000 });
-		await expect(page.locator('.vol-range-vertical')).toBeVisible({
-			timeout: 3000,
-		});
+		await expect(speaker).toBeHidden({ timeout: 5000 });
 	});
 
-	test('tapping the speaker button again hides the volume popup', async ({
-		page,
-	}) => {
-		const speaker = page.locator('.speaker').first();
-		await speaker.tap(); // open
-		await expect(page.locator('.vol-popup')).toBeVisible({ timeout: 3000 });
-
-		await speaker.tap(); // close
-		await expect(page.locator('.vol-popup')).toBeHidden({ timeout: 3000 });
-	});
-
-	test('vol-popup is present while speaker is expanded', async ({ page }) => {
-		const speaker = page.locator('.speaker').first();
-		await speaker.tap();
-
-		await expect(page.locator('.vol-popup')).toBeVisible({ timeout: 3000 });
-	});
-
-	test('volume slider is always visible on desktop', async ({ page }) => {
-		// Switch to a desktop-width viewport; CSS breakpoint removes the hiding rule
-		await page.setViewportSize({ width: 1280, height: 720 });
-		await page.waitForTimeout(200);
-
-		const slider = page.locator('.vol-range').first();
-		await expect(slider).toBeVisible({ timeout: 5000 });
+	test('volume popup is not present on mobile', async ({ page }) => {
+		await expect(page.locator('.vol-popup')).toHaveCount(0);
 	});
 });
