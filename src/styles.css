@@ -37,14 +37,20 @@
 	touch-action: none;
 }
 .controls {
-	display: flex;
+	display: grid;
+	/* minmax(0, 1fr) (instead of 1fr) lets the side tracks shrink below their
+	   content's min-size — without it, a long time string (e.g. "1:23:45 /
+	   1:23:45") would expand the left track and push the center group off the
+	   container midpoint. Combined with min-width: 0 on .left/.right, the
+	   center column stays at the true midpoint. */
+	grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
 	align-items: center;
-	justify-content: space-between;
 	gap: 12px;
 	margin-top: 12px;
 }
 .controls .left {
-	min-width: 160px;
+	justify-self: start;
+	min-width: 0;
 }
 .controls .time {
 	font-size: 0.95rem;
@@ -54,6 +60,7 @@
 	gap: 14px;
 	align-items: center;
 	justify-content: center;
+	justify-self: center;
 }
 .controls .ctrl {
 	background: transparent;
@@ -118,6 +125,8 @@
 	align-items: center;
 	gap: 8px;
 	position: relative;
+	justify-self: end;
+	min-width: 0;
 }
 .controls .speaker {
 	display: flex;
@@ -252,24 +261,15 @@
 	.controls .vol-range {
 		width: 100px;
 	}
-	.controls .left {
-		min-width: 120px;
-	}
 }
 
 /* Responsive controls — small containers: single compact row */
 @container (max-width: 480px) {
 	.controls {
 		gap: 6px;
-		justify-content: space-between;
-	}
-	.controls .left {
-		min-width: unset;
-		flex-shrink: 1;
 	}
 	.controls .center {
 		gap: 6px;
-		flex-shrink: 0;
 	}
 	.controls .play {
 		width: 36px;
@@ -294,6 +294,16 @@
 
 	/* Hide the horizontal volume slider; popup replaces it on narrow containers */
 	.controls .vol-range {
+		display: none;
+	}
+}
+
+/* Hide volume controls entirely on touch-only devices: HTML5 audio volume
+   is read-only on iOS Safari and unreliable on most mobile browsers, so the
+   on-screen slider can't actually change playback level. Users adjust volume
+   with hardware/OS controls instead. */
+@media (hover: none) and (pointer: coarse) {
+	.controls .right {
 		display: none;
 	}
 }
