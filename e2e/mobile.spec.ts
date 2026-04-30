@@ -104,6 +104,37 @@ test.describe('Mobile layout and controls', () => {
 		const centerMid = centerBox!.x + centerBox!.width / 2;
 		expect(Math.abs(centerMid - controlsMid)).toBeLessThanOrEqual(2);
 	});
+
+	test('center stays centered when the time string grows wider than 1fr', async ({
+		page,
+	}) => {
+		await expect(page.locator('.controls').first()).toBeVisible({
+			timeout: 10000,
+		});
+
+		// Force the time text to be wider than the natural 1fr share by bumping
+		// its font size. With plain `grid-template-columns: 1fr auto 1fr`, the
+		// fr tracks have an implicit content-based minimum, so an over-sized
+		// time string expands the left track and shifts the center group off
+		// the container midpoint. `minmax(0, 1fr)` + `min-width: 0` on the side
+		// items lets the track shrink below content size, keeping center
+		// mathematically centered.
+		await page.locator('.controls .time').first().evaluate((el) => {
+			const e = el as HTMLElement;
+			e.textContent = '99:99:99 / 99:99:99';
+			e.style.fontSize = '24px';
+			e.style.fontWeight = '700';
+		});
+
+		const controlsBox = await page.locator('.controls').first().boundingBox();
+		const centerBox = await page.locator('.controls .center').first().boundingBox();
+		expect(controlsBox).toBeTruthy();
+		expect(centerBox).toBeTruthy();
+
+		const controlsMid = controlsBox!.x + controlsBox!.width / 2;
+		const centerMid = centerBox!.x + centerBox!.width / 2;
+		expect(Math.abs(centerMid - controlsMid)).toBeLessThanOrEqual(2);
+	});
 });
 
 test.describe('Touch seeking on mobile', () => {

@@ -38,13 +38,19 @@
 }
 .controls {
 	display: grid;
-	grid-template-columns: 1fr auto 1fr;
+	/* minmax(0, 1fr) (instead of 1fr) lets the side tracks shrink below their
+	   content's min-size — without it, a long time string (e.g. "1:23:45 /
+	   1:23:45") would expand the left track and push the center group off the
+	   container midpoint. Combined with min-width: 0 on .left/.right, the
+	   center column stays at the true midpoint. */
+	grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
 	align-items: center;
 	gap: 12px;
 	margin-top: 12px;
 }
 .controls .left {
 	justify-self: start;
+	min-width: 0;
 }
 .controls .time {
 	font-size: 0.95rem;
@@ -120,6 +126,7 @@
 	gap: 8px;
 	position: relative;
 	justify-self: end;
+	min-width: 0;
 }
 .controls .speaker {
 	display: flex;
