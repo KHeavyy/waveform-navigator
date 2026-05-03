@@ -24,6 +24,9 @@ interface UseWaveformCanvasReturn {
 	canvasRef: React.RefObject<HTMLCanvasElement>;
 }
 
+// Minimum rendered bar height in logical pixels so silent sections remain visible
+const MIN_BAR_HEIGHT = 2;
+
 export function useWaveformCanvas({
 	width,
 	height,
@@ -147,7 +150,7 @@ export function useWaveformCanvas({
 			for (let i = 0; i < barCount; i++) {
 				const x = i * barStep;
 				const w = effectiveBarWidth;
-				const h = peaksArr[i] * (height * 0.95);
+				const h = Math.max(MIN_BAR_HEIGHT, peaksArr[i] * (height * 0.95));
 				const y = height / 2 - h / 2;
 				ctx.fillStyle = barColor;
 				ctx.fillRect(x, y, w, h);
@@ -180,7 +183,7 @@ export function useWaveformCanvas({
 		for (let i = 0; i < barCount; i++) {
 			const x = i * barStep;
 			const w = effectiveBarWidth;
-			const h = peaksArr[i] * (height * 0.95);
+			const h = Math.max(MIN_BAR_HEIGHT, peaksArr[i] * (height * 0.95));
 			const y = height / 2 - h / 2;
 			if (x + w <= playedWidth) {
 				ctx.fillStyle = progressColor;
