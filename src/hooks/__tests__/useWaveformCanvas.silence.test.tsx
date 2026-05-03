@@ -1,6 +1,6 @@
 import { render, waitFor } from '@testing-library/react';
 import { useWaveformCanvas } from '../useWaveformCanvas';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const CANVAS_HEIGHT = 20;
 const BAR_WIDTH = 2;
@@ -35,8 +35,34 @@ describe('useWaveformCanvas silent audio rendering', () => {
 
 	beforeEach(() => {
 		(window as any).__waveformReady = false;
-		mockCtx = (HTMLCanvasElement.prototype.getContext as any)('2d');
-		mockCtx.fillRect.mockClear();
+
+		// Explicitly stub getContext with a fresh mock each test so the suite
+		// is isolated from other test files that may mutate the prototype mock.
+		mockCtx = {
+			fillRect: vi.fn(),
+			clearRect: vi.fn(),
+			getImageData: vi.fn(),
+			putImageData: vi.fn(),
+			setTransform: vi.fn(),
+			save: vi.fn(),
+			restore: vi.fn(),
+			beginPath: vi.fn(),
+			moveTo: vi.fn(),
+			lineTo: vi.fn(),
+			closePath: vi.fn(),
+			stroke: vi.fn(),
+			fill: vi.fn(),
+			arc: vi.fn(),
+			fillText: vi.fn(),
+			measureText: vi.fn(() => ({ width: 0 })),
+		};
+		vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+			mockCtx as any
+		);
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
 	});
 
 	it('renders bars with minimum height for fully silent (all-zero) peaks', async () => {
@@ -62,13 +88,16 @@ describe('useWaveformCanvas silent audio rendering', () => {
 	});
 
 	it('silent bars are shorter than loud bars', async () => {
-		render(<TestComponent peaks={new Float32Array([0, 0, 0])} />);
+		const { unmount } = render(
+			<TestComponent peaks={new Float32Array([0, 0, 0])} />
+		);
 		await waitFor(() => expect((window as any).__waveformReady).toBeTruthy());
 
 		const silentHeights = getBarHeights(mockCtx);
 		const silentAvg =
 			silentHeights.reduce((a, b) => a + b, 0) / silentHeights.length;
 
+		unmount();
 		mockCtx.fillRect.mockClear();
 		(window as any).__waveformReady = false;
 
