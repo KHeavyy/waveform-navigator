@@ -258,14 +258,15 @@ export function useAudioPlayer({
 				wasPlayingBeforeHiddenRef.current = isPlayingRef.current;
 				savedTimeBeforeHiddenRef.current = el.currentTime;
 			} else if (wasPlayingBeforeHiddenRef.current && el.paused) {
-				// Some browsers (Safari) reset currentTime to 0 after bfcache restore
-				if (
-					!isControlledRef.current &&
-					el.currentTime === 0 &&
-					savedTimeBeforeHiddenRef.current > 0
-				) {
+				// Some browsers (Safari) reset currentTime to 0 after bfcache restore.
+				// Restore position in both uncontrolled and controlled modes — in controlled
+				// mode the parent's controlledCurrentTime is unchanged so the sync effect
+				// won't re-run, leaving the audio element at 0 when play() is called.
+				if (el.currentTime === 0 && savedTimeBeforeHiddenRef.current > 0) {
 					el.currentTime = savedTimeBeforeHiddenRef.current;
-					setCurrentTime(savedTimeBeforeHiddenRef.current);
+					if (!isControlledRef.current) {
+						setCurrentTime(savedTimeBeforeHiddenRef.current);
+					}
 				}
 				el.play().catch(() => {});
 			}
@@ -279,13 +280,11 @@ export function useAudioPlayer({
 			if (!el) return;
 
 			if (wasPlayingBeforeHiddenRef.current && el.paused) {
-				if (
-					!isControlledRef.current &&
-					el.currentTime === 0 &&
-					savedTimeBeforeHiddenRef.current > 0
-				) {
+				if (el.currentTime === 0 && savedTimeBeforeHiddenRef.current > 0) {
 					el.currentTime = savedTimeBeforeHiddenRef.current;
-					setCurrentTime(savedTimeBeforeHiddenRef.current);
+					if (!isControlledRef.current) {
+						setCurrentTime(savedTimeBeforeHiddenRef.current);
+					}
 				}
 				el.play().catch(() => {});
 			}

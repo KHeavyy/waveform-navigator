@@ -316,12 +316,14 @@ export function useWaveformCanvas({
 		};
 	}, [isPlaying, peaks, progressColor, playheadColor, markerColor, markerLabelColor, markers]);
 
-	// When paused, redraw on seek (currentTime change) or on transition to paused state.
+	// When paused, redraw on seek or whenever any visual prop changes.
+	// Mirrors the deps the original combined effect used for the non-playing branch,
+	// restoring immediate canvas updates when e.g. progressColor or markers change.
 	useEffect(() => {
 		if (!isPlaying && peaks) {
 			drawWaveform(peaks, currentTime);
 		}
-	}, [currentTime, isPlaying, peaks]);
+	}, [currentTime, isPlaying, peaks, progressColor, playheadColor, markerColor, markerLabelColor, markers]);
 
 	return {
 		canvasRef,
