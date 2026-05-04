@@ -101,6 +101,10 @@ export function useAudioPlayer({
 	const onErrorRef = useRef(onError);
 
 	useEffect(() => {
+		isPlayingRef.current = isPlaying;
+	}, [isPlaying]);
+
+	useEffect(() => {
 		onPlayRef.current = onPlay;
 		onPauseRef.current = onPause;
 		onEndedRef.current = onEnded;
@@ -119,6 +123,11 @@ export function useAudioPlayer({
 		onLoadingChange,
 		onError,
 	]);
+
+	// Track playback state across visibility changes / bfcache restores
+	const isPlayingRef = useRef(false);
+	const wasPlayingBeforeHiddenRef = useRef(false);
+	const savedTimeBeforeHiddenRef = useRef(0);
 
 	// Determine if component is in controlled mode
 	const isControlled = controlledCurrentTime !== undefined;
@@ -235,6 +244,59 @@ export function useAudioPlayer({
 			}
 		};
 		// audioElementRef is intentionally excluded from deps to avoid recreating audio element
+	}, []);
+
+	// Resume audio after the browser interrupts it (Safari background-tab pause,
+	// mobile screen lock, bfcache restore). Saves playing state on hide and
+	// re-calls play() when the page/tab becomes visible again.
+	useEffect(() => {
+		const handleVisibilityChange = () => {
+			const el = audioRef.current;
+			if (!el) return;
+
+			if (document.hidden) {
+				wasPlayingBeforeHiddenRef.current = isPlayingRef.current;
+				savedTimeBeforeHiddenRef.current = el.currentTime;
+			} else if (wasPlayingBeforeHiddenRef.current && el.paused) {
+				// Some browsers (Safari) reset currentTime to 0 after bfcache restore.
+				// Restore position in both uncontrolled and controlled modes — in controlled
+				// mode the parent's controlledCurrentTime is unchanged so the sync effect
+				// won't re-run, leaving the audio element at 0 when play() is called.
+				if (el.currentTime === 0 && savedTimeBeforeHiddenRef.current > 0) {
+					el.currentTime = savedTimeBeforeHiddenRef.current;
+					if (!isControlledRef.current) {
+						setCurrentTime(savedTimeBeforeHiddenRef.current);
+					}
+				}
+				el.play().catch(() => {});
+			}
+		};
+
+		// pageshow fires with persisted=true when the page is restored from bfcache
+		// (common on mobile Safari). visibilitychange may not fire in that path.
+		const handlePageShow = (event: PageTransitionEvent) => {
+			if (!event.persisted) return;
+			const el = audioRef.current;
+			if (!el) return;
+
+			if (wasPlayingBeforeHiddenRef.current && el.paused) {
+				if (el.currentTime === 0 && savedTimeBeforeHiddenRef.current > 0) {
+					el.currentTime = savedTimeBeforeHiddenRef.current;
+					if (!isControlledRef.current) {
+						setCurrentTime(savedTimeBeforeHiddenRef.current);
+					}
+				}
+				el.play().catch(() => {});
+			}
+		};
+
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+		window.addEventListener('pageshow', handlePageShow);
+
+		return () => {
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+			window.removeEventListener('pageshow', handlePageShow);
+		};
 	}, []);
 
 	// When a Blob URL derived from the waveform fetch is available, point the

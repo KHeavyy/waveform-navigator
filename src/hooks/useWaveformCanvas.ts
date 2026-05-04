@@ -286,13 +286,14 @@ export function useWaveformCanvas({
 		readyDispatchedRef.current = false;
 	}, [peaks, barWidth, gap, barColor, backgroundColor]);
 
-	// Smooth progress updates while playing using requestAnimationFrame
+	// Smooth progress updates while playing using requestAnimationFrame.
+	// currentTime is intentionally excluded — the loop reads currentTimeRef.current
+	// directly so it always has the latest value without restarting on every timeupdate.
 	useEffect(() => {
 		function loop() {
 			const currentPeaks = peaksRef.current;
-			const currentTimeValue = currentTimeRef.current;
 			if (currentPeaks) {
-				drawWaveform(currentPeaks, currentTimeValue);
+				drawWaveform(currentPeaks, currentTimeRef.current);
 				rafRef.current = window.requestAnimationFrame(loop);
 			}
 		}
@@ -305,10 +306,6 @@ export function useWaveformCanvas({
 				window.cancelAnimationFrame(rafRef.current);
 				rafRef.current = null;
 			}
-			// Draw once when paused - will build and cache if needed
-			if (peaks) {
-				drawWaveform(peaks, currentTime);
-			}
 		}
 
 		return () => {
@@ -317,16 +314,16 @@ export function useWaveformCanvas({
 				rafRef.current = null;
 			}
 		};
-	}, [
-		isPlaying,
-		peaks,
-		progressColor,
-		playheadColor,
-		markerColor,
-		markerLabelColor,
-		markers,
-		currentTime,
-	]);
+	}, [isPlaying, peaks, progressColor, playheadColor, markerColor, markerLabelColor, markers]);
+
+	// When paused, redraw on seek or whenever any visual prop changes.
+	// Mirrors the deps the original combined effect used for the non-playing branch,
+	// restoring immediate canvas updates when e.g. progressColor or markers change.
+	useEffect(() => {
+		if (!isPlaying && peaks) {
+			drawWaveform(peaks, currentTime);
+		}
+	}, [currentTime, isPlaying, peaks, progressColor, playheadColor, markerColor, markerLabelColor, markers]);
 
 	return {
 		canvasRef,
