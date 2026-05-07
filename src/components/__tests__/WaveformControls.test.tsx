@@ -17,6 +17,7 @@ describe('WaveformControls', () => {
 				onTogglePlay={onTogglePlay}
 				onSeek={onSeek}
 				onVolumeChange={onVolumeChange}
+				seekTo={vi.fn()}
 			/>
 		);
 
@@ -42,6 +43,7 @@ describe('WaveformControls', () => {
 				onTogglePlay={onTogglePlay}
 				onSeek={onSeek}
 				onVolumeChange={onVolumeChange}
+				seekTo={vi.fn()}
 			/>
 		);
 
@@ -63,6 +65,7 @@ describe('WaveformControls', () => {
 				onTogglePlay={onTogglePlay}
 				onSeek={onSeek}
 				onVolumeChange={onVolumeChange}
+				seekTo={vi.fn()}
 			/>
 		);
 
@@ -93,6 +96,7 @@ describe('WaveformControls', () => {
 				onTogglePlay={vi.fn()}
 				onSeek={vi.fn()}
 				onVolumeChange={vi.fn()}
+				seekTo={vi.fn()}
 			/>
 		);
 
@@ -110,9 +114,123 @@ describe('WaveformControls', () => {
 				onTogglePlay={vi.fn()}
 				onSeek={vi.fn()}
 				onVolumeChange={vi.fn()}
+				seekTo={vi.fn()}
 			/>
 		);
 
 		expect(wrapper?.classList.contains('play-wrapper--loading')).toBe(true);
+	});
+
+	it('hides time display when showTime is false', () => {
+		const { container } = render(
+			<WaveformControls
+				isPlaying={false}
+				displayTime={30}
+				duration={120}
+				volume={0.5}
+				onTogglePlay={vi.fn()}
+				onSeek={vi.fn()}
+				onVolumeChange={vi.fn()}
+				seekTo={vi.fn()}
+				showTime={false}
+			/>
+		);
+		expect(container.querySelector('.time')).toBeFalsy();
+	});
+
+	it('shows time display by default', () => {
+		const { container } = render(
+			<WaveformControls
+				isPlaying={false}
+				displayTime={30}
+				duration={120}
+				volume={0.5}
+				onTogglePlay={vi.fn()}
+				onSeek={vi.fn()}
+				onVolumeChange={vi.fn()}
+				seekTo={vi.fn()}
+			/>
+		);
+		expect(container.querySelector('.time')).toBeTruthy();
+	});
+
+	it('hides volume section when showVolume is false', () => {
+		const { container } = render(
+			<WaveformControls
+				isPlaying={false}
+				displayTime={0}
+				duration={10}
+				volume={0.5}
+				onTogglePlay={vi.fn()}
+				onSeek={vi.fn()}
+				onVolumeChange={vi.fn()}
+				seekTo={vi.fn()}
+				showVolume={false}
+			/>
+		);
+		expect(container.querySelector('.right')).toBeTruthy();
+		expect(container.querySelector('.speaker')).toBeFalsy();
+		expect(container.querySelector('.vol-range')).toBeFalsy();
+	});
+
+	it('shows volume section by default', () => {
+		const { container } = render(
+			<WaveformControls
+				isPlaying={false}
+				displayTime={0}
+				duration={10}
+				volume={0.5}
+				onTogglePlay={vi.fn()}
+				onSeek={vi.fn()}
+				onVolumeChange={vi.fn()}
+				seekTo={vi.fn()}
+			/>
+		);
+		expect(container.querySelector('.right')).toBeTruthy();
+	});
+
+	it('renders custom buttons via renderButtons and hides default play button', () => {
+		const { container } = render(
+			<WaveformControls
+				isPlaying={false}
+				displayTime={0}
+				duration={10}
+				volume={0.5}
+				onTogglePlay={vi.fn()}
+				onSeek={vi.fn()}
+				onVolumeChange={vi.fn()}
+				seekTo={vi.fn()}
+				renderButtons={() => <button data-testid="custom-play">My Play</button>}
+			/>
+		);
+		expect(container.querySelector('[data-testid="custom-play"]')).toBeTruthy();
+		expect(container.querySelector('.play')).toBeFalsy();
+	});
+
+	it('passes correct props to renderButtons', () => {
+		let capturedIsPlaying: boolean | undefined;
+		let capturedIsLoading: boolean | undefined;
+
+		render(
+			<WaveformControls
+				isPlaying={true}
+				isLoading={true}
+				displayTime={0}
+				duration={10}
+				volume={0.5}
+				onTogglePlay={vi.fn()}
+				onSeek={vi.fn()}
+				onVolumeChange={vi.fn()}
+				seekTo={vi.fn()}
+				renderButtons={({ isPlaying, isLoading }) => {
+					capturedIsPlaying = isPlaying;
+					capturedIsLoading = isLoading;
+					return <button>Custom</button>;
+				}}
+			/>
+		);
+
+		expect(capturedIsPlaying).toBe(true);
+		expect(capturedIsLoading).toBe(true);
 	});
 });

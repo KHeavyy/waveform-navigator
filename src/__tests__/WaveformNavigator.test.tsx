@@ -45,6 +45,102 @@ describe('WaveformNavigator', () => {
 		});
 	});
 
+	describe('showTime and showVolume props', () => {
+		it('shows time display by default', () => {
+			const { container } = render(
+				<WaveformNavigator audio="/test.mp3" responsive={false} />
+			);
+			expect(container.querySelector('.time')).toBeTruthy();
+		});
+
+		it('hides time display when showTime is false', () => {
+			const { container } = render(
+				<WaveformNavigator audio="/test.mp3" responsive={false} showTime={false} />
+			);
+			expect(container.querySelector('.time')).toBeFalsy();
+		});
+
+		it('shows volume control by default', () => {
+			const { container } = render(
+				<WaveformNavigator audio="/test.mp3" responsive={false} />
+			);
+			expect(container.querySelector('.right')).toBeTruthy();
+		});
+
+		it('hides volume control when showVolume is false', () => {
+			const { container } = render(
+				<WaveformNavigator
+					audio="/test.mp3"
+					responsive={false}
+					showVolume={false}
+				/>
+			);
+			expect(container.querySelector('.right')).toBeTruthy();
+			expect(container.querySelector('.speaker')).toBeFalsy();
+			expect(container.querySelector('.vol-range')).toBeFalsy();
+		});
+
+		it('can hide both time and volume independently', () => {
+			const { container } = render(
+				<WaveformNavigator
+					audio="/test.mp3"
+					responsive={false}
+					showTime={false}
+					showVolume={false}
+				/>
+			);
+			expect(container.querySelector('.time')).toBeFalsy();
+			expect(container.querySelector('.right')).toBeTruthy();
+			expect(container.querySelector('.speaker')).toBeFalsy();
+			// Controls bar itself is still present
+			expect(container.querySelector('.controls')).toBeTruthy();
+		});
+	});
+
+	describe('renderButtons prop', () => {
+		it('renders custom buttons in place of default controls', () => {
+			const { container } = render(
+				<WaveformNavigator
+					audio="/test.mp3"
+					responsive={false}
+					renderButtons={() => <button data-testid="custom-btn">Custom</button>}
+				/>
+			);
+			expect(container.querySelector('[data-testid="custom-btn"]')).toBeTruthy();
+			// Default play button should not be present
+			expect(container.querySelector('.play')).toBeFalsy();
+		});
+
+		it('passes isPlaying and handlers to renderButtons', () => {
+			let capturedProps: { isPlaying: boolean; onTogglePlay: () => void } | null =
+				null;
+			render(
+				<WaveformNavigator
+					audio="/test.mp3"
+					responsive={false}
+					renderButtons={(props) => {
+						capturedProps = props;
+						return <button>Custom</button>;
+					}}
+				/>
+			);
+			expect(capturedProps).not.toBeNull();
+			expect(typeof capturedProps!.onTogglePlay).toBe('function');
+		});
+
+		it('renderButtons has no effect when showControls is false', () => {
+			const { container } = render(
+				<WaveformNavigator
+					audio="/test.mp3"
+					responsive={false}
+					showControls={false}
+					renderButtons={() => <button data-testid="custom-btn">Custom</button>}
+				/>
+			);
+			expect(container.querySelector('[data-testid="custom-btn"]')).toBeFalsy();
+		});
+	});
+
 	describe('ref forwarding', () => {
 		it('exposes play, pause, seek, and resumeAudioContext methods', () => {
 			let refHandle: WaveformNavigatorHandle | null = null;

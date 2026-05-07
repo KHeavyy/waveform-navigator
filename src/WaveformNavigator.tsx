@@ -18,6 +18,24 @@ export interface WaveformNavigatorHandle {
 }
 
 /**
+ * Props passed to the `renderButtons` render function.
+ * Provides playback state and control handlers so custom button implementations
+ * can fully integrate with the player without additional wiring.
+ */
+export interface RenderButtonsProps {
+	/** Whether audio is currently playing */
+	isPlaying: boolean;
+	/** Whether audio is buffering/loading (mirrors the spinner on the built-in play button) */
+	isLoading: boolean;
+	/** Toggle play/pause */
+	onTogglePlay: () => void;
+	/** Seek by a relative delta in seconds (negative = rewind) */
+	seek: (delta: number) => void;
+	/** Seek to an absolute time in seconds */
+	seekTo: (time: number) => void;
+}
+
+/**
  * Props for custom marker rendering.
  */
 export interface MarkerRenderProps {
@@ -153,6 +171,38 @@ export interface WaveformNavigatorProps {
 	// UI control props
 	showControls?: boolean;
 	/**
+	 * Whether to show the playback time display inside the controls bar.
+	 * Has no effect when `showControls` is `false`.
+	 * @default true
+	 */
+	showTime?: boolean;
+	/**
+	 * Whether to show the volume control inside the controls bar.
+	 * Has no effect when `showControls` is `false`.
+	 * @default true
+	 */
+	showVolume?: boolean;
+	/**
+	 * Render function that replaces the built-in rewind/play/forward button group.
+	 * Receives playback state and control handlers so you can render any combination
+	 * of custom buttons — including extra actions like "next track" — without losing
+	 * the built-in time display and volume slider.
+	 * Has no effect when `showControls` is `false`.
+	 *
+	 * Example:
+	 * ```tsx
+	 * renderButtons={({ isPlaying, onTogglePlay, seek }) => (
+	 *   <>
+	 *     <button onClick={() => seek(-10)}>⏮</button>
+	 *     <button onClick={onTogglePlay}>{isPlaying ? '⏸' : '▶'}</button>
+	 *     <button onClick={() => seek(10)}>⏭</button>
+	 *     <button onClick={handleNextTrack}>Next ›</button>
+	 *   </>
+	 * )}
+	 * ```
+	 */
+	renderButtons?: (props: RenderButtonsProps) => React.ReactNode;
+	/**
 	 * Controls the initial `preload` attribute of the underlying `<audio>` element.
 	 * Defaults to `'none'` — no bytes are downloaded until the user presses play.
 	 * Set to `'metadata'` to download just file headers (enabling duration display
@@ -205,6 +255,9 @@ const WaveformNavigator = React.forwardRef<
 		disableKeyboardControls = false,
 		ariaLabel = 'Audio waveform seek bar',
 		showControls = true,
+		showTime = true,
+		showVolume = true,
+		renderButtons,
 		preload = 'none',
 		initialDuration,
 	} = props;
@@ -566,6 +619,10 @@ const WaveformNavigator = React.forwardRef<
 					onTogglePlay={togglePlay}
 					onSeek={seek}
 					onVolumeChange={setVolume}
+					seekTo={seekTo}
+					showTime={showTime}
+					showVolume={showVolume}
+					renderButtons={renderButtons}
 					styles={{
 						playButtonColor,
 						playIconColor,
