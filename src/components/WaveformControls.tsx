@@ -109,6 +109,12 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 		}
 	}, [volume]);
 
+	useEffect(() => {
+		if (!showVolume) {
+			setVolumeOpen(false);
+		}
+	}, [showVolume]);
+
 	// Determine volume icon based on current volume
 	const getVolumeIcon = () => {
 		if (volume === 0) {
@@ -201,13 +207,13 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 	};
 	return (
 		<div ref={controlsRef} className="controls">
-			{showTime && (
-				<div className="left">
+			<div className="left">
+				{showTime && (
 					<div className="time" style={{ color: timeColor }}>
 						{formatTime(displayTime)} / {formatTime(duration)}
 					</div>
-				</div>
-			)}
+				)}
+			</div>
 
 			<div className="center">
 				{renderButtons ? (
@@ -294,53 +300,55 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 				)}
 			</div>
 
-			{showVolume && (
-				<div className="right">
-					<button
-						className="speaker"
-						onClick={handleVolumeIconClick}
-						aria-label={volume === 0 ? 'unmute' : 'mute'}
-					>
-						{getVolumeIcon()}
-					</button>
-					<input
-						className="vol-range"
-						type="range"
-						min="0"
-						max="1"
-						step="0.01"
-						value={volume}
-						onChange={(e) => onVolumeChange(Number(e.target.value))}
-						aria-label="volume"
-						style={
-							{
-								'--volume-fill-color': volumeSliderFillColor,
-								'--volume-percent': `${volume * 100}%`,
-							} as React.CSSProperties
-						}
-					/>
-					{volumeOpen && (
-						<div className="vol-popup">
-							<input
-								className="vol-range-vertical"
-								type="range"
-								min="0"
-								max="1"
-								step="0.01"
-								value={volume}
-								onChange={(e) => onVolumeChange(Number(e.target.value))}
-								aria-label="volume"
-								style={
-									{
-										'--volume-fill-color': volumeSliderFillColor,
-										'--volume-percent': `${volume * 100}%`,
-									} as React.CSSProperties
-								}
-							/>
-						</div>
-					)}
-				</div>
-			)}
+			<div className="right">
+				{showVolume && (
+					<>
+						<button
+							className="speaker"
+							onClick={handleVolumeIconClick}
+							aria-label={volume === 0 ? 'unmute' : 'mute'}
+						>
+							{getVolumeIcon()}
+						</button>
+						<input
+							className="vol-range"
+							type="range"
+							min="0"
+							max="1"
+							step="0.01"
+							value={volume}
+							onChange={(e) => onVolumeChange(Number(e.target.value))}
+							aria-label="volume"
+							style={
+								{
+									'--volume-fill-color': volumeSliderFillColor,
+									'--volume-percent': `${volume * 100}%`,
+								} as React.CSSProperties
+							}
+						/>
+						{volumeOpen && (
+							<div className="vol-popup">
+								<input
+									className="vol-range-vertical"
+									type="range"
+									min="0"
+									max="1"
+									step="0.01"
+									value={volume}
+									onChange={(e) => onVolumeChange(Number(e.target.value))}
+									aria-label="volume"
+									style={
+										{
+											'--volume-fill-color': volumeSliderFillColor,
+											'--volume-percent': `${volume * 100}%`,
+										} as React.CSSProperties
+									}
+								/>
+							</div>
+						)}
+					</>
+				)}
+			</div>
 		</div>
 	);
 };

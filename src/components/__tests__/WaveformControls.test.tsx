@@ -160,7 +160,9 @@ describe('WaveformControls', () => {
 				showVolume={false}
 			/>
 		);
-		expect(container.querySelector('.right')).toBeFalsy();
+		expect(container.querySelector('.right')).toBeTruthy();
+		expect(container.querySelector('.speaker')).toBeFalsy();
+		expect(container.querySelector('.vol-range')).toBeFalsy();
 	});
 
 	it('shows volume section by default', () => {

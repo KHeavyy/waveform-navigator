@@ -75,7 +75,9 @@ describe('WaveformNavigator', () => {
 					showVolume={false}
 				/>
 			);
-			expect(container.querySelector('.right')).toBeFalsy();
+			expect(container.querySelector('.right')).toBeTruthy();
+			expect(container.querySelector('.speaker')).toBeFalsy();
+			expect(container.querySelector('.vol-range')).toBeFalsy();
 		});
 
 		it('can hide both time and volume independently', () => {
@@ -88,7 +90,8 @@ describe('WaveformNavigator', () => {
 				/>
 			);
 			expect(container.querySelector('.time')).toBeFalsy();
-			expect(container.querySelector('.right')).toBeFalsy();
+			expect(container.querySelector('.right')).toBeTruthy();
+			expect(container.querySelector('.speaker')).toBeFalsy();
 			// Controls bar itself is still present
 			expect(container.querySelector('.controls')).toBeTruthy();
 		});

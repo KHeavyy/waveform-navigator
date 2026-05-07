@@ -91,7 +91,10 @@ test.describe('Custom Buttons tab', () => {
 		const toggle = page.locator('[data-testid="toggle-show-volume"]');
 		await toggle.uncheck();
 		const volumeSection = page.locator('.right');
-		await expect(volumeSection).toHaveCount(0);
+		await expect(volumeSection).toHaveCount(1);
+		await expect(volumeSection).toBeHidden();
+		await expect(page.locator('.speaker')).toHaveCount(0);
+		await expect(page.locator('.vol-range')).toHaveCount(0);
 	});
 
 	test('re-checking showVolume restores the volume section', async ({
@@ -99,8 +102,49 @@ test.describe('Custom Buttons tab', () => {
 	}) => {
 		const toggle = page.locator('[data-testid="toggle-show-volume"]');
 		await toggle.uncheck();
-		await expect(page.locator('.right')).toHaveCount(0);
+		await expect(page.locator('.speaker')).toHaveCount(0);
 		await toggle.check();
 		await expect(page.locator('.right')).toBeVisible();
+		await expect(page.locator('.speaker')).toBeVisible();
+	});
+
+	test('custom center controls stay centered when showTime is toggled', async ({
+		page,
+	}) => {
+		const center = page.locator('.controls .center');
+		const right = page.locator('.controls .right');
+
+		const centerBefore = await center.boundingBox();
+		const rightBefore = await right.boundingBox();
+		expect(centerBefore).toBeTruthy();
+		expect(rightBefore).toBeTruthy();
+
+		const showTimeToggle = page.locator('[data-testid="toggle-show-time"]');
+		await showTimeToggle.uncheck();
+
+		const centerAfter = await center.boundingBox();
+		const rightAfter = await right.boundingBox();
+		expect(centerAfter).toBeTruthy();
+		expect(rightAfter).toBeTruthy();
+
+		expect(Math.abs(centerAfter!.x - centerBefore!.x)).toBeLessThan(2);
+		expect(Math.abs(rightAfter!.x - rightBefore!.x)).toBeLessThan(2);
+	});
+
+	test('custom center controls stay centered when showVolume is toggled', async ({
+		page,
+	}) => {
+		const center = page.locator('.controls .center');
+
+		const centerBefore = await center.boundingBox();
+		expect(centerBefore).toBeTruthy();
+
+		const showVolumeToggle = page.locator('[data-testid="toggle-show-volume"]');
+		await showVolumeToggle.uncheck();
+
+		const centerAfter = await center.boundingBox();
+		expect(centerAfter).toBeTruthy();
+
+		expect(Math.abs(centerAfter!.x - centerBefore!.x)).toBeLessThan(2);
 	});
 });
