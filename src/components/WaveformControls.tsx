@@ -31,8 +31,7 @@ export interface WaveformControlsProps {
 	onSeek: (delta: number) => void;
 	onVolumeChange: (volume: number) => void;
 	/**
-	 * Absolute seek handler forwarded from the player hook, required when
-	 * a `renderButtons` function uses `seekTo`.
+	 * Absolute seek handler forwarded from the player hook.
 	 */
 	seekTo: (time: number) => void;
 	/**

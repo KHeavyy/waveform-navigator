@@ -214,6 +214,8 @@ export function useAudioPlayer({
 			setIsPlaying(false);
 			setIsLoading(false);
 			onLoadingChangeRef.current?.(false);
+			// Track ended as a terminal state regardless of visibility so
+			// background recovery does not restart playback after completion.
 			wasPlayingBeforeHiddenRef.current = false;
 			recoveryAttemptsRef.current = 0;
 			if (recoveryTimerRef.current) {
