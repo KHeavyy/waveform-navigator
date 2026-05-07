@@ -34,7 +34,7 @@ export interface WaveformControlsProps {
 	 * Absolute seek handler forwarded from the player hook, required when
 	 * a `renderButtons` function uses `seekTo`.
 	 */
-	seekTo?: (time: number) => void;
+	seekTo: (time: number) => void;
 	/**
 	 * Show the playback time display. Defaults to true.
 	 */
@@ -222,7 +222,7 @@ export const WaveformControls: React.FC<WaveformControlsProps> = ({
 						isLoading,
 						onTogglePlay,
 						seek: onSeek,
-						seekTo: seekTo ?? (() => {}),
+						seekTo,
 					})
 				) : (
 					<>

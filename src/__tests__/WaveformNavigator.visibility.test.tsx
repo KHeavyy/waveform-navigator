@@ -152,6 +152,57 @@ describe('WaveformNavigator – visibility / bfcache resume', () => {
 		expect(playSpy).not.toHaveBeenCalled();
 	});
 
+	it('does not force recovery when currentTime advanced while hidden without timeupdate events', async () => {
+		vi.useFakeTimers();
+		mockAudio();
+
+		render(<WaveformNavigator audio="/test.mp3" responsive={false} />);
+
+		vi.useRealTimers();
+		const audioEl = await waitForAudio();
+		vi.useFakeTimers();
+		const playSpy = spyOnPlay(audioEl);
+
+		Object.defineProperty(audioEl, 'currentTime', {
+			value: 10,
+			writable: true,
+			configurable: true,
+		});
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+			audioEl.dispatchEvent(new Event('timeupdate'));
+		});
+
+		await act(async () => {
+			setHidden(true);
+		});
+
+		Object.defineProperty(audioEl, 'paused', {
+			get: () => false,
+			configurable: true,
+		});
+		Object.defineProperty(audioEl, 'readyState', {
+			get: () => HTMLMediaElement.HAVE_ENOUGH_DATA,
+			configurable: true,
+		});
+		Object.defineProperty(audioEl, 'currentTime', {
+			value: 14,
+			writable: true,
+			configurable: true,
+		});
+
+		await act(async () => {
+			vi.advanceTimersByTime(5000);
+		});
+
+		await act(async () => {
+			setHidden(false);
+		});
+
+		expect(playSpy).not.toHaveBeenCalled();
+		vi.useRealTimers();
+	});
+
 	it('restores currentTime when browser resets it to 0 on visibility return', async () => {
 		mockAudio();
 
@@ -341,6 +392,43 @@ describe('WaveformNavigator – visibility / bfcache resume', () => {
 		// At most MAX_RECOVERY_ATTEMPTS (3) play() calls; never more
 		expect(playSpy.mock.calls.length).toBeLessThanOrEqual(3);
 
+		vi.useRealTimers();
+	});
+
+	it('stops scheduled recovery retries when user pauses during recovery', async () => {
+		vi.useFakeTimers();
+		mockAudio();
+
+		render(<WaveformNavigator audio="/test.mp3" responsive={false} />);
+
+		vi.useRealTimers();
+		const audioEl = await waitForAudio();
+		vi.useFakeTimers();
+		const playSpy = spyOnPlay(audioEl);
+
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+		});
+
+		await act(async () => {
+			setHidden(true);
+		});
+
+		await act(async () => {
+			setHidden(false);
+		});
+
+		expect(playSpy).toHaveBeenCalledTimes(1);
+
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('pause'));
+		});
+
+		await act(async () => {
+			vi.advanceTimersByTime(5000);
+		});
+
+		expect(playSpy).toHaveBeenCalledTimes(1);
 		vi.useRealTimers();
 	});
 

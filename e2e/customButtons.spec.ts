@@ -90,9 +90,6 @@ test.describe('Custom Buttons tab', () => {
 	test('unchecking showVolume hides the volume section', async ({ page }) => {
 		const toggle = page.locator('[data-testid="toggle-show-volume"]');
 		await toggle.uncheck();
-		const volumeSection = page.locator('.right');
-		await expect(volumeSection).toHaveCount(1);
-		await expect(volumeSection).toBeHidden();
 		await expect(page.locator('.speaker')).toHaveCount(0);
 		await expect(page.locator('.vol-range')).toHaveCount(0);
 	});

@@ -17,6 +17,7 @@ describe('WaveformControls', () => {
 				onTogglePlay={onTogglePlay}
 				onSeek={onSeek}
 				onVolumeChange={onVolumeChange}
+				seekTo={vi.fn()}
 			/>
 		);
 
@@ -42,6 +43,7 @@ describe('WaveformControls', () => {
 				onTogglePlay={onTogglePlay}
 				onSeek={onSeek}
 				onVolumeChange={onVolumeChange}
+				seekTo={vi.fn()}
 			/>
 		);
 
@@ -63,6 +65,7 @@ describe('WaveformControls', () => {
 				onTogglePlay={onTogglePlay}
 				onSeek={onSeek}
 				onVolumeChange={onVolumeChange}
+				seekTo={vi.fn()}
 			/>
 		);
 
@@ -93,6 +96,7 @@ describe('WaveformControls', () => {
 				onTogglePlay={vi.fn()}
 				onSeek={vi.fn()}
 				onVolumeChange={vi.fn()}
+				seekTo={vi.fn()}
 			/>
 		);
 
@@ -110,6 +114,7 @@ describe('WaveformControls', () => {
 				onTogglePlay={vi.fn()}
 				onSeek={vi.fn()}
 				onVolumeChange={vi.fn()}
+				seekTo={vi.fn()}
 			/>
 		);
 
@@ -126,6 +131,7 @@ describe('WaveformControls', () => {
 				onTogglePlay={vi.fn()}
 				onSeek={vi.fn()}
 				onVolumeChange={vi.fn()}
+				seekTo={vi.fn()}
 				showTime={false}
 			/>
 		);
@@ -142,6 +148,7 @@ describe('WaveformControls', () => {
 				onTogglePlay={vi.fn()}
 				onSeek={vi.fn()}
 				onVolumeChange={vi.fn()}
+				seekTo={vi.fn()}
 			/>
 		);
 		expect(container.querySelector('.time')).toBeTruthy();
@@ -157,6 +164,7 @@ describe('WaveformControls', () => {
 				onTogglePlay={vi.fn()}
 				onSeek={vi.fn()}
 				onVolumeChange={vi.fn()}
+				seekTo={vi.fn()}
 				showVolume={false}
 			/>
 		);
@@ -175,6 +183,7 @@ describe('WaveformControls', () => {
 				onTogglePlay={vi.fn()}
 				onSeek={vi.fn()}
 				onVolumeChange={vi.fn()}
+				seekTo={vi.fn()}
 			/>
 		);
 		expect(container.querySelector('.right')).toBeTruthy();
@@ -190,6 +199,7 @@ describe('WaveformControls', () => {
 				onTogglePlay={vi.fn()}
 				onSeek={vi.fn()}
 				onVolumeChange={vi.fn()}
+				seekTo={vi.fn()}
 				renderButtons={() => <button data-testid="custom-play">My Play</button>}
 			/>
 		);
@@ -211,6 +221,7 @@ describe('WaveformControls', () => {
 				onTogglePlay={vi.fn()}
 				onSeek={vi.fn()}
 				onVolumeChange={vi.fn()}
+				seekTo={vi.fn()}
 				renderButtons={({ isPlaying, isLoading }) => {
 					capturedIsPlaying = isPlaying;
 					capturedIsLoading = isLoading;

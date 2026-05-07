@@ -181,6 +181,17 @@ export function useAudioPlayer({
 			setIsPlaying(false);
 			setIsLoading(false);
 			onLoadingChangeRef.current?.(false);
+			// User paused playback while visible — abort any in-flight recovery.
+			// If hidden, this pause may come from browser background policy and
+			// should not clear the saved pre-hide playing state.
+			if (!document.hidden) {
+				wasPlayingBeforeHiddenRef.current = false;
+				recoveryAttemptsRef.current = 0;
+				if (recoveryTimerRef.current) {
+					clearTimeout(recoveryTimerRef.current);
+					recoveryTimerRef.current = null;
+				}
+			}
 			onPauseRef.current?.();
 		};
 		const onTimeEvent = () => {
@@ -203,6 +214,12 @@ export function useAudioPlayer({
 			setIsPlaying(false);
 			setIsLoading(false);
 			onLoadingChangeRef.current?.(false);
+			wasPlayingBeforeHiddenRef.current = false;
+			recoveryAttemptsRef.current = 0;
+			if (recoveryTimerRef.current) {
+				clearTimeout(recoveryTimerRef.current);
+				recoveryTimerRef.current = null;
+			}
 			onEndedRef.current?.();
 		};
 		const onErrorEvent = () => {
@@ -364,13 +381,26 @@ export function useAudioPlayer({
 				// Save state before hide; clear any in-progress recovery
 				wasPlayingBeforeHiddenRef.current = isPlayingRef.current;
 				savedTimeBeforeHiddenRef.current = el.currentTime;
+				// Browsers may throttle/suppress `timeupdate` while hidden.
+				// Reset the wall clock baseline so hidden time isn't treated as a stall.
+				lastTimeupdateWallClockRef.current = Date.now();
 				if (recoveryTimerRef.current) {
 					clearTimeout(recoveryTimerRef.current);
 					recoveryTimerRef.current = null;
 				}
 				recoveryAttemptsRef.current = 0;
-			} else if (wasPlayingBeforeHiddenRef.current && isStalled(el)) {
-				recoverPlayback(el, savedTimeBeforeHiddenRef.current);
+			} else if (wasPlayingBeforeHiddenRef.current) {
+				const progressedWhileHidden =
+					el.currentTime >
+					savedTimeBeforeHiddenRef.current + CONTROLLED_TIME_THRESHOLD;
+				if (progressedWhileHidden) {
+					lastTimeupdateWallClockRef.current = Date.now();
+					recoveryAttemptsRef.current = 0;
+					return;
+				}
+				if (isStalled(el)) {
+					recoverPlayback(el, savedTimeBeforeHiddenRef.current);
+				}
 			}
 		};
 
