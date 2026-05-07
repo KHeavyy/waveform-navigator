@@ -5,6 +5,7 @@ import MarkersTab from './tabs/MarkersTab';
 import ControlledTab from './tabs/ControlledTab';
 import ResponsiveTab from './tabs/ResponsiveTab';
 import AdvancedTab from './tabs/AdvancedTab';
+import CustomButtonsTab from './tabs/CustomButtonsTab';
 
 type TabId =
 	| 'basic'
@@ -12,7 +13,8 @@ type TabId =
 	| 'markers'
 	| 'controlled'
 	| 'responsive'
-	| 'advanced';
+	| 'advanced'
+	| 'custombuttons';
 
 const TABS: { id: TabId; label: string }[] = [
 	{ id: 'basic', label: 'Basic' },
@@ -21,6 +23,7 @@ const TABS: { id: TabId; label: string }[] = [
 	{ id: 'controlled', label: 'Controlled' },
 	{ id: 'responsive', label: 'Responsive' },
 	{ id: 'advanced', label: 'Advanced' },
+	{ id: 'custombuttons', label: 'Custom Buttons' },
 ];
 
 function getInitialTab(): TabId {
@@ -86,6 +89,7 @@ export default function App() {
 				{activeTab === 'controlled' && <ControlledTab />}
 				{activeTab === 'responsive' && <ResponsiveTab />}
 				{activeTab === 'advanced' && <AdvancedTab />}
+				{activeTab === 'custombuttons' && <CustomButtonsTab />}
 			</main>
 		</div>
 	);

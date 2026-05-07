@@ -10,7 +10,8 @@ export type DemoTab =
 	| 'markers'
 	| 'controlled'
 	| 'responsive'
-	| 'advanced';
+	| 'advanced'
+	| 'custombuttons';
 
 export class WaveformPage {
 	constructor(private page: Page) {}

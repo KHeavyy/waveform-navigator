@@ -2,6 +2,8 @@
 
 A small React component to render an audio waveform and provide navigation + playback controls.
 
+**[Live Demo →](https://kheavyy.github.io/waveform-navigator/)**
+
 ## Installation
 
 ```
@@ -304,6 +306,9 @@ The component supports both controlled and uncontrolled modes for playback posit
 #### UI Control Props
 
 - **`showControls`** (boolean, default: true): Show or hide the built-in playback controls. Set to `false` to display only the waveform, useful when implementing custom controls or minimal UI. When hidden, you can control playback programmatically using the component ref.
+- **`showTime`** (boolean, default: true): Show or hide the playback time display inside the controls bar. Has no effect when `showControls` is `false`.
+- **`showVolume`** (boolean, default: true): Show or hide the volume control inside the controls bar. Has no effect when `showControls` is `false`.
+- **`renderButtons`** ((props: `RenderButtonsProps`) => ReactNode | undefined): Render function that replaces the built-in rewind/play/forward button group with custom content. The function receives current playback state and control handlers (see `RenderButtonsProps` below). `showTime` and `showVolume` still apply, so you can keep the built-in time display and volume slider while supplying entirely custom buttons. Has no effect when `showControls` is `false`.
 - **`preload`** (`'none'` | `'metadata'` | `'auto'`, default: `'none'`): Controls the initial [`preload`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/audio#preload) attribute of the underlying `<audio>` element.
   - `'none'` (default) — no bytes are downloaded until the user presses play. Combine with `precomputedPeaks` for a fully deferred-load experience.
   - `'metadata'` — only file headers are fetched on mount, enabling accurate duration display before the user interacts.
@@ -334,7 +339,66 @@ interface WaveformNavigatorHandle {
 - **`seek(time)`**: Seek to a specific time in seconds.
 - **`resumeAudioContext()`**: Resume any suspended AudioContext (required for Safari/iOS before playing audio). Returns a Promise that resolves when the context is resumed.
 
+### RenderButtonsProps Type
+
+Props passed to the `renderButtons` render function. Import this type when building custom button components.
+
+```tsx
+import type { RenderButtonsProps } from 'waveform-navigator';
+
+interface RenderButtonsProps {
+  /** Whether audio is currently playing */
+  isPlaying: boolean;
+  /** Whether audio is buffering/loading */
+  isLoading: boolean;
+  /** Toggle play/pause */
+  onTogglePlay: () => void;
+  /** Seek by a relative delta in seconds (negative = rewind) */
+  seek: (delta: number) => void;
+  /** Seek to an absolute time in seconds */
+  seekTo: (time: number) => void;
+}
+```
+
 ## Usage Examples
+
+### Custom Buttons with Built-in Time and Volume
+
+Replace only the button group while keeping the time display and volume slider:
+
+```tsx
+import WaveformNavigator from 'waveform-navigator';
+import type { RenderButtonsProps } from 'waveform-navigator';
+import 'waveform-navigator/styles.css';
+
+function App() {
+  const renderButtons = ({
+    isPlaying,
+    isLoading,
+    onTogglePlay,
+    seek,
+  }: RenderButtonsProps) => (
+    <>
+      <button onClick={() => seek(-10)}>⏮ −10s</button>
+      <button onClick={onTogglePlay} disabled={isLoading}>
+        {isPlaying ? '⏸ Pause' : '▶ Play'}
+      </button>
+      <button onClick={() => seek(10)}>+10s ⏭</button>
+      {/* Add extra actions e.g. next track */}
+      <button onClick={handleNextTrack}>Next ›</button>
+    </>
+  );
+
+  return (
+    <WaveformNavigator
+      audio="/path/to/audio.mp3"
+      renderButtons={renderButtons}
+      showTime={true}   // keep built-in time display (default)
+      showVolume={true} // keep built-in volume slider (default)
+    />
+  );
+}
+```
 
 ### Programmatic Control with Custom UI
 

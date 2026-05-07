@@ -6,6 +6,7 @@ export type {
 	WaveformNavigatorStyles,
 	Marker,
 	MarkerRenderProps,
+	RenderButtonsProps,
 } from './WaveformNavigator';
 export type {
 	WaveformControlsProps,
