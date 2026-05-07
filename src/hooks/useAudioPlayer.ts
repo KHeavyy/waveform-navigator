@@ -3,6 +3,14 @@ import { useEffect, useRef, useState } from 'react';
 // Threshold for controlled time sync to avoid feedback loops (in seconds)
 const CONTROLLED_TIME_THRESHOLD = 0.01;
 
+// Background-tab stall recovery constants
+/** Wall-clock ms without a timeupdate event before we consider playback stalled */
+const STALL_THRESHOLD_MS = 3000;
+/** Maximum number of escalating recovery attempts per visibility-return cycle */
+const MAX_RECOVERY_ATTEMPTS = 3;
+/** Delay between escalated recovery attempts (ms) */
+const RECOVERY_ESCALATION_MS = 1500;
+
 interface UseAudioPlayerProps {
 	audio: string | File | null | undefined;
 	/**
@@ -128,6 +136,12 @@ export function useAudioPlayer({
 	const isPlayingRef = useRef(false);
 	const wasPlayingBeforeHiddenRef = useRef(false);
 	const savedTimeBeforeHiddenRef = useRef(0);
+	// Wall-clock timestamp of the last timeupdate event — used to detect stalls
+	const lastTimeupdateWallClockRef = useRef<number>(0);
+	// Number of recovery attempts in the current visibility-return cycle
+	const recoveryAttemptsRef = useRef<number>(0);
+	// Pending escalation timeout handle
+	const recoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	// Determine if component is in controlled mode
 	const isControlled = controlledCurrentTime !== undefined;
@@ -156,6 +170,8 @@ export function useAudioPlayer({
 		const onPlayingEvent = () => {
 			setIsLoading(false);
 			onLoadingChangeRef.current?.(false);
+			// Successful playback resume — reset recovery state
+			recoveryAttemptsRef.current = 0;
 		};
 		const onWaitingEvent = () => {
 			setIsLoading(true);
@@ -169,6 +185,7 @@ export function useAudioPlayer({
 		};
 		const onTimeEvent = () => {
 			const time = el.currentTime;
+			lastTimeupdateWallClockRef.current = Date.now();
 			setCurrentTime(time);
 			onTimeUpdateRef.current?.(time);
 
@@ -249,26 +266,111 @@ export function useAudioPlayer({
 	// Resume audio after the browser interrupts it (Safari background-tab pause,
 	// mobile screen lock, bfcache restore). Saves playing state on hide and
 	// re-calls play() when the page/tab becomes visible again.
+	// Extends to stalled-not-paused recovery with bounded escalating retries.
 	useEffect(() => {
+		/**
+		 * Returns true if the audio element appears stalled or paused and needs
+		 * recovery. Three signals are checked:
+		 *   1. el.paused — browser explicitly paused (e.g. Safari background policy)
+		 *   2. readyState < HAVE_FUTURE_DATA — not enough buffered data to play
+		 *   3. No timeupdate event in the last STALL_THRESHOLD_MS while not ended
+		 *      — covers silent network stalls that don't fire an error or pause event
+		 */
+		const isStalled = (el: HTMLAudioElement): boolean => {
+			if (el.paused) return true;
+			if (el.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) return true;
+			if (
+				lastTimeupdateWallClockRef.current > 0 &&
+				!el.ended &&
+				Date.now() - lastTimeupdateWallClockRef.current > STALL_THRESHOLD_MS
+			) {
+				return true;
+			}
+			return false;
+		};
+
+		/**
+		 * Attempts to recover stalled playback with up to MAX_RECOVERY_ATTEMPTS
+		 * escalating steps:
+		 *   1. Restore time (if reset) → play()
+		 *   2. pause() → seek back ε → play()  (unstick demuxer)
+		 *   3. Reload src → wait for canplay → restore time → play()
+		 *
+		 * Each step schedules the next via setTimeout so we give the browser a
+		 * chance to recover on its own. Recovery is aborted if:
+		 *   - isPlayingRef goes true (recovery worked)
+		 *   - wasPlayingBeforeHiddenRef is cleared (user paused or new tab-hide)
+		 *   - MAX_RECOVERY_ATTEMPTS is reached
+		 */
+		const recoverPlayback = (el: HTMLAudioElement, savedTime: number) => {
+			if (recoveryAttemptsRef.current >= MAX_RECOVERY_ATTEMPTS) return;
+
+			recoveryAttemptsRef.current += 1;
+			const attempt = recoveryAttemptsRef.current;
+
+			const scheduleNext = () => {
+				recoveryTimerRef.current = setTimeout(() => {
+					recoveryTimerRef.current = null;
+					// Abort if playback resumed naturally or user hid the tab again
+					if (isPlayingRef.current || !wasPlayingBeforeHiddenRef.current) return;
+					const currentEl = audioRef.current;
+					if (!currentEl || !isStalled(currentEl)) return;
+					recoverPlayback(currentEl, savedTime);
+				}, RECOVERY_ESCALATION_MS);
+			};
+
+			if (attempt === 1) {
+				// Step 1: restore time if browser reset it, then try play()
+				if (el.currentTime === 0 && savedTime > 0) {
+					el.currentTime = savedTime;
+					if (!isControlledRef.current) {
+						setCurrentTime(savedTime);
+					}
+				}
+				el.play().catch(() => {});
+				scheduleNext();
+			} else if (attempt === 2) {
+				// Step 2: force a seek to unstick the demuxer, then play()
+				const target = Math.max(0, savedTime - 0.1);
+				el.pause();
+				el.currentTime = target;
+				el.play().catch(() => {});
+				scheduleNext();
+			} else {
+				// Step 3: reload the source, restore position after canplay, then play()
+				const src = el.currentSrc || el.src;
+				if (!src) return;
+
+				const onCanPlay = () => {
+					el.removeEventListener('canplay', onCanPlay);
+					if (!wasPlayingBeforeHiddenRef.current) return;
+					el.currentTime = savedTime;
+					if (!isControlledRef.current) {
+						setCurrentTime(savedTime);
+					}
+					el.play().catch(() => {});
+				};
+				el.addEventListener('canplay', onCanPlay);
+				el.src = src;
+				el.load();
+			}
+		};
+
 		const handleVisibilityChange = () => {
 			const el = audioRef.current;
 			if (!el) return;
 
 			if (document.hidden) {
+				// Save state before hide; clear any in-progress recovery
 				wasPlayingBeforeHiddenRef.current = isPlayingRef.current;
 				savedTimeBeforeHiddenRef.current = el.currentTime;
-			} else if (wasPlayingBeforeHiddenRef.current && el.paused) {
-				// Some browsers (Safari) reset currentTime to 0 after bfcache restore.
-				// Restore position in both uncontrolled and controlled modes — in controlled
-				// mode the parent's controlledCurrentTime is unchanged so the sync effect
-				// won't re-run, leaving the audio element at 0 when play() is called.
-				if (el.currentTime === 0 && savedTimeBeforeHiddenRef.current > 0) {
-					el.currentTime = savedTimeBeforeHiddenRef.current;
-					if (!isControlledRef.current) {
-						setCurrentTime(savedTimeBeforeHiddenRef.current);
-					}
+				if (recoveryTimerRef.current) {
+					clearTimeout(recoveryTimerRef.current);
+					recoveryTimerRef.current = null;
 				}
-				el.play().catch(() => {});
+				recoveryAttemptsRef.current = 0;
+			} else if (wasPlayingBeforeHiddenRef.current && isStalled(el)) {
+				recoverPlayback(el, savedTimeBeforeHiddenRef.current);
 			}
 		};
 
@@ -279,14 +381,8 @@ export function useAudioPlayer({
 			const el = audioRef.current;
 			if (!el) return;
 
-			if (wasPlayingBeforeHiddenRef.current && el.paused) {
-				if (el.currentTime === 0 && savedTimeBeforeHiddenRef.current > 0) {
-					el.currentTime = savedTimeBeforeHiddenRef.current;
-					if (!isControlledRef.current) {
-						setCurrentTime(savedTimeBeforeHiddenRef.current);
-					}
-				}
-				el.play().catch(() => {});
+			if (wasPlayingBeforeHiddenRef.current && isStalled(el)) {
+				recoverPlayback(el, savedTimeBeforeHiddenRef.current);
 			}
 		};
 
@@ -296,6 +392,10 @@ export function useAudioPlayer({
 		return () => {
 			document.removeEventListener('visibilitychange', handleVisibilityChange);
 			window.removeEventListener('pageshow', handlePageShow);
+			if (recoveryTimerRef.current) {
+				clearTimeout(recoveryTimerRef.current);
+				recoveryTimerRef.current = null;
+			}
 		};
 	}, []);
 
@@ -331,6 +431,14 @@ export function useAudioPlayer({
 			return;
 		}
 		const el = audioRef.current;
+
+		// New source — reset recovery state so a fresh recovery cycle can start
+		recoveryAttemptsRef.current = 0;
+		wasPlayingBeforeHiddenRef.current = false;
+		if (recoveryTimerRef.current) {
+			clearTimeout(recoveryTimerRef.current);
+			recoveryTimerRef.current = null;
+		}
 
 		// Cleanup previous
 		if (objectUrlRef.current) {
