@@ -330,8 +330,10 @@ export function useAudioPlayer({
 			const scheduleNext = () => {
 				recoveryTimerRef.current = setTimeout(() => {
 					recoveryTimerRef.current = null;
-					// Abort if playback resumed naturally or user hid the tab again
-					if (isPlayingRef.current || !wasPlayingBeforeHiddenRef.current) return;
+					// Abort if user paused or the tab was hidden again.
+					// Do not gate on React `isPlaying` state — it can be stale after
+					// background interruptions. Instead, rely on the element's real state.
+					if (!wasPlayingBeforeHiddenRef.current) return;
 					const currentEl = audioRef.current;
 					if (!currentEl || !isStalled(currentEl)) return;
 					recoverPlayback(currentEl, savedTime);
@@ -392,15 +394,35 @@ export function useAudioPlayer({
 				}
 				recoveryAttemptsRef.current = 0;
 			} else if (wasPlayingBeforeHiddenRef.current) {
+				// Reconcile UI state with the element on return: browsers can pause or
+				// reset media while hidden without delivering events in a timely order.
+				// This keeps the play/pause button from getting stuck showing "pause"
+				// while the element is actually paused.
+				const shouldBePlaying = !el.paused && !el.ended;
+				if (isPlayingRef.current !== shouldBePlaying) {
+					setIsPlaying(shouldBePlaying);
+				}
+
 				const progressedWhileHidden =
 					el.currentTime >
 					savedTimeBeforeHiddenRef.current + CONTROLLED_TIME_THRESHOLD;
-				if (progressedWhileHidden) {
+				// If the media clearly advanced while hidden and is not stalled on return,
+				// don't force recovery — desktop browsers often suppress timeupdate in
+				// background tabs even though playback is healthy.
+				// Important: check this before applying the wall-clock stall heuristic,
+				// otherwise long hidden intervals can look like a stall even when media
+				// advanced normally.
+				if (
+					progressedWhileHidden &&
+					!el.paused &&
+					el.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA
+				) {
 					lastTimeupdateWallClockRef.current = Date.now();
 					recoveryAttemptsRef.current = 0;
 					return;
 				}
-				if (isStalled(el)) {
+				const stalled = isStalled(el);
+				if (stalled) {
 					recoverPlayback(el, savedTimeBeforeHiddenRef.current);
 				}
 			}
