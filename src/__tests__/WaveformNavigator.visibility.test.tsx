@@ -432,6 +432,71 @@ describe('WaveformNavigator – visibility / bfcache resume', () => {
 		vi.useRealTimers();
 	});
 
+	it('keeps escalating recovery when UI is stuck in playing state but audio is paused on return', async () => {
+		vi.useFakeTimers();
+		mockAudio();
+
+		render(<WaveformNavigator audio="/test.mp3" responsive={false} />);
+
+		// waitForAudio uses waitFor which relies on real timers, so we briefly
+		// restore them for setup, then re-enable fake timers for the assertion.
+		vi.useRealTimers();
+		const audioEl = await waitForAudio();
+		vi.useFakeTimers();
+
+		const playSpy = spyOnPlay(audioEl);
+
+		// Simulate playing and advancing time
+		Object.defineProperty(audioEl, 'currentTime', {
+			value: 12,
+			writable: true,
+			configurable: true,
+		});
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+			audioEl.dispatchEvent(new Event('timeupdate'));
+		});
+
+		// Tab hidden (position saved)
+		await act(async () => {
+			setHidden(true);
+		});
+
+		// On return, simulate a pathological browser state:
+		// - React still thinks we are playing (no pause event delivered yet)
+		// - Element is actually paused and reset to start
+		Object.defineProperty(audioEl, 'paused', {
+			get: () => true,
+			configurable: true,
+		});
+		Object.defineProperty(audioEl, 'readyState', {
+			get: () => HTMLMediaElement.HAVE_CURRENT_DATA, // 2 — stalled
+			configurable: true,
+		});
+		Object.defineProperty(audioEl, 'currentTime', {
+			value: 0,
+			writable: true,
+			configurable: true,
+		});
+
+		// Visible again: should trigger recovery attempt 1 immediately
+		await act(async () => {
+			setHidden(false);
+		});
+
+		// Advance timers to allow escalations (attempts 2 and 3) to run.
+		await act(async () => {
+			vi.advanceTimersByTime(1500);
+		});
+		await act(async () => {
+			vi.advanceTimersByTime(1500);
+		});
+
+		// Should attempt play multiple times despite the stale React "playing" state.
+		expect(playSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+		vi.useRealTimers();
+	});
+
 	it('does not trigger recovery when playback was not active before hidden', async () => {
 		mockAudio();
 
