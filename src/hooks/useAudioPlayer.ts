@@ -394,17 +394,6 @@ export function useAudioPlayer({
 				}
 				recoveryAttemptsRef.current = 0;
 			} else if (wasPlayingBeforeHiddenRef.current) {
-				const progressedWhileHidden =
-					el.currentTime >
-					savedTimeBeforeHiddenRef.current + CONTROLLED_TIME_THRESHOLD;
-				if (progressedWhileHidden) {
-					lastTimeupdateWallClockRef.current = Date.now();
-					recoveryAttemptsRef.current = 0;
-					return;
-				}
-				if (isStalled(el)) {
-					recoverPlayback(el, savedTimeBeforeHiddenRef.current);
-				}
 				// Reconcile UI state with the element on return: browsers can pause or
 				// reset media while hidden without delivering events in a timely order.
 				// This keeps the play/pause button from getting stuck showing "pause"
@@ -412,6 +401,29 @@ export function useAudioPlayer({
 				const shouldBePlaying = !el.paused && !el.ended;
 				if (isPlayingRef.current !== shouldBePlaying) {
 					setIsPlaying(shouldBePlaying);
+				}
+
+				const progressedWhileHidden =
+					el.currentTime >
+					savedTimeBeforeHiddenRef.current + CONTROLLED_TIME_THRESHOLD;
+				// If the media clearly advanced while hidden and is not stalled on return,
+				// don't force recovery — desktop browsers often suppress timeupdate in
+				// background tabs even though playback is healthy.
+				// Important: check this before applying the wall-clock stall heuristic,
+				// otherwise long hidden intervals can look like a stall even when media
+				// advanced normally.
+				if (
+					progressedWhileHidden &&
+					!el.paused &&
+					el.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA
+				) {
+					lastTimeupdateWallClockRef.current = Date.now();
+					recoveryAttemptsRef.current = 0;
+					return;
+				}
+				const stalled = isStalled(el);
+				if (stalled) {
+					recoverPlayback(el, savedTimeBeforeHiddenRef.current);
 				}
 			}
 		};
