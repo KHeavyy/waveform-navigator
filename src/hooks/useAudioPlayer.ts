@@ -143,6 +143,10 @@ export function useAudioPlayer({
 	const savedTimeBeforeHiddenRef = useRef(0);
 	// Prevents overlapping resume attempts from rapid visibility/focus toggles.
 	const resumeInFlightRef = useRef(false);
+	// AbortController for the active resume attempt. Aborted on source change
+	// and on unmount so an in-flight reload can't outlive the component or
+	// stomp a freshly loaded track.
+	const resumeAbortRef = useRef<AbortController | null>(null);
 	// Tracks whether the window is currently blurred. The pause handler uses
 	// this (in addition to document.hidden) to decide whether a pause was
 	// user-initiated or browser-initiated.
@@ -247,11 +251,16 @@ export function useAudioPlayer({
 			}
 		};
 		// Fired when the media resource is reset (browser may evict the
-		// decoded buffer after long background eviction). Sync UI honestly.
+		// decoded buffer after long background eviction). Per spec the playhead
+		// is at 0 once emptied fires, so sync the displayed position too.
 		const onEmptiedEvent = () => {
 			setIsPlaying(false);
 			setIsLoading(false);
 			onLoadingChangeRef.current?.(false);
+			setCurrentTime(0);
+			if (!isControlledRef.current) {
+				onCurrentTimeChangeRef.current?.(0);
+			}
 		};
 
 		el.addEventListener('play', onPlayEvent);
@@ -305,15 +314,25 @@ export function useAudioPlayer({
 				setCurrentTime(el.currentTime);
 			}
 			setIsLoading(false);
+			onLoadingChangeRef.current?.(false);
 		};
 
-		const waitForCanPlay = (el: HTMLAudioElement, src: string) =>
+		const waitForCanPlay = (
+			el: HTMLAudioElement,
+			src: string,
+			signal: AbortSignal
+		) =>
 			new Promise<void>((resolve, reject) => {
+				if (signal.aborted) {
+					reject(new Error('aborted'));
+					return;
+				}
 				let timeoutId: ReturnType<typeof setTimeout> | null = null;
 				const cleanup = () => {
 					if (timeoutId !== null) clearTimeout(timeoutId);
 					el.removeEventListener('canplay', handleCanPlay);
 					el.removeEventListener('error', handleError);
+					signal.removeEventListener('abort', handleAbort);
 				};
 				const handleCanPlay = () => {
 					cleanup();
@@ -323,8 +342,13 @@ export function useAudioPlayer({
 					cleanup();
 					reject(new Error('reload error'));
 				};
+				const handleAbort = () => {
+					cleanup();
+					reject(new Error('aborted'));
+				};
 				el.addEventListener('canplay', handleCanPlay);
 				el.addEventListener('error', handleError);
+				signal.addEventListener('abort', handleAbort);
 				timeoutId = setTimeout(() => {
 					cleanup();
 					reject(new Error('reload timeout'));
@@ -339,6 +363,13 @@ export function useAudioPlayer({
 			if (!wasPlayingBeforeHiddenRef.current) return;
 			if (!el.paused || el.ended) return;
 			if (resumeInFlightRef.current) return;
+
+			// Abort any stale controller (defensive — shouldn't happen with the
+			// resumeInFlightRef guard, but keeps state tidy).
+			resumeAbortRef.current?.abort();
+			const controller = new AbortController();
+			resumeAbortRef.current = controller;
+			const { signal } = controller;
 
 			resumeInFlightRef.current = true;
 			try {
@@ -367,7 +398,9 @@ export function useAudioPlayer({
 					// to a full source reload.
 				}
 
-				// Bail if state changed during the await (user paused, audio swapped).
+				// Bail if state changed during the await (user paused, audio swapped,
+				// component unmounted).
+				if (signal.aborted) return;
 				if (!wasPlayingBeforeHiddenRef.current) return;
 				if (audioRef.current !== el) return;
 
@@ -378,12 +411,13 @@ export function useAudioPlayer({
 				}
 
 				try {
-					await waitForCanPlay(el, src);
+					await waitForCanPlay(el, src, signal);
 				} catch {
-					syncFromElement();
+					if (!signal.aborted) syncFromElement();
 					return;
 				}
 
+				if (signal.aborted) return;
 				if (!wasPlayingBeforeHiddenRef.current) return;
 				if (audioRef.current !== el) return;
 
@@ -402,10 +436,13 @@ export function useAudioPlayer({
 					await el.play();
 				} catch {
 					// Give up — surface honest paused state so the user can click play.
-					syncFromElement();
+					if (!signal.aborted) syncFromElement();
 				}
 			} finally {
 				resumeInFlightRef.current = false;
+				if (resumeAbortRef.current === controller) {
+					resumeAbortRef.current = null;
+				}
 			}
 		};
 
@@ -461,6 +498,10 @@ export function useAudioPlayer({
 			window.removeEventListener('pageshow', handlePageShow);
 			window.removeEventListener('blur', handleBlur);
 			window.removeEventListener('focus', handleFocus);
+			// Cancel any in-flight resume so its async tail can't fire state
+			// setters after unmount.
+			resumeAbortRef.current?.abort();
+			resumeAbortRef.current = null;
 		};
 	}, []);
 
@@ -497,8 +538,12 @@ export function useAudioPlayer({
 		}
 		const el = audioRef.current;
 
-		// New source — drop any pending resume intent so a stale saved position
-		// doesn't get applied to the next track.
+		// New source — abort any in-flight resume from the previous track so it
+		// can't stomp the new src or keep resumeInFlightRef pinned, and drop the
+		// saved resume intent so a stale position doesn't get applied.
+		resumeAbortRef.current?.abort();
+		resumeAbortRef.current = null;
+		resumeInFlightRef.current = false;
 		wasPlayingBeforeHiddenRef.current = false;
 		savedTimeBeforeHiddenRef.current = 0;
 

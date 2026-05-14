@@ -572,6 +572,140 @@ describe('WaveformNavigator – visibility / bfcache resume', () => {
 		).toBe('play');
 	});
 
+	it('cancels in-flight reload when the audio source changes mid-resume', async () => {
+		mockAudio();
+
+		const { rerender } = render(
+			<WaveformNavigator audio="/test.mp3" responsive={false} />
+		);
+
+		const audioEl = await waitForAudio();
+
+		// play() always rejects so the reload path is entered. Reload (load())
+		// is deferred so we can swap the audio source while it's pending.
+		const playSpy = vi.fn().mockRejectedValue(new Error('NotAllowedError'));
+		Object.defineProperty(audioEl, 'play', {
+			value: playSpy,
+			configurable: true,
+		});
+
+		let resolveCanPlay: (() => void) | null = null;
+		const loadSpy = vi.fn(() => {
+			// Delay firing canplay until the source change has aborted the resume;
+			// when we eventually fire it, the resume must be a no-op.
+			resolveCanPlay = () => audioEl.dispatchEvent(new Event('canplay'));
+		});
+		Object.defineProperty(audioEl, 'load', {
+			value: loadSpy,
+			configurable: true,
+		});
+		Object.defineProperty(audioEl, 'currentSrc', {
+			get: () => '/test.mp3',
+			configurable: true,
+		});
+
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+		});
+
+		await act(async () => {
+			setHidden(true);
+		});
+
+		definePaused(audioEl, true);
+
+		await act(async () => {
+			setHidden(false);
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		// First play() rejected, reload started.
+		expect(loadSpy).toHaveBeenCalledTimes(1);
+		expect(playSpy).toHaveBeenCalledTimes(1);
+
+		// Now swap the audio source — this must abort the in-flight resume.
+		await act(async () => {
+			rerender(<WaveformNavigator audio="/other.mp3" responsive={false} />);
+		});
+
+		// Even if canplay fires now, the aborted resume must not call play() again.
+		await act(async () => {
+			resolveCanPlay?.();
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		expect(playSpy).toHaveBeenCalledTimes(1);
+	});
+
+	it('emits onLoadingChange(false) when syncing on visibility return', async () => {
+		mockAudio();
+
+		const onLoadingChange = vi.fn();
+		render(
+			<WaveformNavigator
+				audio="/test.mp3"
+				responsive={false}
+				onLoadingChange={onLoadingChange}
+			/>
+		);
+
+		const audioEl = await waitForAudio();
+		spyOnPlay(audioEl);
+
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+		});
+
+		await act(async () => {
+			setHidden(true);
+		});
+
+		// Element keeps playing while hidden — no resume needed, only a sync.
+		definePaused(audioEl, false);
+		onLoadingChange.mockClear();
+
+		await act(async () => {
+			setHidden(false);
+		});
+
+		expect(onLoadingChange).toHaveBeenCalledWith(false);
+	});
+
+	it('resets currentTime to 0 when the audio element fires emptied', async () => {
+		mockAudio();
+
+		const onTimeUpdate = vi.fn();
+		const { container } = render(
+			<WaveformNavigator
+				audio="/test.mp3"
+				responsive={false}
+				onTimeUpdate={onTimeUpdate}
+			/>
+		);
+
+		const audioEl = await waitForAudio();
+		spyOnPlay(audioEl);
+
+		// Advance to 30s.
+		defineCurrentTime(audioEl, 30);
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+			audioEl.dispatchEvent(new Event('timeupdate'));
+		});
+
+		// Browser evicts the media → emptied fires (currentTime resets to 0).
+		defineCurrentTime(audioEl, 0);
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('emptied'));
+		});
+
+		// Time display must show 0:00 / … — i.e. the React currentTime is 0.
+		const timeText = container.querySelector('.time')?.textContent ?? '';
+		expect(timeText.startsWith('0:00')).toBe(true);
+	});
+
 	it('resumes via window focus when visibilitychange is not fired (window switch)', async () => {
 		mockAudio();
 
