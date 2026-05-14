@@ -43,6 +43,21 @@ function dispatchPageShow(persisted: boolean) {
 	window.dispatchEvent(ev);
 }
 
+function definePaused(audioEl: HTMLAudioElement, paused: boolean) {
+	Object.defineProperty(audioEl, 'paused', {
+		get: () => paused,
+		configurable: true,
+	});
+}
+
+function defineCurrentTime(audioEl: HTMLAudioElement, time: number) {
+	Object.defineProperty(audioEl, 'currentTime', {
+		value: time,
+		writable: true,
+		configurable: true,
+	});
+}
+
 // ─── tests ───────────────────────────────────────────────────────────────────
 
 describe('WaveformNavigator – visibility / bfcache resume', () => {
@@ -72,12 +87,10 @@ describe('WaveformNavigator – visibility / bfcache resume', () => {
 		const audioEl = await waitForAudio();
 		const playSpy = spyOnPlay(audioEl);
 
-		// Simulate audio playing
 		await act(async () => {
 			audioEl.dispatchEvent(new Event('play'));
 		});
 
-		// Tab goes hidden while audio is playing
 		await act(async () => {
 			setHidden(true);
 		});
@@ -87,7 +100,6 @@ describe('WaveformNavigator – visibility / bfcache resume', () => {
 			audioEl.dispatchEvent(new Event('pause'));
 		});
 
-		// Tab becomes visible again
 		await act(async () => {
 			setHidden(false);
 		});
@@ -103,7 +115,6 @@ describe('WaveformNavigator – visibility / bfcache resume', () => {
 		const audioEl = await waitForAudio();
 		const playSpy = spyOnPlay(audioEl);
 
-		// Audio is never played — isPlaying stays false
 		await act(async () => {
 			setHidden(true);
 		});
@@ -123,28 +134,17 @@ describe('WaveformNavigator – visibility / bfcache resume', () => {
 		const audioEl = await waitForAudio();
 		const playSpy = spyOnPlay(audioEl);
 
-		// Simulate playing
 		await act(async () => {
 			audioEl.dispatchEvent(new Event('play'));
 		});
 
-		// Tab goes hidden
 		await act(async () => {
 			setHidden(true);
 		});
 
 		// Audio keeps playing in background (Chrome / Firefox) — no pause event.
-		// Override el.paused and el.readyState to reflect healthy playback.
-		Object.defineProperty(audioEl, 'paused', {
-			get: () => false,
-			configurable: true,
-		});
-		Object.defineProperty(audioEl, 'readyState', {
-			get: () => HTMLMediaElement.HAVE_ENOUGH_DATA, // 4 — fully healthy
-			configurable: true,
-		});
+		definePaused(audioEl, false);
 
-		// Tab becomes visible; el is not stalled, so no resume needed
 		await act(async () => {
 			setHidden(false);
 		});
@@ -153,21 +153,14 @@ describe('WaveformNavigator – visibility / bfcache resume', () => {
 	});
 
 	it('does not force recovery when currentTime advanced while hidden without timeupdate events', async () => {
-		vi.useFakeTimers();
 		mockAudio();
 
 		render(<WaveformNavigator audio="/test.mp3" responsive={false} />);
 
-		vi.useRealTimers();
 		const audioEl = await waitForAudio();
-		vi.useFakeTimers();
 		const playSpy = spyOnPlay(audioEl);
 
-		Object.defineProperty(audioEl, 'currentTime', {
-			value: 10,
-			writable: true,
-			configurable: true,
-		});
+		defineCurrentTime(audioEl, 10);
 		await act(async () => {
 			audioEl.dispatchEvent(new Event('play'));
 			audioEl.dispatchEvent(new Event('timeupdate'));
@@ -177,30 +170,15 @@ describe('WaveformNavigator – visibility / bfcache resume', () => {
 			setHidden(true);
 		});
 
-		Object.defineProperty(audioEl, 'paused', {
-			get: () => false,
-			configurable: true,
-		});
-		Object.defineProperty(audioEl, 'readyState', {
-			get: () => HTMLMediaElement.HAVE_ENOUGH_DATA,
-			configurable: true,
-		});
-		Object.defineProperty(audioEl, 'currentTime', {
-			value: 14,
-			writable: true,
-			configurable: true,
-		});
-
-		await act(async () => {
-			vi.advanceTimersByTime(5000);
-		});
+		// Element kept playing while hidden (desktop browsers don't pause).
+		definePaused(audioEl, false);
+		defineCurrentTime(audioEl, 14);
 
 		await act(async () => {
 			setHidden(false);
 		});
 
 		expect(playSpy).not.toHaveBeenCalled();
-		vi.useRealTimers();
 	});
 
 	it('restores currentTime when browser resets it to 0 on visibility return', async () => {
@@ -211,38 +189,58 @@ describe('WaveformNavigator – visibility / bfcache resume', () => {
 		const audioEl = await waitForAudio();
 		spyOnPlay(audioEl);
 
-		// Simulate playing at 42 s
-		Object.defineProperty(audioEl, 'currentTime', {
-			value: 42,
-			writable: true,
-			configurable: true,
-		});
+		defineCurrentTime(audioEl, 42);
 		await act(async () => {
 			audioEl.dispatchEvent(new Event('play'));
 			audioEl.dispatchEvent(new Event('timeupdate'));
 		});
 
-		// Tab goes hidden (position saved)
 		await act(async () => {
 			setHidden(true);
 		});
 
 		// Browser pauses and resets position (bfcache-style reset)
-		Object.defineProperty(audioEl, 'currentTime', {
-			value: 0,
-			writable: true,
-			configurable: true,
-		});
+		defineCurrentTime(audioEl, 0);
 		await act(async () => {
 			audioEl.dispatchEvent(new Event('pause'));
 		});
 
-		// Tab becomes visible
 		await act(async () => {
 			setHidden(false);
 		});
 
 		expect(audioEl.currentTime).toBe(42);
+	});
+
+	it('also restores currentTime when browser resets it to a tiny non-zero value', async () => {
+		mockAudio();
+
+		render(<WaveformNavigator audio="/test.mp3" responsive={false} />);
+
+		const audioEl = await waitForAudio();
+		spyOnPlay(audioEl);
+
+		defineCurrentTime(audioEl, 30);
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+			audioEl.dispatchEvent(new Event('timeupdate'));
+		});
+
+		await act(async () => {
+			setHidden(true);
+		});
+
+		// Some browsers drop currentTime to a small non-zero value during eviction.
+		defineCurrentTime(audioEl, 0.05);
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('pause'));
+		});
+
+		await act(async () => {
+			setHidden(false);
+		});
+
+		expect(audioEl.currentTime).toBe(30);
 	});
 
 	it('resumes via pageshow with persisted=true (bfcache restore)', async () => {
@@ -253,22 +251,18 @@ describe('WaveformNavigator – visibility / bfcache resume', () => {
 		const audioEl = await waitForAudio();
 		const playSpy = spyOnPlay(audioEl);
 
-		// Simulate playing
 		await act(async () => {
 			audioEl.dispatchEvent(new Event('play'));
 		});
 
-		// Page goes hidden before being frozen into bfcache
 		await act(async () => {
 			setHidden(true);
 		});
 
-		// Browser pauses audio
 		await act(async () => {
 			audioEl.dispatchEvent(new Event('pause'));
 		});
 
-		// Page restored from bfcache
 		await act(async () => {
 			dispatchPageShow(true);
 		});
@@ -296,205 +290,11 @@ describe('WaveformNavigator – visibility / bfcache resume', () => {
 			audioEl.dispatchEvent(new Event('pause'));
 		});
 
-		// Normal (non-bfcache) pageshow
 		await act(async () => {
 			dispatchPageShow(false);
 		});
 
 		expect(playSpy).not.toHaveBeenCalled();
-	});
-
-	it('recovers when stalled but not paused on visibility return', async () => {
-		mockAudio();
-
-		render(<WaveformNavigator audio="/test.mp3" responsive={false} />);
-
-		const audioEl = await waitForAudio();
-		const playSpy = spyOnPlay(audioEl);
-
-		// Simulate audio playing
-		await act(async () => {
-			audioEl.dispatchEvent(new Event('play'));
-		});
-
-		// Tab goes hidden while playing
-		await act(async () => {
-			setHidden(true);
-		});
-
-		// Browser did NOT pause the audio (e.g. Chrome on Android), but it is
-		// stalled — paused=false yet readyState drops below HAVE_FUTURE_DATA (3).
-		Object.defineProperty(audioEl, 'paused', {
-			get: () => false,
-			configurable: true,
-		});
-		Object.defineProperty(audioEl, 'readyState', {
-			get: () => HTMLMediaElement.HAVE_CURRENT_DATA, // 2 — stalled
-			configurable: true,
-		});
-
-		// Tab becomes visible — isStalled() should be true → recovery fires
-		await act(async () => {
-			setHidden(false);
-		});
-
-		expect(playSpy).toHaveBeenCalledTimes(1);
-	});
-
-	it('respects MAX_RECOVERY_ATTEMPTS cap and does not loop indefinitely', async () => {
-		vi.useFakeTimers();
-
-		mockAudio();
-
-		render(<WaveformNavigator audio="/test.mp3" responsive={false} />);
-
-		// waitForAudio uses waitFor which relies on real timers, so we briefly
-		// restore them for setup, then re-enable fake timers for the assertion.
-		vi.useRealTimers();
-		const audioEl = await waitForAudio();
-		vi.useFakeTimers();
-
-		const playSpy = spyOnPlay(audioEl);
-
-		// Simulate playing
-		await act(async () => {
-			audioEl.dispatchEvent(new Event('play'));
-		});
-
-		// Tab hidden
-		await act(async () => {
-			setHidden(true);
-		});
-
-		// Keep element in a persistently stalled state (paused=true) so every
-		// escalation attempt still sees a stall and would fire another play()
-		// if there were no retry cap.
-		// el.paused defaults to true on a fresh audio element.
-
-		// Tab visible — first recovery attempt
-		await act(async () => {
-			setHidden(false);
-		});
-
-		// Advance through both escalation intervals to trigger attempts 2 and 3
-		await act(async () => {
-			vi.advanceTimersByTime(1500); // attempt 2
-		});
-		await act(async () => {
-			vi.advanceTimersByTime(1500); // attempt 3
-		});
-
-		// One more interval — must NOT trigger a 4th attempt
-		await act(async () => {
-			vi.advanceTimersByTime(1500);
-		});
-
-		// At most MAX_RECOVERY_ATTEMPTS (3) play() calls; never more
-		expect(playSpy.mock.calls.length).toBeLessThanOrEqual(3);
-
-		vi.useRealTimers();
-	});
-
-	it('stops scheduled recovery retries when user pauses during recovery', async () => {
-		vi.useFakeTimers();
-		mockAudio();
-
-		render(<WaveformNavigator audio="/test.mp3" responsive={false} />);
-
-		vi.useRealTimers();
-		const audioEl = await waitForAudio();
-		vi.useFakeTimers();
-		const playSpy = spyOnPlay(audioEl);
-
-		await act(async () => {
-			audioEl.dispatchEvent(new Event('play'));
-		});
-
-		await act(async () => {
-			setHidden(true);
-		});
-
-		await act(async () => {
-			setHidden(false);
-		});
-
-		expect(playSpy).toHaveBeenCalledTimes(1);
-
-		await act(async () => {
-			audioEl.dispatchEvent(new Event('pause'));
-		});
-
-		await act(async () => {
-			vi.advanceTimersByTime(5000);
-		});
-
-		expect(playSpy).toHaveBeenCalledTimes(1);
-		vi.useRealTimers();
-	});
-
-	it('keeps escalating recovery when UI is stuck in playing state but audio is paused on return', async () => {
-		vi.useFakeTimers();
-		mockAudio();
-
-		render(<WaveformNavigator audio="/test.mp3" responsive={false} />);
-
-		// waitForAudio uses waitFor which relies on real timers, so we briefly
-		// restore them for setup, then re-enable fake timers for the assertion.
-		vi.useRealTimers();
-		const audioEl = await waitForAudio();
-		vi.useFakeTimers();
-
-		const playSpy = spyOnPlay(audioEl);
-
-		// Simulate playing and advancing time
-		Object.defineProperty(audioEl, 'currentTime', {
-			value: 12,
-			writable: true,
-			configurable: true,
-		});
-		await act(async () => {
-			audioEl.dispatchEvent(new Event('play'));
-			audioEl.dispatchEvent(new Event('timeupdate'));
-		});
-
-		// Tab hidden (position saved)
-		await act(async () => {
-			setHidden(true);
-		});
-
-		// On return, simulate a pathological browser state:
-		// - React still thinks we are playing (no pause event delivered yet)
-		// - Element is actually paused and reset to start
-		Object.defineProperty(audioEl, 'paused', {
-			get: () => true,
-			configurable: true,
-		});
-		Object.defineProperty(audioEl, 'readyState', {
-			get: () => HTMLMediaElement.HAVE_CURRENT_DATA, // 2 — stalled
-			configurable: true,
-		});
-		Object.defineProperty(audioEl, 'currentTime', {
-			value: 0,
-			writable: true,
-			configurable: true,
-		});
-
-		// Visible again: should trigger recovery attempt 1 immediately
-		await act(async () => {
-			setHidden(false);
-		});
-
-		// Advance timers to allow escalations (attempts 2 and 3) to run.
-		await act(async () => {
-			vi.advanceTimersByTime(1500);
-		});
-		await act(async () => {
-			vi.advanceTimersByTime(1500);
-		});
-
-		// Should attempt play multiple times despite the stale React "playing" state.
-		expect(playSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
-		vi.useRealTimers();
 	});
 
 	it('does not trigger recovery when playback was not active before hidden', async () => {
@@ -505,9 +305,6 @@ describe('WaveformNavigator – visibility / bfcache resume', () => {
 		const audioEl = await waitForAudio();
 		const playSpy = spyOnPlay(audioEl);
 
-		// Audio is never played — wasPlayingBeforeHidden stays false
-
-		// Even though element is "stalled" (paused by default), no recovery fires
 		await act(async () => {
 			setHidden(true);
 		});
@@ -517,5 +314,426 @@ describe('WaveformNavigator – visibility / bfcache resume', () => {
 		});
 
 		expect(playSpy).not.toHaveBeenCalled();
+	});
+
+	// ─── new behaviour: reconcile UI to element on every return ─────────────────
+
+	it('syncs isPlaying=false on visibility return when element is paused', async () => {
+		mockAudio();
+
+		const onPause = vi.fn();
+		const { container } = render(
+			<WaveformNavigator
+				audio="/test.mp3"
+				responsive={false}
+				onPause={onPause}
+			/>
+		);
+
+		const audioEl = await waitForAudio();
+		spyOnPlay(audioEl);
+
+		// Drive React into "playing" state.
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+		});
+
+		expect(container.querySelector('button.play')?.getAttribute('aria-label')).toBe(
+			'pause'
+		);
+
+		await act(async () => {
+			setHidden(true);
+		});
+
+		// Simulate the pathological case: browser paused without firing pause,
+		// and the late pause event also clears wasPlayingBeforeHidden BEFORE
+		// visibility returns (race we previously failed to handle).
+		definePaused(audioEl, true);
+		defineCurrentTime(audioEl, 0);
+		// Clear intent so resumeIfNeeded won't fire — this isolates the sync.
+		await act(async () => {
+			Object.defineProperty(document, 'hidden', {
+				value: false,
+				configurable: true,
+			});
+			audioEl.dispatchEvent(new Event('pause'));
+		});
+
+		// Now dispatch visibilitychange to trigger sync; element is paused, so
+		// the button must reflect that even though no resume runs.
+		await act(async () => {
+			document.dispatchEvent(new Event('visibilitychange'));
+		});
+
+		expect(
+			container.querySelector('button.play')?.getAttribute('aria-label')
+		).toBe('play');
+	});
+
+	it('reloads source and resumes when first play() rejects on visibility return', async () => {
+		mockAudio();
+
+		render(<WaveformNavigator audio="/test.mp3" responsive={false} />);
+
+		const audioEl = await waitForAudio();
+
+		// First play() rejects; reload then succeeds.
+		const playSpy = vi
+			.fn()
+			.mockRejectedValueOnce(new Error('NotAllowedError'))
+			.mockResolvedValue(undefined);
+		Object.defineProperty(audioEl, 'play', {
+			value: playSpy,
+			configurable: true,
+		});
+
+		// load() triggers our canplay listener.
+		const loadSpy = vi.fn(() => {
+			queueMicrotask(() => audioEl.dispatchEvent(new Event('canplay')));
+		});
+		Object.defineProperty(audioEl, 'load', {
+			value: loadSpy,
+			configurable: true,
+		});
+		Object.defineProperty(audioEl, 'currentSrc', {
+			get: () => '/test.mp3',
+			configurable: true,
+		});
+
+		defineCurrentTime(audioEl, 20);
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+			audioEl.dispatchEvent(new Event('timeupdate'));
+		});
+
+		await act(async () => {
+			setHidden(true);
+		});
+
+		definePaused(audioEl, true);
+		defineCurrentTime(audioEl, 0);
+
+		await act(async () => {
+			setHidden(false);
+		});
+
+		// Let the reload pipeline drain.
+		await act(async () => {
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		expect(loadSpy).toHaveBeenCalled();
+		expect(playSpy).toHaveBeenCalledTimes(2);
+	});
+
+	it('shows paused UI when reload also fails', async () => {
+		mockAudio();
+
+		const { container } = render(
+			<WaveformNavigator audio="/test.mp3" responsive={false} />
+		);
+
+		const audioEl = await waitForAudio();
+
+		const playSpy = vi.fn().mockRejectedValue(new Error('NotAllowedError'));
+		Object.defineProperty(audioEl, 'play', {
+			value: playSpy,
+			configurable: true,
+		});
+
+		// load() triggers an error to make the reload path fail.
+		Object.defineProperty(audioEl, 'load', {
+			value: vi.fn(() => {
+				queueMicrotask(() => audioEl.dispatchEvent(new Event('error')));
+			}),
+			configurable: true,
+		});
+		Object.defineProperty(audioEl, 'currentSrc', {
+			get: () => '/test.mp3',
+			configurable: true,
+		});
+
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+		});
+
+		await act(async () => {
+			setHidden(true);
+		});
+
+		definePaused(audioEl, true);
+
+		await act(async () => {
+			setHidden(false);
+		});
+
+		await act(async () => {
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		// After both attempts fail, UI must reflect the paused element state.
+		expect(
+			container.querySelector('button.play')?.getAttribute('aria-label')
+		).toBe('play');
+	});
+
+	it('resets isPlaying when the audio element fires error', async () => {
+		mockAudio();
+
+		const { container } = render(
+			<WaveformNavigator audio="/test.mp3" responsive={false} />
+		);
+
+		const audioEl = await waitForAudio();
+		spyOnPlay(audioEl);
+
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+		});
+
+		expect(container.querySelector('button.play')?.getAttribute('aria-label')).toBe(
+			'pause'
+		);
+
+		// Simulate a media error fired after play with no preceding pause event.
+		Object.defineProperty(audioEl, 'error', {
+			get: () => ({ code: 3 }), // MEDIA_ERR_DECODE
+			configurable: true,
+		});
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('error'));
+		});
+
+		expect(
+			container.querySelector('button.play')?.getAttribute('aria-label')
+		).toBe('play');
+	});
+
+	it('resets isPlaying when the audio element fires emptied', async () => {
+		mockAudio();
+
+		const { container } = render(
+			<WaveformNavigator audio="/test.mp3" responsive={false} />
+		);
+
+		const audioEl = await waitForAudio();
+		spyOnPlay(audioEl);
+
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+		});
+
+		expect(container.querySelector('button.play')?.getAttribute('aria-label')).toBe(
+			'pause'
+		);
+
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('emptied'));
+		});
+
+		expect(
+			container.querySelector('button.play')?.getAttribute('aria-label')
+		).toBe('play');
+	});
+
+	it('resets isPlaying when togglePlay rejects', async () => {
+		mockAudio();
+
+		const { container } = render(
+			<WaveformNavigator audio="/test.mp3" responsive={false} />
+		);
+
+		const audioEl = await waitForAudio();
+		Object.defineProperty(audioEl, 'play', {
+			value: vi.fn().mockRejectedValue(new Error('NotAllowedError')),
+			configurable: true,
+		});
+
+		// Force the "playing" state without going through play() so togglePlay's
+		// catch branch is the only thing that can flip it back.
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+		});
+		// Now make el.paused report true so togglePlay invokes play() again.
+		definePaused(audioEl, true);
+
+		const button = container.querySelector('button.play') as HTMLButtonElement;
+		await act(async () => {
+			button.click();
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		expect(
+			container.querySelector('button.play')?.getAttribute('aria-label')
+		).toBe('play');
+	});
+
+	it('cancels in-flight reload when the audio source changes mid-resume', async () => {
+		mockAudio();
+
+		const { rerender } = render(
+			<WaveformNavigator audio="/test.mp3" responsive={false} />
+		);
+
+		const audioEl = await waitForAudio();
+
+		// play() always rejects so the reload path is entered. Reload (load())
+		// is deferred so we can swap the audio source while it's pending.
+		const playSpy = vi.fn().mockRejectedValue(new Error('NotAllowedError'));
+		Object.defineProperty(audioEl, 'play', {
+			value: playSpy,
+			configurable: true,
+		});
+
+		let resolveCanPlay: (() => void) | null = null;
+		const loadSpy = vi.fn(() => {
+			// Delay firing canplay until the source change has aborted the resume;
+			// when we eventually fire it, the resume must be a no-op.
+			resolveCanPlay = () => audioEl.dispatchEvent(new Event('canplay'));
+		});
+		Object.defineProperty(audioEl, 'load', {
+			value: loadSpy,
+			configurable: true,
+		});
+		Object.defineProperty(audioEl, 'currentSrc', {
+			get: () => '/test.mp3',
+			configurable: true,
+		});
+
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+		});
+
+		await act(async () => {
+			setHidden(true);
+		});
+
+		definePaused(audioEl, true);
+
+		await act(async () => {
+			setHidden(false);
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		// First play() rejected, reload started.
+		expect(loadSpy).toHaveBeenCalledTimes(1);
+		expect(playSpy).toHaveBeenCalledTimes(1);
+
+		// Now swap the audio source — this must abort the in-flight resume.
+		await act(async () => {
+			rerender(<WaveformNavigator audio="/other.mp3" responsive={false} />);
+		});
+
+		// Even if canplay fires now, the aborted resume must not call play() again.
+		await act(async () => {
+			resolveCanPlay?.();
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		expect(playSpy).toHaveBeenCalledTimes(1);
+	});
+
+	it('emits onLoadingChange(false) when syncing on visibility return', async () => {
+		mockAudio();
+
+		const onLoadingChange = vi.fn();
+		render(
+			<WaveformNavigator
+				audio="/test.mp3"
+				responsive={false}
+				onLoadingChange={onLoadingChange}
+			/>
+		);
+
+		const audioEl = await waitForAudio();
+		spyOnPlay(audioEl);
+
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+		});
+
+		await act(async () => {
+			setHidden(true);
+		});
+
+		// Element keeps playing while hidden — no resume needed, only a sync.
+		definePaused(audioEl, false);
+		onLoadingChange.mockClear();
+
+		await act(async () => {
+			setHidden(false);
+		});
+
+		expect(onLoadingChange).toHaveBeenCalledWith(false);
+	});
+
+	it('resets currentTime to 0 when the audio element fires emptied', async () => {
+		mockAudio();
+
+		const onTimeUpdate = vi.fn();
+		const { container } = render(
+			<WaveformNavigator
+				audio="/test.mp3"
+				responsive={false}
+				onTimeUpdate={onTimeUpdate}
+			/>
+		);
+
+		const audioEl = await waitForAudio();
+		spyOnPlay(audioEl);
+
+		// Advance to 30s.
+		defineCurrentTime(audioEl, 30);
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+			audioEl.dispatchEvent(new Event('timeupdate'));
+		});
+
+		// Browser evicts the media → emptied fires (currentTime resets to 0).
+		defineCurrentTime(audioEl, 0);
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('emptied'));
+		});
+
+		// Time display must show 0:00 / … — i.e. the React currentTime is 0.
+		const timeText = container.querySelector('.time')?.textContent ?? '';
+		expect(timeText.startsWith('0:00')).toBe(true);
+	});
+
+	it('resumes via window focus when visibilitychange is not fired (window switch)', async () => {
+		mockAudio();
+
+		render(<WaveformNavigator audio="/test.mp3" responsive={false} />);
+
+		const audioEl = await waitForAudio();
+		const playSpy = spyOnPlay(audioEl);
+
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+		});
+
+		// Simulate switching to another window: blur only, no visibilitychange.
+		await act(async () => {
+			window.dispatchEvent(new Event('blur'));
+		});
+
+		// Browser paused the audio while the window was in the background.
+		definePaused(audioEl, true);
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('pause'));
+		});
+
+		// Return to window — only focus fires.
+		await act(async () => {
+			window.dispatchEvent(new Event('focus'));
+		});
+
+		expect(playSpy).toHaveBeenCalledTimes(1);
 	});
 });

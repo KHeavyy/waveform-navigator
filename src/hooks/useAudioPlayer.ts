@@ -1,15 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 
-// Threshold for controlled time sync to avoid feedback loops (in seconds)
+// Threshold for controlled time sync to avoid feedback loops (in seconds).
 const CONTROLLED_TIME_THRESHOLD = 0.01;
 
-// Background-tab stall recovery constants
-/** Wall-clock ms without a timeupdate event before we consider playback stalled */
-const STALL_THRESHOLD_MS = 3000;
-/** Maximum number of escalating recovery attempts per visibility-return cycle */
-const MAX_RECOVERY_ATTEMPTS = 3;
-/** Delay between escalated recovery attempts (ms) */
-const RECOVERY_ESCALATION_MS = 1500;
+// Tolerance for treating element.currentTime as "reset" relative to a saved
+// position. Browsers don't always reset to exactly 0 after media eviction.
+const POSITION_RESET_TOLERANCE = 0.5;
+
+// Maximum time to wait for canplay after reloading the source during recovery.
+const CANPLAY_TIMEOUT_MS = 8000;
 
 interface UseAudioPlayerProps {
 	audio: string | File | null | undefined;
@@ -108,6 +107,9 @@ export function useAudioPlayer({
 	const onLoadingChangeRef = useRef(onLoadingChange);
 	const onErrorRef = useRef(onError);
 
+	// Mirror isPlaying as a ref so non-React callbacks (visibility, focus, etc.)
+	// can read the latest value without restarting their effect.
+	const isPlayingRef = useRef(false);
 	useEffect(() => {
 		isPlayingRef.current = isPlaying;
 	}, [isPlaying]);
@@ -132,16 +134,23 @@ export function useAudioPlayer({
 		onError,
 	]);
 
-	// Track playback state across visibility changes / bfcache restores
-	const isPlayingRef = useRef(false);
+	// Tracks playback intent across hide/show cycles. Set when the page hides
+	// or window blurs while playing; cleared when the user pauses while the page
+	// is visible AND the window is focused, on error, on ended, and when the
+	// audio source changes. Pauses while hidden or blurred are treated as
+	// browser-initiated and preserve the intent.
 	const wasPlayingBeforeHiddenRef = useRef(false);
 	const savedTimeBeforeHiddenRef = useRef(0);
-	// Wall-clock timestamp of the last timeupdate event — used to detect stalls
-	const lastTimeupdateWallClockRef = useRef<number>(0);
-	// Number of recovery attempts in the current visibility-return cycle
-	const recoveryAttemptsRef = useRef<number>(0);
-	// Pending escalation timeout handle
-	const recoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	// Prevents overlapping resume attempts from rapid visibility/focus toggles.
+	const resumeInFlightRef = useRef(false);
+	// AbortController for the active resume attempt. Aborted on source change
+	// and on unmount so an in-flight reload can't outlive the component or
+	// stomp a freshly loaded track.
+	const resumeAbortRef = useRef<AbortController | null>(null);
+	// Tracks whether the window is currently blurred. The pause handler uses
+	// this (in addition to document.hidden) to decide whether a pause was
+	// user-initiated or browser-initiated.
+	const isWindowBlurredRef = useRef(false);
 
 	// Determine if component is in controlled mode
 	const isControlled = controlledCurrentTime !== undefined;
@@ -170,8 +179,6 @@ export function useAudioPlayer({
 		const onPlayingEvent = () => {
 			setIsLoading(false);
 			onLoadingChangeRef.current?.(false);
-			// Successful playback resume — reset recovery state
-			recoveryAttemptsRef.current = 0;
 		};
 		const onWaitingEvent = () => {
 			setIsLoading(true);
@@ -181,26 +188,19 @@ export function useAudioPlayer({
 			setIsPlaying(false);
 			setIsLoading(false);
 			onLoadingChangeRef.current?.(false);
-			// User paused playback while visible — abort any in-flight recovery.
-			// If hidden, this pause may come from browser background policy and
-			// should not clear the saved pre-hide playing state.
-			if (!document.hidden) {
+			// A pause is treated as user-initiated only when the page is visible
+			// AND the window is focused. Pauses while hidden or blurred are
+			// browser-initiated background-policy enforcement, and must preserve
+			// the resume intent so the visibility/focus handler can recover.
+			if (!document.hidden && !isWindowBlurredRef.current) {
 				wasPlayingBeforeHiddenRef.current = false;
-				recoveryAttemptsRef.current = 0;
-				if (recoveryTimerRef.current) {
-					clearTimeout(recoveryTimerRef.current);
-					recoveryTimerRef.current = null;
-				}
 			}
 			onPauseRef.current?.();
 		};
 		const onTimeEvent = () => {
 			const time = el.currentTime;
-			lastTimeupdateWallClockRef.current = Date.now();
 			setCurrentTime(time);
 			onTimeUpdateRef.current?.(time);
-
-			// Call onCurrentTimeChange for uncontrolled mode
 			if (!isControlledRef.current) {
 				onCurrentTimeChangeRef.current?.(time);
 			}
@@ -214,33 +214,32 @@ export function useAudioPlayer({
 			setIsPlaying(false);
 			setIsLoading(false);
 			onLoadingChangeRef.current?.(false);
-			// Track ended as a terminal state regardless of visibility so
-			// background recovery does not restart playback after completion.
 			wasPlayingBeforeHiddenRef.current = false;
-			recoveryAttemptsRef.current = 0;
-			if (recoveryTimerRef.current) {
-				clearTimeout(recoveryTimerRef.current);
-				recoveryTimerRef.current = null;
-			}
 			onEndedRef.current?.();
 		};
 		const onErrorEvent = () => {
+			// An error can fire after `play` without a corresponding `pause` event,
+			// leaving the UI stuck on a paused element. Reset state explicitly.
+			setIsPlaying(false);
 			setIsLoading(false);
 			onLoadingChangeRef.current?.(false);
+			wasPlayingBeforeHiddenRef.current = false;
 			const error = el.error;
 			if (error) {
+				// Use numeric MediaError codes directly; the MediaError constructor
+				// isn't exposed in every JS environment (e.g. jsdom).
 				let errorMessage: string;
 				switch (error.code) {
-					case MediaError.MEDIA_ERR_ABORTED:
+					case 1: // MEDIA_ERR_ABORTED
 						errorMessage = 'Audio loading was aborted';
 						break;
-					case MediaError.MEDIA_ERR_NETWORK:
+					case 2: // MEDIA_ERR_NETWORK
 						errorMessage = 'Network error while loading audio';
 						break;
-					case MediaError.MEDIA_ERR_DECODE:
+					case 3: // MEDIA_ERR_DECODE
 						errorMessage = 'Audio decoding failed';
 						break;
-					case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+					case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
 						errorMessage =
 							'Audio source is not supported. Check that the file format is supported by this browser and that the server allows cross-origin (CORS) access for this URL.';
 						break;
@@ -249,6 +248,18 @@ export function useAudioPlayer({
 						break;
 				}
 				onErrorRef.current?.(new Error(errorMessage));
+			}
+		};
+		// Fired when the media resource is reset (browser may evict the
+		// decoded buffer after long background eviction). Per spec the playhead
+		// is at 0 once emptied fires, so sync the displayed position too.
+		const onEmptiedEvent = () => {
+			setIsPlaying(false);
+			setIsLoading(false);
+			onLoadingChangeRef.current?.(false);
+			setCurrentTime(0);
+			if (!isControlledRef.current) {
+				onCurrentTimeChangeRef.current?.(0);
 			}
 		};
 
@@ -260,6 +271,7 @@ export function useAudioPlayer({
 		el.addEventListener('loadedmetadata', onLoadedEvent);
 		el.addEventListener('ended', onEndedEvent);
 		el.addEventListener('error', onErrorEvent);
+		el.addEventListener('emptied', onEmptiedEvent);
 
 		return () => {
 			el.pause();
@@ -271,6 +283,7 @@ export function useAudioPlayer({
 			el.removeEventListener('loadedmetadata', onLoadedEvent);
 			el.removeEventListener('ended', onEndedEvent);
 			el.removeEventListener('error', onErrorEvent);
+			el.removeEventListener('emptied', onEmptiedEvent);
 			if (objectUrlRef.current) {
 				URL.revokeObjectURL(objectUrlRef.current);
 			}
@@ -282,174 +295,213 @@ export function useAudioPlayer({
 		// audioElementRef is intentionally excluded from deps to avoid recreating audio element
 	}, []);
 
-	// Resume audio after the browser interrupts it (Safari background-tab pause,
-	// mobile screen lock, bfcache restore). Saves playing state on hide and
-	// re-calls play() when the page/tab becomes visible again.
-	// Extends to stalled-not-paused recovery with bounded escalating retries.
+	// Visibility / bfcache / window-focus reconciliation.
+	//
+	// Strategy: treat the audio element as the source of truth. On every
+	// return-to-foreground signal, copy element state into React state, then
+	// — if the user wanted playback to continue — make a single resume attempt
+	// with a reload fallback. No timers, no escalating retries: the play()
+	// promise tells us whether it worked.
 	useEffect(() => {
-		/**
-		 * Returns true if the audio element appears stalled or paused and needs
-		 * recovery. Three signals are checked:
-		 *   1. el.paused — browser explicitly paused (e.g. Safari background policy)
-		 *   2. readyState < HAVE_FUTURE_DATA — not enough buffered data to play
-		 *   3. No timeupdate event in the last STALL_THRESHOLD_MS while not ended
-		 *      — covers silent network stalls that don't fire an error or pause event
-		 */
-		const isStalled = (el: HTMLAudioElement): boolean => {
-			if (el.paused) return true;
-			if (el.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) return true;
-			if (
-				lastTimeupdateWallClockRef.current > 0 &&
-				!el.ended &&
-				Date.now() - lastTimeupdateWallClockRef.current > STALL_THRESHOLD_MS
-			) {
-				return true;
+		const syncFromElement = () => {
+			const el = audioRef.current;
+			if (!el) return;
+			const elPlaying = !el.paused && !el.ended;
+			if (isPlayingRef.current !== elPlaying) {
+				setIsPlaying(elPlaying);
 			}
-			return false;
+			if (!isControlledRef.current) {
+				setCurrentTime(el.currentTime);
+			}
+			setIsLoading(false);
+			onLoadingChangeRef.current?.(false);
 		};
 
-		/**
-		 * Attempts to recover stalled playback with up to MAX_RECOVERY_ATTEMPTS
-		 * escalating steps:
-		 *   1. Restore time (if reset) → play()
-		 *   2. pause() → seek back ε → play()  (unstick demuxer)
-		 *   3. Reload src → wait for canplay → restore time → play()
-		 *
-		 * Each step schedules the next via setTimeout so we give the browser a
-		 * chance to recover on its own. Recovery is aborted if:
-		 *   - isPlayingRef goes true (recovery worked)
-		 *   - wasPlayingBeforeHiddenRef is cleared (user paused or new tab-hide)
-		 *   - MAX_RECOVERY_ATTEMPTS is reached
-		 */
-		const recoverPlayback = (el: HTMLAudioElement, savedTime: number) => {
-			if (recoveryAttemptsRef.current >= MAX_RECOVERY_ATTEMPTS) return;
-
-			recoveryAttemptsRef.current += 1;
-			const attempt = recoveryAttemptsRef.current;
-
-			const scheduleNext = () => {
-				recoveryTimerRef.current = setTimeout(() => {
-					recoveryTimerRef.current = null;
-					// Abort if user paused or the tab was hidden again.
-					// Do not gate on React `isPlaying` state — it can be stale after
-					// background interruptions. Instead, rely on the element's real state.
-					if (!wasPlayingBeforeHiddenRef.current) return;
-					const currentEl = audioRef.current;
-					if (!currentEl || !isStalled(currentEl)) return;
-					recoverPlayback(currentEl, savedTime);
-				}, RECOVERY_ESCALATION_MS);
-			};
-
-			if (attempt === 1) {
-				// Step 1: restore time if browser reset it, then try play()
-				if (el.currentTime === 0 && savedTime > 0) {
-					el.currentTime = savedTime;
-					if (!isControlledRef.current) {
-						setCurrentTime(savedTime);
-					}
+		const waitForCanPlay = (
+			el: HTMLAudioElement,
+			src: string,
+			signal: AbortSignal
+		) =>
+			new Promise<void>((resolve, reject) => {
+				if (signal.aborted) {
+					reject(new Error('aborted'));
+					return;
 				}
-				el.play().catch(() => {});
-				scheduleNext();
-			} else if (attempt === 2) {
-				// Step 2: force a seek to unstick the demuxer, then play()
-				const target = Math.max(0, savedTime - 0.1);
-				el.pause();
-				el.currentTime = target;
-				el.play().catch(() => {});
-				scheduleNext();
-			} else {
-				// Step 3: reload the source, restore position after canplay, then play()
-				const src = el.currentSrc || el.src;
-				if (!src) return;
-
-				const onCanPlay = () => {
-					el.removeEventListener('canplay', onCanPlay);
-					if (!wasPlayingBeforeHiddenRef.current) return;
-					el.currentTime = savedTime;
-					if (!isControlledRef.current) {
-						setCurrentTime(savedTime);
-					}
-					el.play().catch(() => {});
+				let timeoutId: ReturnType<typeof setTimeout> | null = null;
+				const cleanup = () => {
+					if (timeoutId !== null) clearTimeout(timeoutId);
+					el.removeEventListener('canplay', handleCanPlay);
+					el.removeEventListener('error', handleError);
+					signal.removeEventListener('abort', handleAbort);
 				};
-				el.addEventListener('canplay', onCanPlay);
+				const handleCanPlay = () => {
+					cleanup();
+					resolve();
+				};
+				const handleError = () => {
+					cleanup();
+					reject(new Error('reload error'));
+				};
+				const handleAbort = () => {
+					cleanup();
+					reject(new Error('aborted'));
+				};
+				el.addEventListener('canplay', handleCanPlay);
+				el.addEventListener('error', handleError);
+				signal.addEventListener('abort', handleAbort);
+				timeoutId = setTimeout(() => {
+					cleanup();
+					reject(new Error('reload timeout'));
+				}, CANPLAY_TIMEOUT_MS);
 				el.src = src;
 				el.load();
+			});
+
+		const resumeIfNeeded = async () => {
+			const el = audioRef.current;
+			if (!el) return;
+			if (!wasPlayingBeforeHiddenRef.current) return;
+			if (!el.paused || el.ended) return;
+			if (resumeInFlightRef.current) return;
+
+			// Abort any stale controller (defensive — shouldn't happen with the
+			// resumeInFlightRef guard, but keeps state tidy).
+			resumeAbortRef.current?.abort();
+			const controller = new AbortController();
+			resumeAbortRef.current = controller;
+			const { signal } = controller;
+
+			resumeInFlightRef.current = true;
+			try {
+				const saved = savedTimeBeforeHiddenRef.current;
+
+				// Restore position if the browser dropped it — within a tolerance,
+				// not just exact-zero, since some browsers reset to a small non-zero
+				// value during eviction recovery.
+				if (saved > 0 && el.currentTime < saved - POSITION_RESET_TOLERANCE) {
+					try {
+						el.currentTime = saved;
+						if (!isControlledRef.current) {
+							setCurrentTime(saved);
+						}
+					} catch {
+						// currentTime can throw if the element has no media data yet;
+						// the reload path below will restore it after canplay.
+					}
+				}
+
+				try {
+					await el.play();
+					return;
+				} catch {
+					// play() rejected — the media may have been released. Fall through
+					// to a full source reload.
+				}
+
+				// Bail if state changed during the await (user paused, audio swapped,
+				// component unmounted).
+				if (signal.aborted) return;
+				if (!wasPlayingBeforeHiddenRef.current) return;
+				if (audioRef.current !== el) return;
+
+				const src = el.currentSrc || el.src;
+				if (!src) {
+					syncFromElement();
+					return;
+				}
+
+				try {
+					await waitForCanPlay(el, src, signal);
+				} catch {
+					if (!signal.aborted) syncFromElement();
+					return;
+				}
+
+				if (signal.aborted) return;
+				if (!wasPlayingBeforeHiddenRef.current) return;
+				if (audioRef.current !== el) return;
+
+				if (saved > 0) {
+					try {
+						el.currentTime = saved;
+						if (!isControlledRef.current) {
+							setCurrentTime(saved);
+						}
+					} catch {
+						// fall through — best effort
+					}
+				}
+
+				try {
+					await el.play();
+				} catch {
+					// Give up — surface honest paused state so the user can click play.
+					if (!signal.aborted) syncFromElement();
+				}
+			} finally {
+				resumeInFlightRef.current = false;
+				if (resumeAbortRef.current === controller) {
+					resumeAbortRef.current = null;
+				}
 			}
+		};
+
+		const captureHiddenState = () => {
+			const el = audioRef.current;
+			if (!el) return;
+			wasPlayingBeforeHiddenRef.current = isPlayingRef.current;
+			savedTimeBeforeHiddenRef.current = el.currentTime;
 		};
 
 		const handleVisibilityChange = () => {
-			const el = audioRef.current;
-			if (!el) return;
-
 			if (document.hidden) {
-				// Save state before hide; clear any in-progress recovery
-				wasPlayingBeforeHiddenRef.current = isPlayingRef.current;
-				savedTimeBeforeHiddenRef.current = el.currentTime;
-				// Browsers may throttle/suppress `timeupdate` while hidden.
-				// Reset the wall clock baseline so hidden time isn't treated as a stall.
-				lastTimeupdateWallClockRef.current = Date.now();
-				if (recoveryTimerRef.current) {
-					clearTimeout(recoveryTimerRef.current);
-					recoveryTimerRef.current = null;
-				}
-				recoveryAttemptsRef.current = 0;
-			} else if (wasPlayingBeforeHiddenRef.current) {
-				// Reconcile UI state with the element on return: browsers can pause or
-				// reset media while hidden without delivering events in a timely order.
-				// This keeps the play/pause button from getting stuck showing "pause"
-				// while the element is actually paused.
-				const shouldBePlaying = !el.paused && !el.ended;
-				if (isPlayingRef.current !== shouldBePlaying) {
-					setIsPlaying(shouldBePlaying);
-				}
-
-				const progressedWhileHidden =
-					el.currentTime >
-					savedTimeBeforeHiddenRef.current + CONTROLLED_TIME_THRESHOLD;
-				// If the media clearly advanced while hidden and is not stalled on return,
-				// don't force recovery — desktop browsers often suppress timeupdate in
-				// background tabs even though playback is healthy.
-				// Important: check this before applying the wall-clock stall heuristic,
-				// otherwise long hidden intervals can look like a stall even when media
-				// advanced normally.
-				if (
-					progressedWhileHidden &&
-					!el.paused &&
-					el.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA
-				) {
-					lastTimeupdateWallClockRef.current = Date.now();
-					recoveryAttemptsRef.current = 0;
-					return;
-				}
-				const stalled = isStalled(el);
-				if (stalled) {
-					recoverPlayback(el, savedTimeBeforeHiddenRef.current);
-				}
+				captureHiddenState();
+			} else {
+				syncFromElement();
+				resumeIfNeeded();
 			}
 		};
 
-		// pageshow fires with persisted=true when the page is restored from bfcache
-		// (common on mobile Safari). visibilitychange may not fire in that path.
+		// pageshow with persisted=true means a bfcache restore (Safari/mobile).
+		// For non-bfcache pageshows we still sync the UI but don't auto-resume —
+		// the visibilitychange handler covers normal navigation returns.
 		const handlePageShow = (event: PageTransitionEvent) => {
-			if (!event.persisted) return;
-			const el = audioRef.current;
-			if (!el) return;
-
-			if (wasPlayingBeforeHiddenRef.current && isStalled(el)) {
-				recoverPlayback(el, savedTimeBeforeHiddenRef.current);
+			syncFromElement();
+			if (event.persisted) {
+				resumeIfNeeded();
 			}
+		};
+
+		// Some platforms (Safari macOS when switching windows, not tabs) deliver
+		// blur/focus without firing visibilitychange. Mirror the same logic so
+		// background-paused audio still recovers on window return.
+		const handleBlur = () => {
+			isWindowBlurredRef.current = true;
+			if (isPlayingRef.current) {
+				captureHiddenState();
+			}
+		};
+		const handleFocus = () => {
+			isWindowBlurredRef.current = false;
+			if (document.hidden) return;
+			syncFromElement();
+			resumeIfNeeded();
 		};
 
 		document.addEventListener('visibilitychange', handleVisibilityChange);
 		window.addEventListener('pageshow', handlePageShow);
+		window.addEventListener('blur', handleBlur);
+		window.addEventListener('focus', handleFocus);
 
 		return () => {
 			document.removeEventListener('visibilitychange', handleVisibilityChange);
 			window.removeEventListener('pageshow', handlePageShow);
-			if (recoveryTimerRef.current) {
-				clearTimeout(recoveryTimerRef.current);
-				recoveryTimerRef.current = null;
-			}
+			window.removeEventListener('blur', handleBlur);
+			window.removeEventListener('focus', handleFocus);
+			// Cancel any in-flight resume so its async tail can't fire state
+			// setters after unmount.
+			resumeAbortRef.current?.abort();
+			resumeAbortRef.current = null;
 		};
 	}, []);
 
@@ -486,13 +538,14 @@ export function useAudioPlayer({
 		}
 		const el = audioRef.current;
 
-		// New source — reset recovery state so a fresh recovery cycle can start
-		recoveryAttemptsRef.current = 0;
+		// New source — abort any in-flight resume from the previous track so it
+		// can't stomp the new src or keep resumeInFlightRef pinned, and drop the
+		// saved resume intent so a stale position doesn't get applied.
+		resumeAbortRef.current?.abort();
+		resumeAbortRef.current = null;
+		resumeInFlightRef.current = false;
 		wasPlayingBeforeHiddenRef.current = false;
-		if (recoveryTimerRef.current) {
-			clearTimeout(recoveryTimerRef.current);
-			recoveryTimerRef.current = null;
-		}
+		savedTimeBeforeHiddenRef.current = 0;
 
 		// Cleanup previous
 		if (objectUrlRef.current) {
@@ -549,7 +602,11 @@ export function useAudioPlayer({
 		}
 		if (a.paused) {
 			a.preload = 'auto';
-			a.play();
+			// A rejected play() promise can otherwise leave UI thinking the
+			// element is playing when it isn't.
+			a.play().catch(() => {
+				setIsPlaying(false);
+			});
 		} else {
 			a.pause();
 		}
