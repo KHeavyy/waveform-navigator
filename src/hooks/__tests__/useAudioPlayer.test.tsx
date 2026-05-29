@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { vi, describe, it, expect } from 'vitest';
 import { useAudioPlayer } from '../useAudioPlayer';
 
@@ -124,5 +124,69 @@ describe('useAudioPlayer', () => {
 		await waitFor(() =>
 			expect(screen.getByTestId('isLoading').textContent).toBe('false')
 		);
+	});
+
+	it('initialises volume from defaultVolume and sets it on the audio element', async () => {
+		function TestComponent() {
+			const { audioRef, volume } = useAudioPlayer({
+				audio: '/test.mp3',
+				defaultVolume: 0.3,
+			});
+
+			React.useEffect(() => {
+				(window as any).__testAudioVol = audioRef.current;
+			}, [audioRef]);
+
+			return <div data-testid="volume">{String(volume)}</div>;
+		}
+
+		render(<TestComponent />);
+
+		expect(screen.getByTestId('volume').textContent).toBe('0.3');
+		const audioEl = (window as any).__testAudioVol as HTMLAudioElement;
+		await waitFor(() => expect(audioEl.volume).toBeCloseTo(0.3));
+	});
+
+	it('clamps defaultVolume outside 0–1 range', () => {
+		function TestHigh() {
+			const { volume } = useAudioPlayer({ audio: '/test.mp3', defaultVolume: 1.8 });
+			return <div data-testid="vol-high">{String(volume)}</div>;
+		}
+		function TestLow() {
+			const { volume } = useAudioPlayer({ audio: '/test.mp3', defaultVolume: -0.5 });
+			return <div data-testid="vol-low">{String(volume)}</div>;
+		}
+
+		const { unmount: u1 } = render(<TestHigh />);
+		expect(screen.getByTestId('vol-high').textContent).toBe('1');
+		u1();
+
+		render(<TestLow />);
+		expect(screen.getByTestId('vol-low').textContent).toBe('0');
+	});
+
+	it('calls onVolumeChange with clamped value when setVolume is invoked', async () => {
+		const onVolumeChange = vi.fn();
+		let capturedSetVolume: (v: number) => void = () => {};
+
+		function TestComponent() {
+			const { setVolume } = useAudioPlayer({
+				audio: '/test.mp3',
+				onVolumeChange,
+			});
+			capturedSetVolume = setVolume;
+			return null;
+		}
+
+		render(<TestComponent />);
+
+		act(() => capturedSetVolume(0.6));
+		expect(onVolumeChange).toHaveBeenCalledWith(0.6);
+
+		act(() => capturedSetVolume(2.0));
+		expect(onVolumeChange).toHaveBeenCalledWith(1);
+
+		act(() => capturedSetVolume(-1));
+		expect(onVolumeChange).toHaveBeenCalledWith(0);
 	});
 });
