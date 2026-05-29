@@ -51,6 +51,8 @@ interface UseAudioPlayerProps {
 	 */
 	onLoadingChange?: (isLoading: boolean) => void;
 	onError?: (error: Error) => void;
+	defaultVolume?: number;
+	onVolumeChange?: (volume: number) => void;
 }
 
 interface UseAudioPlayerReturn {
@@ -87,6 +89,8 @@ export function useAudioPlayer({
 	onTimeUpdate,
 	onLoadingChange,
 	onError,
+	defaultVolume,
+	onVolumeChange,
 }: UseAudioPlayerProps): UseAudioPlayerReturn {
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 	const objectUrlRef = useRef<string | null>(null);
@@ -95,7 +99,9 @@ export function useAudioPlayer({
 	const [isLoading, setIsLoading] = useState(false);
 	const [duration, setDuration] = useState<number>(initialDuration ?? 0);
 	const [currentTime, setCurrentTime] = useState<number>(0);
-	const [volume, setVolume] = useState<number>(1);
+	const [volume, setVolumeState] = useState<number>(() =>
+		Math.max(0, Math.min(1, defaultVolume ?? 1))
+	);
 
 	// Refs for callbacks to avoid recreating audio element
 	const onPlayRef = useRef(onPlay);
@@ -106,6 +112,7 @@ export function useAudioPlayer({
 	const onCurrentTimeChangeRef = useRef(onCurrentTimeChange);
 	const onLoadingChangeRef = useRef(onLoadingChange);
 	const onErrorRef = useRef(onError);
+	const onVolumeChangeRef = useRef(onVolumeChange);
 
 	// Mirror isPlaying as a ref so non-React callbacks (visibility, focus, etc.)
 	// can read the latest value without restarting their effect.
@@ -123,6 +130,7 @@ export function useAudioPlayer({
 		onCurrentTimeChangeRef.current = onCurrentTimeChange;
 		onLoadingChangeRef.current = onLoadingChange;
 		onErrorRef.current = onError;
+		onVolumeChangeRef.current = onVolumeChange;
 	}, [
 		onPlay,
 		onPause,
@@ -132,6 +140,7 @@ export function useAudioPlayer({
 		onCurrentTimeChange,
 		onLoadingChange,
 		onError,
+		onVolumeChange,
 	]);
 
 	// Tracks playback intent across hide/show cycles. Set when the page hides
@@ -594,6 +603,15 @@ export function useAudioPlayer({
 		isControlled && controlledCurrentTime !== undefined
 			? controlledCurrentTime
 			: currentTime;
+
+	function setVolume(value: number) {
+		const clamped = Math.max(0, Math.min(1, value));
+		setVolumeState(clamped);
+		if (audioRef.current) {
+			audioRef.current.volume = clamped;
+		}
+		onVolumeChangeRef.current?.(clamped);
+	}
 
 	function togglePlay() {
 		const a = audioRef.current;

@@ -4,6 +4,13 @@ import WaveformNavigator from '../../../src';
 const DEMO_AUDIO_PATH = `${import.meta.env.BASE_URL}media/Demo.mp3`;
 
 export default function AdvancedTab() {
+	// Volume — persisted to localStorage so remounts restore the previous level
+	const [savedVolume, setSavedVolume] = useState<number>(() => {
+		const raw = localStorage.getItem('demo_volume');
+		const parsed = raw !== null ? Number(raw) : 1;
+		return Number.isFinite(parsed) ? parsed : 1;
+	});
+
 	// Pre-computed peaks — persisted to localStorage so reloads exercise the flow
 	const [savedPeaks, setSavedPeaks] = useState<Float32Array | null>(() => {
 		try {
@@ -248,6 +255,47 @@ export default function AdvancedTab() {
 				</p>
 			</div>
 
+			{/* Volume persistence */}
+			<div
+				className="demo-section"
+				style={{ backgroundColor: '#eef2ff', marginTop: 16 }}
+			>
+				<h3 style={{ marginTop: 0 }}>🔊 Volume Persistence</h3>
+				<p style={{ fontSize: 13, color: '#374151', marginBottom: 12 }}>
+					Pass <code>defaultVolume</code> to restore a saved level on mount and{' '}
+					<code>onVolumeChange</code> to persist it. Change the volume in the player
+					below — it survives a page reload.
+				</p>
+				<div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+					<span style={{ fontSize: 13 }}>Stored volume:</span>
+					<span
+						style={{
+							padding: '3px 10px',
+							borderRadius: 6,
+							fontSize: 13,
+							fontWeight: 600,
+							background: '#e0e7ff',
+							color: '#3730a3',
+						}}
+					>
+						{Math.round(savedVolume * 100)}%
+					</span>
+					<button
+						style={{ fontSize: 11 }}
+						onClick={() => {
+							setSavedVolume(1);
+							localStorage.removeItem('demo_volume');
+						}}
+					>
+						Reset
+					</button>
+				</div>
+				<p style={{ fontSize: 12, color: '#6b7280', margin: 0 }}>
+					💡 Adjust the volume slider or mute toggle, then reload the page — the level
+					is restored automatically.
+				</p>
+			</div>
+
 			{/* Error handling */}
 			<div
 				className="demo-section"
@@ -301,6 +349,15 @@ export default function AdvancedTab() {
 					height={140}
 					forceMainThread={forceMainThread}
 					preload={preloadMode}
+					defaultVolume={savedVolume}
+					onVolumeChange={(v) => {
+						setSavedVolume(v);
+						try {
+							localStorage.setItem('demo_volume', String(v));
+						} catch {
+							/* ignore */
+						}
+					}}
 					precomputedPeaks={
 						usePrecomputedPeaks && savedPeaks ? savedPeaks : undefined
 					}

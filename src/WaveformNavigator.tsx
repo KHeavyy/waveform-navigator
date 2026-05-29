@@ -183,6 +183,17 @@ export interface WaveformNavigatorProps {
 	 */
 	showVolume?: boolean;
 	/**
+	 * Initial volume on mount (0–1). Values outside this range are clamped.
+	 * Use this to restore a previously persisted volume (e.g. from localStorage).
+	 * @default 1
+	 */
+	defaultVolume?: number;
+	/**
+	 * Called whenever the user changes volume via the slider or mute toggle.
+	 * Receives the new clamped volume (0–1). Use this to persist the value.
+	 */
+	onVolumeChange?: (volume: number) => void;
+	/**
 	 * Render function that replaces the built-in rewind/play/forward button group.
 	 * Receives playback state and control handlers so you can render any combination
 	 * of custom buttons — including extra actions like "next track" — without losing
@@ -260,6 +271,8 @@ const WaveformNavigator = React.forwardRef<
 		renderButtons,
 		preload = 'none',
 		initialDuration,
+		defaultVolume,
+		onVolumeChange,
 	} = props;
 	const [hoverX, setHoverX] = useState<number | null>(null);
 	const [hoverTime, setHoverTime] = useState<number | null>(null);
@@ -370,6 +383,8 @@ const WaveformNavigator = React.forwardRef<
 			setErrorState({ message: error.message, type: 'audio' });
 			onError?.(error, 'audio');
 		},
+		defaultVolume,
+		onVolumeChange,
 	});
 
 	// Use waveform data hook
