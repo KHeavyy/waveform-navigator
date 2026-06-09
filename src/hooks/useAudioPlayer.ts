@@ -10,6 +10,51 @@ const POSITION_RESET_TOLERANCE = 0.5;
 // Maximum time to wait for canplay after reloading the source during recovery.
 const CANPLAY_TIMEOUT_MS = 8000;
 
+// Re-assign the element source and wait until it can play again. Used by the
+// recovery paths when the media element has lost its data (background-tab
+// eviction, or a streamed connection that was dropped and surfaced a fatal
+// media error — the only way out of that state is a full source reload).
+function waitForCanPlay(
+	el: HTMLAudioElement,
+	src: string,
+	signal: AbortSignal
+): Promise<void> {
+	return new Promise<void>((resolve, reject) => {
+		if (signal.aborted) {
+			reject(new Error('aborted'));
+			return;
+		}
+		let timeoutId: ReturnType<typeof setTimeout> | null = null;
+		const cleanup = () => {
+			if (timeoutId !== null) clearTimeout(timeoutId);
+			el.removeEventListener('canplay', handleCanPlay);
+			el.removeEventListener('error', handleError);
+			signal.removeEventListener('abort', handleAbort);
+		};
+		const handleCanPlay = () => {
+			cleanup();
+			resolve();
+		};
+		const handleError = () => {
+			cleanup();
+			reject(new Error('reload error'));
+		};
+		const handleAbort = () => {
+			cleanup();
+			reject(new Error('aborted'));
+		};
+		el.addEventListener('canplay', handleCanPlay);
+		el.addEventListener('error', handleError);
+		signal.addEventListener('abort', handleAbort);
+		timeoutId = setTimeout(() => {
+			cleanup();
+			reject(new Error('reload timeout'));
+		}, CANPLAY_TIMEOUT_MS);
+		el.src = src;
+		el.load();
+	});
+}
+
 interface UseAudioPlayerProps {
 	audio: string | File | null | undefined;
 	/**
@@ -149,7 +194,14 @@ export function useAudioPlayer({
 	// audio source changes. Pauses while hidden or blurred are treated as
 	// browser-initiated and preserve the intent.
 	const wasPlayingBeforeHiddenRef = useRef(false);
-	const savedTimeBeforeHiddenRef = useRef(0);
+	// Last known good playback position, used to restore the playhead after the
+	// browser drops media data. Updated continuously from timeupdate — audio
+	// keeps playing (and timeupdate keeps firing) in background tabs, so this
+	// tracks the real position the whole time the page is hidden, not just the
+	// moment it was hidden. While a resume intent is active it only advances:
+	// eviction resets the element to 0 and fires a timeupdate at 0, which must
+	// not erase the position recovery will seek back to.
+	const lastKnownTimeRef = useRef(0);
 	// Prevents overlapping resume attempts from rapid visibility/focus toggles.
 	const resumeInFlightRef = useRef(false);
 	// AbortController for the active resume attempt. Aborted on source change
@@ -188,6 +240,11 @@ export function useAudioPlayer({
 		const onPlayingEvent = () => {
 			setIsLoading(false);
 			onLoadingChangeRef.current?.(false);
+			// Playback confirmed while in the foreground — the background-resume
+			// cycle (if any) is complete, so drop the intent and its guards.
+			if (!document.hidden && !isWindowBlurredRef.current) {
+				wasPlayingBeforeHiddenRef.current = false;
+			}
 		};
 		const onWaitingEvent = () => {
 			setIsLoading(true);
@@ -208,6 +265,20 @@ export function useAudioPlayer({
 		};
 		const onTimeEvent = () => {
 			const time = el.currentTime;
+			if (wasPlayingBeforeHiddenRef.current) {
+				// Resume intent active: only let the position advance, so the
+				// timeupdate-at-0 that follows media eviction can't erase it.
+				if (time > lastKnownTimeRef.current) {
+					lastKnownTimeRef.current = time;
+				} else if (time < lastKnownTimeRef.current - POSITION_RESET_TOLERANCE) {
+					// A position regression while the intent is active can only be
+					// eviction noise (seeks update lastKnownTimeRef directly) — don't
+					// let it drag the displayed playhead back to the start.
+					return;
+				}
+			} else {
+				lastKnownTimeRef.current = time;
+			}
 			setCurrentTime(time);
 			onTimeUpdateRef.current?.(time);
 			if (!isControlledRef.current) {
@@ -232,7 +303,13 @@ export function useAudioPlayer({
 			setIsPlaying(false);
 			setIsLoading(false);
 			onLoadingChangeRef.current?.(false);
-			wasPlayingBeforeHiddenRef.current = false;
+			// Same policy as the pause handler: an error while hidden or blurred is
+			// typically the browser/server dropping a streamed connection in a
+			// background tab. The resume intent must survive so the visibility/focus
+			// handler can reload the source and continue playback on return.
+			if (!document.hidden && !isWindowBlurredRef.current) {
+				wasPlayingBeforeHiddenRef.current = false;
+			}
 			const error = el.error;
 			if (error) {
 				// Use numeric MediaError codes directly; the MediaError constructor
@@ -261,14 +338,20 @@ export function useAudioPlayer({
 		};
 		// Fired when the media resource is reset (browser may evict the
 		// decoded buffer after long background eviction). Per spec the playhead
-		// is at 0 once emptied fires, so sync the displayed position too.
+		// is at 0 once emptied fires, so sync the displayed position too —
+		// unless a resume is pending, in which case keep showing the position
+		// playback will be restored to instead of jumping the waveform back to
+		// the start.
 		const onEmptiedEvent = () => {
 			setIsPlaying(false);
 			setIsLoading(false);
 			onLoadingChangeRef.current?.(false);
-			setCurrentTime(0);
+			const displayTime = wasPlayingBeforeHiddenRef.current
+				? lastKnownTimeRef.current
+				: 0;
+			setCurrentTime(displayTime);
 			if (!isControlledRef.current) {
-				onCurrentTimeChangeRef.current?.(0);
+				onCurrentTimeChangeRef.current?.(displayTime);
 			}
 		};
 
@@ -315,62 +398,36 @@ export function useAudioPlayer({
 		const syncFromElement = () => {
 			const el = audioRef.current;
 			if (!el) return;
-			const elPlaying = !el.paused && !el.ended;
+			// A fatal media error leaves paused === false even though playback is
+			// dead, so an errored element must not be reported as playing.
+			const elPlaying = !el.paused && !el.ended && !el.error;
 			if (isPlayingRef.current !== elPlaying) {
 				setIsPlaying(elPlaying);
 			}
 			if (!isControlledRef.current) {
-				setCurrentTime(el.currentTime);
+				// While a resume is pending the element may have been reset to 0 by
+				// eviction; keep showing the position playback will resume from.
+				const elTime = el.currentTime;
+				setCurrentTime(
+					wasPlayingBeforeHiddenRef.current
+						? Math.max(elTime, lastKnownTimeRef.current)
+						: elTime
+				);
 			}
 			setIsLoading(false);
 			onLoadingChangeRef.current?.(false);
 		};
 
-		const waitForCanPlay = (
-			el: HTMLAudioElement,
-			src: string,
-			signal: AbortSignal
-		) =>
-			new Promise<void>((resolve, reject) => {
-				if (signal.aborted) {
-					reject(new Error('aborted'));
-					return;
-				}
-				let timeoutId: ReturnType<typeof setTimeout> | null = null;
-				const cleanup = () => {
-					if (timeoutId !== null) clearTimeout(timeoutId);
-					el.removeEventListener('canplay', handleCanPlay);
-					el.removeEventListener('error', handleError);
-					signal.removeEventListener('abort', handleAbort);
-				};
-				const handleCanPlay = () => {
-					cleanup();
-					resolve();
-				};
-				const handleError = () => {
-					cleanup();
-					reject(new Error('reload error'));
-				};
-				const handleAbort = () => {
-					cleanup();
-					reject(new Error('aborted'));
-				};
-				el.addEventListener('canplay', handleCanPlay);
-				el.addEventListener('error', handleError);
-				signal.addEventListener('abort', handleAbort);
-				timeoutId = setTimeout(() => {
-					cleanup();
-					reject(new Error('reload timeout'));
-				}, CANPLAY_TIMEOUT_MS);
-				el.src = src;
-				el.load();
-			});
-
 		const resumeIfNeeded = async () => {
 			const el = audioRef.current;
 			if (!el) return;
 			if (!wasPlayingBeforeHiddenRef.current) return;
-			if (!el.paused || el.ended) return;
+			if (el.ended) return;
+			// A fatal media error (e.g. a streamed connection dropped while the
+			// tab was in the background) leaves paused === false even though
+			// playback is dead — an errored element always needs recovery.
+			const errored = !!el.error;
+			if (!el.paused && !errored) return;
 			if (resumeInFlightRef.current) return;
 
 			// Abort any stale controller (defensive — shouldn't happen with the
@@ -382,70 +439,50 @@ export function useAudioPlayer({
 
 			resumeInFlightRef.current = true;
 			try {
-				const saved = savedTimeBeforeHiddenRef.current;
+				// Errored elements skip the direct play() attempt: play() never
+				// re-runs resource selection after a fatal error, so only a full
+				// source reload can revive them.
+				if (!errored) {
+					const saved = lastKnownTimeRef.current;
 
-				// Restore position if the browser dropped it — within a tolerance,
-				// not just exact-zero, since some browsers reset to a small non-zero
-				// value during eviction recovery.
-				if (saved > 0 && el.currentTime < saved - POSITION_RESET_TOLERANCE) {
-					try {
-						el.currentTime = saved;
-						if (!isControlledRef.current) {
-							setCurrentTime(saved);
+					// Restore position if the browser dropped it — within a tolerance,
+					// not just exact-zero, since some browsers reset to a small non-zero
+					// value during eviction recovery.
+					if (saved > 0 && el.currentTime < saved - POSITION_RESET_TOLERANCE) {
+						try {
+							el.currentTime = saved;
+							if (!isControlledRef.current) {
+								setCurrentTime(saved);
+							}
+						} catch {
+							// currentTime can throw if the element has no media data yet;
+							// the reload path below will restore it after canplay.
 						}
-					} catch {
-						// currentTime can throw if the element has no media data yet;
-						// the reload path below will restore it after canplay.
 					}
-				}
 
-				try {
-					await el.play();
-					return;
-				} catch {
-					// play() rejected — the media may have been released. Fall through
-					// to a full source reload.
-				}
-
-				// Bail if state changed during the await (user paused, audio swapped,
-				// component unmounted).
-				if (signal.aborted) return;
-				if (!wasPlayingBeforeHiddenRef.current) return;
-				if (audioRef.current !== el) return;
-
-				const src = el.currentSrc || el.src;
-				if (!src) {
-					syncFromElement();
-					return;
-				}
-
-				try {
-					await waitForCanPlay(el, src, signal);
-				} catch {
-					if (!signal.aborted) syncFromElement();
-					return;
-				}
-
-				if (signal.aborted) return;
-				if (!wasPlayingBeforeHiddenRef.current) return;
-				if (audioRef.current !== el) return;
-
-				if (saved > 0) {
 					try {
-						el.currentTime = saved;
-						if (!isControlledRef.current) {
-							setCurrentTime(saved);
-						}
+						await el.play();
+						return;
 					} catch {
-						// fall through — best effort
+						// play() rejected — the media may have been released. Fall through
+						// to a full source reload.
 					}
+
+					// Bail if state changed during the await (user paused, audio swapped,
+					// component unmounted).
+					if (signal.aborted) return;
+					if (!wasPlayingBeforeHiddenRef.current) return;
+					if (audioRef.current !== el) return;
 				}
 
-				try {
-					await el.play();
-				} catch {
+				const resumed = await reloadAndPlay(
+					el,
+					signal,
+					() => wasPlayingBeforeHiddenRef.current
+				);
+				if (!resumed && !signal.aborted) {
 					// Give up — surface honest paused state so the user can click play.
-					if (!signal.aborted) syncFromElement();
+					syncFromElement();
 				}
 			} finally {
 				resumeInFlightRef.current = false;
@@ -459,7 +496,9 @@ export function useAudioPlayer({
 			const el = audioRef.current;
 			if (!el) return;
 			wasPlayingBeforeHiddenRef.current = isPlayingRef.current;
-			savedTimeBeforeHiddenRef.current = el.currentTime;
+			if (el.currentTime > 0) {
+				lastKnownTimeRef.current = el.currentTime;
+			}
 		};
 
 		const handleVisibilityChange = () => {
@@ -554,7 +593,7 @@ export function useAudioPlayer({
 		resumeAbortRef.current = null;
 		resumeInFlightRef.current = false;
 		wasPlayingBeforeHiddenRef.current = false;
-		savedTimeBeforeHiddenRef.current = 0;
+		lastKnownTimeRef.current = 0;
 
 		// Cleanup previous
 		if (objectUrlRef.current) {
@@ -594,6 +633,7 @@ export function useAudioPlayer({
 				CONTROLLED_TIME_THRESHOLD
 			) {
 				audio.currentTime = controlledCurrentTime;
+				lastKnownTimeRef.current = controlledCurrentTime;
 			}
 		}
 	}, [controlledCurrentTime, isControlled]);
@@ -613,9 +653,87 @@ export function useAudioPlayer({
 		onVolumeChangeRef.current?.(clamped);
 	}
 
+	// Reload the element's source, wait until it can play, seek back to the
+	// last known position, and play. This is the only way out once the element
+	// has surfaced a fatal media error: play() never re-runs resource selection
+	// in that state, so without a reload the player is dead until a page
+	// refresh. Shared by the visibility auto-resume and togglePlay.
+	async function reloadAndPlay(
+		el: HTMLAudioElement,
+		signal: AbortSignal,
+		shouldContinue?: () => boolean
+	): Promise<boolean> {
+		const src = el.currentSrc || el.src;
+		if (!src) {
+			return false;
+		}
+
+		try {
+			await waitForCanPlay(el, src, signal);
+		} catch {
+			return false;
+		}
+
+		if (signal.aborted) return false;
+		if (audioRef.current !== el) return false;
+		if (shouldContinue && !shouldContinue()) return false;
+
+		const saved = lastKnownTimeRef.current;
+		if (saved > 0) {
+			try {
+				el.currentTime = saved;
+				if (!isControlledRef.current) {
+					setCurrentTime(saved);
+				}
+			} catch {
+				// best effort — playback will start from wherever the element is
+			}
+		}
+
+		try {
+			await el.play();
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	// Manual recovery from a fatal media error (e.g. the user clicks play after
+	// a streamed connection died in a background tab and auto-resume gave up).
+	async function recoverFromError(el: HTMLAudioElement) {
+		if (resumeInFlightRef.current) return;
+		resumeAbortRef.current?.abort();
+		const controller = new AbortController();
+		resumeAbortRef.current = controller;
+		resumeInFlightRef.current = true;
+		setIsLoading(true);
+		onLoadingChangeRef.current?.(true);
+		try {
+			const resumed = await reloadAndPlay(el, controller.signal);
+			if (!resumed && !controller.signal.aborted) {
+				setIsPlaying(false);
+				setIsLoading(false);
+				onLoadingChangeRef.current?.(false);
+			}
+		} finally {
+			resumeInFlightRef.current = false;
+			if (resumeAbortRef.current === controller) {
+				resumeAbortRef.current = null;
+			}
+		}
+	}
+
 	function togglePlay() {
 		const a = audioRef.current;
 		if (!a) {
+			return;
+		}
+		if (a.error) {
+			// An errored element reports paused === false, so without this branch
+			// the click would call pause() (a no-op) or a play() that can never
+			// succeed — leaving a refresh as the user's only way out.
+			a.preload = 'auto';
+			recoverFromError(a);
 			return;
 		}
 		if (a.paused) {
@@ -653,6 +771,7 @@ export function useAudioPlayer({
 			// fire timeupdate when currentTime is set before media data is loaded,
 			// so we can't rely on the event to move the playhead.
 			a.currentTime = time;
+			lastKnownTimeRef.current = time;
 			setCurrentTime(time);
 			onCurrentTimeChangeRef.current?.(time);
 		}

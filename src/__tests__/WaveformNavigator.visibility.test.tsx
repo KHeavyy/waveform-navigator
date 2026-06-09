@@ -706,6 +706,202 @@ describe('WaveformNavigator – visibility / bfcache resume', () => {
 		expect(timeText.startsWith('0:00')).toBe(true);
 	});
 
+	// ─── streamed source dropped while the tab is in the background ─────────────
+	//
+	// Real-world failure this guards against: audio is streaming, the tab is
+	// hidden, after 30–60s the browser/server drops the media connection. The
+	// element surfaces a fatal `error` (paused stays false per spec) and/or
+	// `emptied` (position reset to 0). Previously this killed the resume intent,
+	// snapped the waveform back to the start, and left the play button dead
+	// until a full page refresh.
+
+	function defineError(audioEl: HTMLAudioElement, code: number | null) {
+		Object.defineProperty(audioEl, 'error', {
+			get: () => (code === null ? null : { code }),
+			configurable: true,
+		});
+	}
+
+	function mockReload(audioEl: HTMLAudioElement) {
+		const loadSpy = vi.fn(() => {
+			queueMicrotask(() => audioEl.dispatchEvent(new Event('canplay')));
+		});
+		Object.defineProperty(audioEl, 'load', {
+			value: loadSpy,
+			configurable: true,
+		});
+		Object.defineProperty(audioEl, 'currentSrc', {
+			get: () => '/test.mp3',
+			configurable: true,
+		});
+		return loadSpy;
+	}
+
+	it('reloads and resumes from the latest position when a streamed source errors while hidden', async () => {
+		mockAudio();
+
+		render(<WaveformNavigator audio="/test.mp3" responsive={false} />);
+
+		const audioEl = await waitForAudio();
+		const playSpy = spyOnPlay(audioEl);
+		const loadSpy = mockReload(audioEl);
+
+		defineCurrentTime(audioEl, 30);
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+			audioEl.dispatchEvent(new Event('timeupdate'));
+		});
+
+		await act(async () => {
+			setHidden(true);
+		});
+
+		// Audio keeps playing in the background — timeupdate still fires.
+		defineCurrentTime(audioEl, 65);
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('timeupdate'));
+		});
+
+		// The streamed connection dies: fatal media error. Per spec, paused
+		// remains false and the resource is reset (emptied + timeupdate at 0).
+		defineError(audioEl, 2); // MEDIA_ERR_NETWORK
+		definePaused(audioEl, false);
+		defineCurrentTime(audioEl, 0);
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('error'));
+			audioEl.dispatchEvent(new Event('emptied'));
+			audioEl.dispatchEvent(new Event('timeupdate'));
+		});
+
+		await act(async () => {
+			setHidden(false);
+		});
+
+		await act(async () => {
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		// Recovery must reload the source, seek to where playback had reached
+		// while hidden (65s, not the hide-time 30s), and resume.
+		expect(loadSpy).toHaveBeenCalledTimes(1);
+		expect(audioEl.currentTime).toBe(65);
+		expect(playSpy).toHaveBeenCalledTimes(1);
+	});
+
+	it('restores the position playback reached while hidden, not the position when hidden', async () => {
+		mockAudio();
+
+		render(<WaveformNavigator audio="/test.mp3" responsive={false} />);
+
+		const audioEl = await waitForAudio();
+		const playSpy = spyOnPlay(audioEl);
+
+		defineCurrentTime(audioEl, 10);
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+			audioEl.dispatchEvent(new Event('timeupdate'));
+		});
+
+		await act(async () => {
+			setHidden(true);
+		});
+
+		// Audio continues in the background before the browser pauses and
+		// resets it.
+		defineCurrentTime(audioEl, 40);
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('timeupdate'));
+		});
+
+		definePaused(audioEl, true);
+		defineCurrentTime(audioEl, 0);
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('pause'));
+		});
+
+		await act(async () => {
+			setHidden(false);
+		});
+
+		expect(audioEl.currentTime).toBe(40);
+		expect(playSpy).toHaveBeenCalledTimes(1);
+	});
+
+	it('keeps displaying the last played position when media is evicted while hidden', async () => {
+		mockAudio();
+
+		const { container } = render(
+			<WaveformNavigator audio="/test.mp3" responsive={false} />
+		);
+
+		const audioEl = await waitForAudio();
+		spyOnPlay(audioEl);
+
+		defineCurrentTime(audioEl, 90);
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+			audioEl.dispatchEvent(new Event('timeupdate'));
+		});
+
+		await act(async () => {
+			setHidden(true);
+		});
+
+		// Eviction: resource reset to 0 (emptied followed by timeupdate at 0).
+		definePaused(audioEl, true);
+		defineCurrentTime(audioEl, 0);
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('emptied'));
+			audioEl.dispatchEvent(new Event('timeupdate'));
+		});
+
+		// The waveform must not jump back to the start while a resume is pending.
+		const timeText = container.querySelector('.time')?.textContent ?? '';
+		expect(timeText.startsWith('1:30')).toBe(true);
+	});
+
+	it('clicking play after a fatal media error reloads the source instead of doing nothing', async () => {
+		mockAudio();
+
+		const { container } = render(
+			<WaveformNavigator audio="/test.mp3" responsive={false} />
+		);
+
+		const audioEl = await waitForAudio();
+		const playSpy = spyOnPlay(audioEl);
+		const loadSpy = mockReload(audioEl);
+
+		defineCurrentTime(audioEl, 30);
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+			audioEl.dispatchEvent(new Event('timeupdate'));
+		});
+
+		// Fatal error while visible — paused stays false, so the old code would
+		// have routed the click to pause() (a no-op on a dead element).
+		defineError(audioEl, 2);
+		definePaused(audioEl, false);
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('error'));
+		});
+
+		expect(
+			container.querySelector('button.play')?.getAttribute('aria-label')
+		).toBe('play');
+
+		const button = container.querySelector('button.play') as HTMLButtonElement;
+		await act(async () => {
+			button.click();
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		expect(loadSpy).toHaveBeenCalledTimes(1);
+		expect(audioEl.currentTime).toBe(30);
+		expect(playSpy).toHaveBeenCalledTimes(1);
+	});
+
 	it('resumes via window focus when visibilitychange is not fired (window switch)', async () => {
 		mockAudio();
 
