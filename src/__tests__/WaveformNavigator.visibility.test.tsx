@@ -902,6 +902,137 @@ describe('WaveformNavigator – visibility / bfcache resume', () => {
 		expect(playSpy).toHaveBeenCalledTimes(1);
 	});
 
+	it('surfaces loading state when play is clicked while a recovery is already in flight', async () => {
+		mockAudio();
+
+		const onLoadingChange = vi.fn();
+		const { container } = render(
+			<WaveformNavigator
+				audio="/test.mp3"
+				responsive={false}
+				onLoadingChange={onLoadingChange}
+			/>
+		);
+
+		const audioEl = await waitForAudio();
+		spyOnPlay(audioEl);
+
+		// load() never fires canplay — the reload stays pending so the
+		// auto-resume remains in flight for the whole test.
+		const loadSpy = vi.fn();
+		Object.defineProperty(audioEl, 'load', {
+			value: loadSpy,
+			configurable: true,
+		});
+		Object.defineProperty(audioEl, 'currentSrc', {
+			get: () => '/test.mp3',
+			configurable: true,
+		});
+
+		defineCurrentTime(audioEl, 30);
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+			audioEl.dispatchEvent(new Event('timeupdate'));
+		});
+
+		await act(async () => {
+			setHidden(true);
+		});
+
+		defineError(audioEl, 2);
+		definePaused(audioEl, false);
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('error'));
+		});
+
+		// Return to the tab: auto-resume enters the reload path and stays pending.
+		await act(async () => {
+			setHidden(false);
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+		expect(loadSpy).toHaveBeenCalledTimes(1);
+
+		// Clicking play while the recovery is in flight must not look like a
+		// silent no-op: the loading state is re-surfaced and no second reload
+		// is started.
+		onLoadingChange.mockClear();
+		const button = container.querySelector('button.play') as HTMLButtonElement;
+		await act(async () => {
+			button.click();
+			await Promise.resolve();
+		});
+
+		expect(onLoadingChange).toHaveBeenCalledWith(true);
+		expect(loadSpy).toHaveBeenCalledTimes(1);
+	});
+
+	it('clears the loading state when the audio source changes during recovery', async () => {
+		mockAudio();
+
+		const onLoadingChange = vi.fn();
+		const { rerender } = render(
+			<WaveformNavigator
+				audio="/test.mp3"
+				responsive={false}
+				onLoadingChange={onLoadingChange}
+			/>
+		);
+
+		const audioEl = await waitForAudio();
+		spyOnPlay(audioEl);
+
+		// load() never fires canplay — the recovery stays in flight until the
+		// source change aborts it.
+		Object.defineProperty(audioEl, 'load', {
+			value: vi.fn(),
+			configurable: true,
+		});
+		Object.defineProperty(audioEl, 'currentSrc', {
+			get: () => '/test.mp3',
+			configurable: true,
+		});
+
+		defineCurrentTime(audioEl, 30);
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('play'));
+			audioEl.dispatchEvent(new Event('timeupdate'));
+		});
+
+		await act(async () => {
+			setHidden(true);
+		});
+
+		defineError(audioEl, 2);
+		definePaused(audioEl, false);
+		await act(async () => {
+			audioEl.dispatchEvent(new Event('error'));
+		});
+
+		await act(async () => {
+			setHidden(false);
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		// Recovery is in flight with the loading state surfaced.
+		expect(onLoadingChange).toHaveBeenLastCalledWith(true);
+
+		// Switching tracks aborts the recovery; the loading flag must not be
+		// left stuck, since the aborted attempt skips its own state cleanup.
+		await act(async () => {
+			rerender(
+				<WaveformNavigator
+					audio="/other.mp3"
+					responsive={false}
+					onLoadingChange={onLoadingChange}
+				/>
+			);
+		});
+
+		expect(onLoadingChange).toHaveBeenLastCalledWith(false);
+	});
+
 	it('resumes via window focus when visibilitychange is not fired (window switch)', async () => {
 		mockAudio();
 

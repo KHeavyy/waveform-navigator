@@ -475,6 +475,12 @@ export function useAudioPlayer({
 					if (audioRef.current !== el) return;
 				}
 
+				// The reload can take up to CANPLAY_TIMEOUT_MS — surface the loading
+				// state instead of an idle paused player while it runs. Cleared by
+				// `playing` on success, syncFromElement on failure, or the source
+				// change effect on abort.
+				setIsLoading(true);
+				onLoadingChangeRef.current?.(true);
 				const resumed = await reloadAndPlay(
 					el,
 					signal,
@@ -594,6 +600,12 @@ export function useAudioPlayer({
 		resumeInFlightRef.current = false;
 		wasPlayingBeforeHiddenRef.current = false;
 		lastKnownTimeRef.current = 0;
+		// The aborted recovery deliberately skips its own state cleanup (so it
+		// can't stomp the new track's state), so clear the loading flag it may
+		// have set — nothing else is guaranteed to fire for the new source
+		// before the user interacts.
+		setIsLoading(false);
+		onLoadingChangeRef.current?.(false);
 
 		// Cleanup previous
 		if (objectUrlRef.current) {
@@ -701,13 +713,17 @@ export function useAudioPlayer({
 	// Manual recovery from a fatal media error (e.g. the user clicks play after
 	// a streamed connection died in a background tab and auto-resume gave up).
 	async function recoverFromError(el: HTMLAudioElement) {
+		// Surface the loading state before the in-flight guard: when a recovery
+		// is already running, the click must not look like a silent no-op — the
+		// active attempt's terminal state (playing / sync / source change) is
+		// what clears the flag.
+		setIsLoading(true);
+		onLoadingChangeRef.current?.(true);
 		if (resumeInFlightRef.current) return;
 		resumeAbortRef.current?.abort();
 		const controller = new AbortController();
 		resumeAbortRef.current = controller;
 		resumeInFlightRef.current = true;
-		setIsLoading(true);
-		onLoadingChangeRef.current?.(true);
 		try {
 			const resumed = await reloadAndPlay(el, controller.signal);
 			if (!resumed && !controller.signal.aborted) {
