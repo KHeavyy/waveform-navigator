@@ -185,15 +185,24 @@ The `styles` prop accepts an object with the following optional properties:
 The component supports displaying markers at specific time positions on the waveform. Markers can be used to indicate important moments, chapters, or annotations in the audio.
 
 - **`markers`** (Marker[] | undefined): Array of marker objects to display on the waveform. Each marker specifies a time position and optionally custom rendering.
+- **`onMarkerClick`** ((marker, index, event) => void | undefined): Fires when a marker's hit region is clicked or tapped. Supplying this (or `onMarkerHover`) enables marker hit-testing; when a click hits a marker, the default click-to-seek is suppressed so your handler decides what happens.
+- **`onMarkerHover`** ((marker | null, index | null) => void | undefined): Fires when the hovered marker changes — with `(marker, index)` on enter/change and `(null, null)` when the pointer leaves all markers.
+- **`markerHitRadius`** (number, default: `12`): Half-width in CSS pixels of the default full-height hit column around each marker.
 
 **Marker Interface:**
 
 ```tsx
-import type { Marker, MarkerRenderProps } from 'waveform-navigator';
+import type {
+  Marker,
+  MarkerRenderProps,
+  MarkerHitTestArgs,
+} from 'waveform-navigator';
 
 interface Marker {
   time: number; // Time position in seconds where the marker should be displayed
+  id?: string; // Optional stable identity echoed back in onMarkerClick/onMarkerHover
   markup?: (props: MarkerRenderProps) => void; // Optional custom rendering function
+  hitTest?: (args: MarkerHitTestArgs) => boolean; // Optional custom hit region
 }
 
 interface MarkerRenderProps {
@@ -202,6 +211,15 @@ interface MarkerRenderProps {
   height: number; // Height of the waveform canvas in pixels
   index: number; // Index of the marker in the markers array
   marker: Marker; // The marker object
+  hovered?: boolean; // True while the pointer is over this marker's hit region
+}
+
+interface MarkerHitTestArgs {
+  x: number; // Pointer x in canvas bounding-rect (CSS px) coordinates
+  y: number; // Pointer y in canvas bounding-rect (CSS px) coordinates
+  markerX: number; // (marker.time / duration) * width
+  width: number; // Canvas bounding-rect width
+  height: number; // Canvas bounding-rect height
 }
 ```
 
@@ -270,12 +288,43 @@ Use the `styles` prop to customize the default marker colors:
 />
 ```
 
+**Interactive Markers (click & hover):**
+
+Provide `onMarkerClick` and/or `onMarkerHover` to make markers individually clickable and hoverable — for example, to render speech-bubble comment markers and know exactly which comment was clicked:
+
+```tsx
+const commentMarker = ({ ctx, x, height, hovered, marker }: MarkerRenderProps) => {
+  ctx.fillStyle = hovered ? '#1d4ed8' : '#2b6ef6';
+  ctx.beginPath();
+  ctx.arc(x, 16, hovered ? 10 : 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(x - 1, 16, 2, height - 16);
+};
+
+const comments = [
+  { time: 12, id: 'comment-1' },
+  { time: 48, id: 'comment-2' },
+];
+
+<WaveformNavigator
+  audio="/audio.mp3"
+  markers={comments.map((c) => ({ time: c.time, id: c.id, markup: commentMarker }))}
+  onMarkerClick={(marker) => openComment(marker.id)}
+  onMarkerHover={(marker) => setHoveredCommentId(marker?.id ?? null)}
+/>
+```
+
+When neither `onMarkerClick` nor `onMarkerHover` is supplied, markers remain purely decorative and clicking anywhere on the waveform always seeks — the same behavior as before these props existed.
+
 **Notes:**
 
 - Markers are positioned based on their `time` value relative to the audio duration.
 - Markers outside the valid time range (time < 0 or time > duration) will not be rendered.
 - The marker index (shown in default labels as M1, M2, etc.) corresponds to the marker's position in the array, starting from 1.
 - Custom markup functions receive the canvas context and should handle all drawing operations.
+- The default hit region for a marker is a full-height column `markerHitRadius` px wide on either side of its x position; override it per-marker with `hitTest`.
+- When multiple markers' hit regions overlap, the nearest one to the pointer wins; ties resolve to the lowest array index.
+- On touch devices, tapping a marker fires `onMarkerClick` without seeking; dragging away from the initial touch point falls back to the normal scrub-seek behavior.
 
 #### Controlled Props
 

@@ -14,6 +14,8 @@ interface UseWaveformCanvasProps {
 	markerColor?: string;
 	markerLabelColor?: string;
 	markers?: Marker[];
+	/** Index of the marker currently hovered by the pointer, or null when none. */
+	hoveredMarkerIndex?: number | null;
 	peaks: Float32Array | null;
 	currentTime: number;
 	duration: number;
@@ -39,6 +41,7 @@ export function useWaveformCanvas({
 	markerColor = '#10b981',
 	markerLabelColor = '#ffffff',
 	markers = [],
+	hoveredMarkerIndex = null,
 	peaks,
 	currentTime,
 	duration,
@@ -62,13 +65,15 @@ export function useWaveformCanvas({
 	const currentTimeRef = useRef(currentTime);
 	const durationRef = useRef(duration);
 	const peaksRef = useRef(peaks);
+	const hoveredMarkerIndexRef = useRef(hoveredMarkerIndex);
 
 	// Keep refs updated
 	useEffect(() => {
 		currentTimeRef.current = currentTime;
 		durationRef.current = duration;
 		peaksRef.current = peaks;
-	}, [currentTime, duration, peaks]);
+		hoveredMarkerIndexRef.current = hoveredMarkerIndex;
+	}, [currentTime, duration, peaks, hoveredMarkerIndex]);
 
 	// Initialize canvas with HiDPI support
 	useEffect(() => {
@@ -202,7 +207,7 @@ export function useWaveformCanvas({
 
 		// Draw markers (using logical coordinates)
 		if (markers && markers.length > 0) {
-			drawMarkers(ctx, markers, dur, width, height);
+			drawMarkers(ctx, markers, dur, width, height, hoveredMarkerIndexRef.current);
 		}
 	}
 
@@ -215,7 +220,8 @@ export function useWaveformCanvas({
 		markersArr: Marker[],
 		dur: number,
 		canvasWidth: number,
-		canvasHeight: number
+		canvasHeight: number,
+		hoveredIndex: number | null
 	) {
 		if (dur <= 0) {
 			return;
@@ -240,6 +246,7 @@ export function useWaveformCanvas({
 					height: canvasHeight,
 					index,
 					marker,
+					hovered: index === hoveredIndex,
 				});
 				ctx.restore();
 			} else {
@@ -314,7 +321,15 @@ export function useWaveformCanvas({
 				rafRef.current = null;
 			}
 		};
-	}, [isPlaying, peaks, progressColor, playheadColor, markerColor, markerLabelColor, markers]);
+	}, [
+		isPlaying,
+		peaks,
+		progressColor,
+		playheadColor,
+		markerColor,
+		markerLabelColor,
+		markers,
+	]);
 
 	// When paused, redraw on seek or whenever any visual prop changes.
 	// Mirrors the deps the original combined effect used for the non-playing branch,
@@ -323,7 +338,17 @@ export function useWaveformCanvas({
 		if (!isPlaying && peaks) {
 			drawWaveform(peaks, currentTime);
 		}
-	}, [currentTime, isPlaying, peaks, progressColor, playheadColor, markerColor, markerLabelColor, markers]);
+	}, [
+		currentTime,
+		isPlaying,
+		peaks,
+		progressColor,
+		playheadColor,
+		markerColor,
+		markerLabelColor,
+		markers,
+		hoveredMarkerIndex,
+	]);
 
 	return {
 		canvasRef,
