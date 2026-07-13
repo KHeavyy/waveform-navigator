@@ -1,7 +1,7 @@
 {
 	"name": "waveform-navigator",
 	"version": "0.5.0",
-	"description": "A React component to display and navigate audio waveforms with custom controls.",
+	"description": "A React component to display and navigate audio waveforms with custom controls and custom markers.",
 	"main": "./dist/index.cjs",
 	"module": "./dist/index.mjs",
 	"types": "./dist/index.d.ts",
