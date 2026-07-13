@@ -201,4 +201,66 @@ describe('WaveformNavigator onMarkerHover', () => {
 
 		expect(onMarkerHover).not.toHaveBeenCalled();
 	});
+
+	it('touch start on a marker fires onMarkerHover so markup can see hovered', async () => {
+		mockAudio();
+		const onMarkerHover = vi.fn();
+		const markers: Marker[] = [{ time: 60, id: 'm1' }];
+
+		const { container } = render(
+			<WaveformNavigator
+				audio="/test.mp3"
+				responsive={false}
+				controlledCurrentTime={0}
+				markers={markers}
+				onMarkerHover={onMarkerHover}
+				onMarkerClick={() => {}}
+			/>
+		);
+
+		const audioEl = await waitForAudio();
+		await act(async () => setDuration(audioEl, 120));
+		await waitForDuration(container, 120);
+
+		const canvas = container.querySelector('canvas') as HTMLCanvasElement;
+		fireEvent.touchStart(canvas, { touches: [{ clientX: 100, clientY: 10 }] });
+
+		expect(onMarkerHover).toHaveBeenCalledTimes(1);
+		expect(onMarkerHover).toHaveBeenCalledWith(markers[0], 0);
+
+		fireEvent.touchEnd(canvas, { touches: [] });
+
+		expect(onMarkerHover).toHaveBeenCalledTimes(2);
+		expect(onMarkerHover.mock.calls[1]).toEqual([null, null]);
+	});
+
+	it('touch drag beyond slop clears hover when leaving a pending marker', async () => {
+		mockAudio();
+		const onMarkerHover = vi.fn();
+		const markers: Marker[] = [{ time: 60, id: 'm1' }];
+
+		const { container } = render(
+			<WaveformNavigator
+				audio="/test.mp3"
+				responsive={false}
+				controlledCurrentTime={0}
+				markers={markers}
+				onMarkerHover={onMarkerHover}
+				onMarkerClick={() => {}}
+			/>
+		);
+
+		const audioEl = await waitForAudio();
+		await act(async () => setDuration(audioEl, 120));
+		await waitForDuration(container, 120);
+
+		const canvas = container.querySelector('canvas') as HTMLCanvasElement;
+		fireEvent.touchStart(canvas, { touches: [{ clientX: 100, clientY: 10 }] });
+		expect(onMarkerHover).toHaveBeenCalledWith(markers[0], 0);
+
+		fireEvent.touchMove(canvas, { touches: [{ clientX: 160, clientY: 10 }] });
+
+		expect(onMarkerHover).toHaveBeenCalledTimes(2);
+		expect(onMarkerHover.mock.calls[1]).toEqual([null, null]);
+	});
 });

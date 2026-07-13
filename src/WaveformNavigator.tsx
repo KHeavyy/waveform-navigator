@@ -613,11 +613,13 @@ const WaveformNavigator = React.forwardRef<
 					startX: touch.clientX,
 					startY: touch.clientY,
 				};
+				updateHoveredMarker(hit.index);
 				setHoverX(x);
 				const t = duration > 0 ? (x / rect.width) * duration : 0;
 				setHoverTime(isFinite(t) ? t : null);
 				return;
 			}
+			updateHoveredMarker(null);
 		}
 
 		pendingTouchMarkerRef.current = null;
@@ -651,6 +653,7 @@ const WaveformNavigator = React.forwardRef<
 			}
 			// Moved beyond slop: cancel the pending marker and fall back to scrub-seek.
 			pendingTouchMarkerRef.current = null;
+			updateHoveredMarker(null);
 		}
 
 		const x = Math.max(0, Math.min(rect.width, touch.clientX - rect.left));
@@ -669,6 +672,7 @@ const WaveformNavigator = React.forwardRef<
 		if (pending && e.type === 'touchend') {
 			onMarkerClick?.(pending.marker, pending.index, e);
 		}
+		updateHoveredMarker(null);
 		setHoverX(null);
 		setHoverTime(null);
 	}
