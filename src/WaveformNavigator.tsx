@@ -7,6 +7,7 @@ import { useResponsiveWidth } from './hooks/useResponsiveWidth';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
 import { WaveformControls } from './components/WaveformControls';
 import { formatTime } from './utils';
+import { hitTestDefaultMarkerLabel } from './utils/defaultMarkerLabel';
 
 type AudioProp = string | File | null | undefined;
 
@@ -49,6 +50,24 @@ export interface MarkerRenderProps {
 	index: number;
 	/** The marker object */
 	marker: Marker;
+	/** True while the pointer is over this marker's hit region (interactive mode only). */
+	hovered?: boolean;
+}
+
+/**
+ * Arguments passed to a marker's custom `hitTest` function.
+ */
+export interface MarkerHitTestArgs {
+	/** Pointer position in canvas CSS-pixel (bounding-rect) coordinates. */
+	x: number;
+	/** Pointer position in canvas CSS-pixel (bounding-rect) coordinates. */
+	y: number;
+	/** The marker's x position: (marker.time / duration) * rect.width */
+	markerX: number;
+	/** Canvas bounding-rect width (CSS pixels). */
+	width: number;
+	/** Canvas bounding-rect height (CSS pixels). */
+	height: number;
 }
 
 /**
@@ -57,8 +76,12 @@ export interface MarkerRenderProps {
 export interface Marker {
 	/** Time position in seconds where the marker should be displayed */
 	time: number;
+	/** Optional stable identity echoed back in callbacks (e.g. a comment id). */
+	id?: string;
 	/** Optional custom rendering function. If not provided, uses default marker appearance. */
 	markup?: (props: MarkerRenderProps) => void;
+	/** Optional custom hit region; overrides the default label-badge hit region for this marker. */
+	hitTest?: (args: MarkerHitTestArgs) => boolean;
 }
 
 /**
@@ -115,6 +138,29 @@ export interface WaveformNavigatorProps {
 	 * Example: markers={[{ time: 10 }, { time: 20, markup: customRenderFn }]}
 	 */
 	markers?: Marker[];
+	/**
+	 * Fires when a marker's hit region is clicked/tapped.
+	 * When it fires, the default seek-to-click-position is suppressed — the host decides
+	 * what to do (it can still call the seek handle itself).
+	 * Supplying this (or `onMarkerHover`) enables marker hit-testing.
+	 */
+	onMarkerClick?: (
+		marker: Marker,
+		index: number,
+		event: React.MouseEvent | React.TouchEvent
+	) => void;
+	/**
+	 * Extra padding in CSS px around the default M1/M2/… label badge hit region.
+	 * The stem below the label is not part of the default hit target, so waveform
+	 * clicks near markers can still seek.
+	 * @default 2
+	 */
+	markerHitRadius?: number;
+	/**
+	 * Fires with the hovered marker, or (null, null) when leaving all markers.
+	 * Supplying this (or `onMarkerClick`) enables marker hit-testing.
+	 */
+	onMarkerHover?: (marker: Marker | null, index: number | null) => void;
 	/**
 	 * Pre-computed peaks for instant waveform rendering without waiting for audio to load.
 	 * Accepts a `Float32Array` or plain `number[]` (e.g. from JSON-deserialized storage).
@@ -244,6 +290,9 @@ const WaveformNavigator = React.forwardRef<
 		gap = 2,
 		styles = {},
 		markers = [],
+		onMarkerClick,
+		markerHitRadius = 2,
+		onMarkerHover,
 		precomputedPeaks,
 		peakComputationWidth = 1400,
 		responsive = true,
@@ -276,6 +325,18 @@ const WaveformNavigator = React.forwardRef<
 	} = props;
 	const [hoverX, setHoverX] = useState<number | null>(null);
 	const [hoverTime, setHoverTime] = useState<number | null>(null);
+	const [hoveredMarkerIndex, setHoveredMarkerIndex] = useState<number | null>(
+		null
+	);
+	const hoveredMarkerIndexRef = useRef<number | null>(null);
+	const pendingTouchMarkerRef = useRef<{
+		marker: Marker;
+		index: number;
+		startX: number;
+		startY: number;
+	} | null>(null);
+	const interactiveMarkers = Boolean(onMarkerClick || onMarkerHover);
+	const clickableMarkers = Boolean(onMarkerClick);
 	const [errorState, setErrorState] = useState<{
 		message: string;
 		type: 'audio' | 'waveform';
@@ -421,11 +482,68 @@ const WaveformNavigator = React.forwardRef<
 		markerColor,
 		markerLabelColor,
 		markers,
+		hoveredMarkerIndex,
 		peaks,
 		currentTime: displayTime,
 		duration,
 		isPlaying,
 	});
+
+	// Half-width in px within which a touch move is still considered "in place"
+	// before falling back to scrub-seek behavior.
+	const TOUCH_SLOP = 10;
+
+	function hitTestMarkers(
+		x: number,
+		y: number,
+		rectWidth: number,
+		rectHeight: number
+	): { marker: Marker; index: number } | null {
+		if (duration <= 0) {
+			return null;
+		}
+
+		let best: { marker: Marker; index: number } | null = null;
+		let bestDist = Infinity;
+
+		markers.forEach((marker, index) => {
+			const markerX = (marker.time / duration) * rectWidth;
+			if (markerX < 0 || markerX > rectWidth) {
+				return;
+			}
+			const hit = marker.hitTest
+				? marker.hitTest({ x, y, markerX, width: rectWidth, height: rectHeight })
+				: hitTestDefaultMarkerLabel({
+						x,
+						y,
+						markerX,
+						index,
+						canvasWidth: rectWidth,
+						hitPadding: markerHitRadius,
+					});
+
+			if (!hit) {
+				return;
+			}
+
+			const dist = Math.abs(x - markerX);
+			if (dist < bestDist) {
+				bestDist = dist;
+				best = { marker, index };
+			}
+		});
+
+		return best;
+	}
+
+	function updateHoveredMarker(index: number | null) {
+		if (hoveredMarkerIndexRef.current === index) {
+			return;
+		}
+		hoveredMarkerIndexRef.current = index;
+		setHoveredMarkerIndex(index);
+		onMarkerHover?.(index !== null ? markers[index] : null, index);
+	}
 
 	function onCanvasClick(e: React.MouseEvent<HTMLCanvasElement>) {
 		const rect = canvasRef.current?.getBoundingClientRect();
@@ -434,6 +552,16 @@ const WaveformNavigator = React.forwardRef<
 		}
 
 		const x = e.clientX - rect.left;
+
+		if (clickableMarkers) {
+			const y = e.clientY - rect.top;
+			const hit = hitTestMarkers(x, y, rect.width, rect.height);
+			if (hit) {
+				onMarkerClick?.(hit.marker, hit.index, e);
+				return;
+			}
+		}
+
 		const t = (x / rect.width) * duration;
 		if (!Number.isNaN(t)) {
 			const newTime = Math.max(0, Math.min(duration, t));
@@ -450,11 +578,20 @@ const WaveformNavigator = React.forwardRef<
 		setHoverX(x);
 		const t = duration > 0 ? (x / rect.width) * duration : 0;
 		setHoverTime(isFinite(t) ? t : null);
+
+		if (interactiveMarkers) {
+			const y = e.clientY - rect.top;
+			const hit = hitTestMarkers(x, y, rect.width, rect.height);
+			updateHoveredMarker(hit ? hit.index : null);
+		}
 	}
 
 	function onCanvasLeave() {
 		setHoverX(null);
 		setHoverTime(null);
+		if (interactiveMarkers) {
+			updateHoveredMarker(null);
+		}
 	}
 
 	function onCanvasTouchStart(e: React.TouchEvent<HTMLCanvasElement>) {
@@ -469,6 +606,27 @@ const WaveformNavigator = React.forwardRef<
 		}
 
 		const x = Math.max(0, Math.min(rect.width, touch.clientX - rect.left));
+
+		if (clickableMarkers) {
+			const y = touch.clientY - rect.top;
+			const hit = hitTestMarkers(x, y, rect.width, rect.height);
+			if (hit) {
+				pendingTouchMarkerRef.current = {
+					marker: hit.marker,
+					index: hit.index,
+					startX: touch.clientX,
+					startY: touch.clientY,
+				};
+				updateHoveredMarker(hit.index);
+				setHoverX(x);
+				const t = duration > 0 ? (x / rect.width) * duration : 0;
+				setHoverTime(isFinite(t) ? t : null);
+				return;
+			}
+			updateHoveredMarker(null);
+		}
+
+		pendingTouchMarkerRef.current = null;
 		const t = (x / rect.width) * duration;
 		if (!Number.isNaN(t)) {
 			const newTime = Math.max(0, Math.min(duration, t));
@@ -489,6 +647,19 @@ const WaveformNavigator = React.forwardRef<
 			return;
 		}
 
+		const pending = pendingTouchMarkerRef.current;
+		if (pending) {
+			const dx = touch.clientX - pending.startX;
+			const dy = touch.clientY - pending.startY;
+			if (Math.sqrt(dx * dx + dy * dy) <= TOUCH_SLOP) {
+				// Still within slop of the initial touch — keep the marker pending.
+				return;
+			}
+			// Moved beyond slop: cancel the pending marker and fall back to scrub-seek.
+			pendingTouchMarkerRef.current = null;
+			updateHoveredMarker(null);
+		}
+
 		const x = Math.max(0, Math.min(rect.width, touch.clientX - rect.left));
 		const t = (x / rect.width) * duration;
 		if (!Number.isNaN(t)) {
@@ -499,7 +670,13 @@ const WaveformNavigator = React.forwardRef<
 		}
 	}
 
-	function onCanvasTouchEnd() {
+	function onCanvasTouchEnd(e: React.TouchEvent<HTMLCanvasElement>) {
+		const pending = pendingTouchMarkerRef.current;
+		pendingTouchMarkerRef.current = null;
+		if (pending && e.type === 'touchend') {
+			onMarkerClick?.(pending.marker, pending.index, e);
+		}
+		updateHoveredMarker(null);
 		setHoverX(null);
 		setHoverTime(null);
 	}

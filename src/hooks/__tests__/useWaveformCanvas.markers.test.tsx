@@ -8,10 +8,12 @@ function TestComponent({
 	markers,
 	markerColor = '#10b981',
 	markerLabelColor = '#ffffff',
+	hoveredMarkerIndex = null,
 }: {
 	markers: Marker[];
 	markerColor?: string;
 	markerLabelColor?: string;
+	hoveredMarkerIndex?: number | null;
 }) {
 	const { canvasRef } = useWaveformCanvas({
 		width: 100,
@@ -25,6 +27,7 @@ function TestComponent({
 		markerColor,
 		markerLabelColor,
 		markers,
+		hoveredMarkerIndex,
 		peaks: new Float32Array([0.5, 0.2, 0.8]),
 		currentTime: 0,
 		duration: 10,
@@ -207,5 +210,83 @@ describe('useWaveformCanvas with markers', () => {
 		expect(textCalls).toContain('M2');
 		expect(textCalls).toContain('M3');
 		expect(textCalls).toContain('M4');
+	});
+
+	it('passes the hovered flag through to custom markup', async () => {
+		const customMarkup = vi.fn();
+		const markers: Marker[] = [{ time: 5, markup: customMarkup }];
+
+		(window as any).__waveformReady = false;
+
+		render(<TestComponent markers={markers} hoveredMarkerIndex={0} />);
+
+		await waitFor(() => {
+			if (!(window as any).__waveformReady) {
+				throw new Error('not ready');
+			}
+		});
+		await new Promise((resolve) => setTimeout(resolve, 50));
+
+		expect(customMarkup).toHaveBeenCalled();
+		expect(customMarkup.mock.calls[0][0]).toHaveProperty('hovered', true);
+	});
+
+	it('reports hovered: false for markers other than the hovered index', async () => {
+		const customMarkup = vi.fn();
+		const markers: Marker[] = [
+			{ time: 2.5, markup: customMarkup },
+			{ time: 5, markup: customMarkup },
+		];
+
+		(window as any).__waveformReady = false;
+
+		render(<TestComponent markers={markers} hoveredMarkerIndex={1} />);
+
+		await waitFor(() => {
+			if (!(window as any).__waveformReady) {
+				throw new Error('not ready');
+			}
+		});
+		await new Promise((resolve) => setTimeout(resolve, 50));
+
+		const hoveredFlags = customMarkup.mock.calls.map((call: any) => [
+			call[0].index,
+			call[0].hovered,
+		]);
+		expect(hoveredFlags).toContainEqual([0, false]);
+		expect(hoveredFlags).toContainEqual([1, true]);
+	});
+
+	it('triggers a redraw when hoveredMarkerIndex changes while paused', async () => {
+		const customMarkup = vi.fn();
+		const markers: Marker[] = [{ time: 5, markup: customMarkup }];
+
+		(window as any).__waveformReady = false;
+
+		const { rerender } = render(
+			<TestComponent markers={markers} hoveredMarkerIndex={null} />
+		);
+
+		await waitFor(() => {
+			if (!(window as any).__waveformReady) {
+				throw new Error('not ready');
+			}
+		});
+		await new Promise((resolve) => setTimeout(resolve, 50));
+
+		expect(customMarkup).toHaveBeenCalled();
+		const callsBefore = customMarkup.mock.calls.length;
+		expect(customMarkup.mock.calls[callsBefore - 1][0]).toHaveProperty(
+			'hovered',
+			false
+		);
+
+		rerender(<TestComponent markers={markers} hoveredMarkerIndex={0} />);
+
+		await waitFor(() => {
+			expect(customMarkup.mock.calls.length).toBeGreaterThan(callsBefore);
+		});
+		const lastCall = customMarkup.mock.calls[customMarkup.mock.calls.length - 1];
+		expect(lastCall[0]).toHaveProperty('hovered', true);
 	});
 });
