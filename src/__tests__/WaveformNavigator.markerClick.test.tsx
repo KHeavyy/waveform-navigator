@@ -304,6 +304,65 @@ describe('WaveformNavigator marker click/hit-testing', () => {
 		expect(Math.abs(seekedTo - 60)).toBeLessThan(1);
 	});
 
+	it('with only onMarkerHover, clicking a marker still seeks as before', async () => {
+		mockAudio();
+		const onCurrentTimeChange = vi.fn();
+		const onMarkerHover = vi.fn();
+		const markers: Marker[] = [{ time: 60 }];
+
+		const { container } = render(
+			<WaveformNavigator
+				audio="/test.mp3"
+				responsive={false}
+				controlledCurrentTime={0}
+				onCurrentTimeChange={onCurrentTimeChange}
+				onMarkerHover={onMarkerHover}
+				markers={markers}
+			/>
+		);
+
+		const audioEl = await waitForAudio();
+		await act(async () => setDuration(audioEl, 120));
+		await waitForDuration(container, 120);
+
+		const canvas = container.querySelector('canvas') as HTMLCanvasElement;
+		fireEvent.click(canvas, { clientX: 100, clientY: 10 });
+
+		await waitFor(() => expect(onCurrentTimeChange).toHaveBeenCalled());
+		const seekedTo = onCurrentTimeChange.mock.calls[0][0] as number;
+		expect(Math.abs(seekedTo - 60)).toBeLessThan(1);
+	});
+
+	it('does not hit-test markers that are off-canvas', async () => {
+		mockAudio();
+		const onCurrentTimeChange = vi.fn();
+		const onMarkerClick = vi.fn();
+		const hitTest = vi.fn(() => true);
+		const markers: Marker[] = [{ time: 130, hitTest }];
+
+		const { container } = render(
+			<WaveformNavigator
+				audio="/test.mp3"
+				responsive={false}
+				controlledCurrentTime={0}
+				onCurrentTimeChange={onCurrentTimeChange}
+				onMarkerClick={onMarkerClick}
+				markers={markers}
+			/>
+		);
+
+		const audioEl = await waitForAudio();
+		await act(async () => setDuration(audioEl, 120));
+		await waitForDuration(container, 120);
+
+		const canvas = container.querySelector('canvas') as HTMLCanvasElement;
+		fireEvent.click(canvas, { clientX: 180, clientY: 10 });
+
+		expect(hitTest).not.toHaveBeenCalled();
+		expect(onMarkerClick).not.toHaveBeenCalled();
+		await waitFor(() => expect(onCurrentTimeChange).toHaveBeenCalled());
+	});
+
 	it('touch tap on a marker fires onMarkerClick without seeking', async () => {
 		mockAudio();
 		const onCurrentTimeChange = vi.fn();
@@ -372,5 +431,34 @@ describe('WaveformNavigator marker click/hit-testing', () => {
 
 		// The pending marker was cancelled by the drag, so no click should fire
 		expect(onMarkerClick).not.toHaveBeenCalled();
+	});
+
+	it('with only onMarkerHover, touching a marker still seeks as before', async () => {
+		mockAudio();
+		const onCurrentTimeChange = vi.fn();
+		const onMarkerHover = vi.fn();
+		const markers: Marker[] = [{ time: 60 }];
+
+		const { container } = render(
+			<WaveformNavigator
+				audio="/test.mp3"
+				responsive={false}
+				controlledCurrentTime={0}
+				onCurrentTimeChange={onCurrentTimeChange}
+				onMarkerHover={onMarkerHover}
+				markers={markers}
+			/>
+		);
+
+		const audioEl = await waitForAudio();
+		await act(async () => setDuration(audioEl, 120));
+		await waitForDuration(container, 120);
+
+		const canvas = container.querySelector('canvas') as HTMLCanvasElement;
+		fireEvent.touchStart(canvas, { touches: [{ clientX: 100, clientY: 10 }] });
+
+		await waitFor(() => expect(onCurrentTimeChange).toHaveBeenCalled());
+		const seekedTo = onCurrentTimeChange.mock.calls[0][0] as number;
+		expect(Math.abs(seekedTo - 60)).toBeLessThan(1);
 	});
 });

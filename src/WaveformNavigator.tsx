@@ -336,6 +336,7 @@ const WaveformNavigator = React.forwardRef<
 		startY: number;
 	} | null>(null);
 	const interactiveMarkers = Boolean(onMarkerClick || onMarkerHover);
+	const clickableMarkers = Boolean(onMarkerClick);
 	const [errorState, setErrorState] = useState<{
 		message: string;
 		type: 'audio' | 'waveform';
@@ -507,6 +508,9 @@ const WaveformNavigator = React.forwardRef<
 
 		markers.forEach((marker, index) => {
 			const markerX = (marker.time / duration) * rectWidth;
+			if (markerX < 0 || markerX > rectWidth) {
+				return;
+			}
 			const hit = marker.hitTest
 				? marker.hitTest({ x, y, markerX, width: rectWidth, height: rectHeight })
 				: hitTestDefaultMarkerLabel({
@@ -549,7 +553,7 @@ const WaveformNavigator = React.forwardRef<
 
 		const x = e.clientX - rect.left;
 
-		if (interactiveMarkers) {
+		if (clickableMarkers) {
 			const y = e.clientY - rect.top;
 			const hit = hitTestMarkers(x, y, rect.width, rect.height);
 			if (hit) {
@@ -603,7 +607,7 @@ const WaveformNavigator = React.forwardRef<
 
 		const x = Math.max(0, Math.min(rect.width, touch.clientX - rect.left));
 
-		if (interactiveMarkers) {
+		if (clickableMarkers) {
 			const y = touch.clientY - rect.top;
 			const hit = hitTestMarkers(x, y, rect.width, rect.height);
 			if (hit) {
