@@ -92,7 +92,7 @@ describe('WaveformNavigator marker click/hit-testing', () => {
 		expect(onCurrentTimeChange).not.toHaveBeenCalled();
 	});
 
-	it('clicking outside all hit columns seeks as before', async () => {
+	it('clicking outside all marker labels seeks as before', async () => {
 		mockAudio();
 		const onCurrentTimeChange = vi.fn();
 		const onMarkerClick = vi.fn();
@@ -114,13 +114,44 @@ describe('WaveformNavigator marker click/hit-testing', () => {
 		await waitForDuration(container, 120);
 
 		const canvas = container.querySelector('canvas') as HTMLCanvasElement;
-		// Marker is at x=100, far outside the default 12px hit radius
+		// Marker is at x=100, far outside the default label hit region
 		fireEvent.click(canvas, { clientX: 10, clientY: 10 });
 
 		expect(onMarkerClick).not.toHaveBeenCalled();
 		await waitFor(() => expect(onCurrentTimeChange).toHaveBeenCalled());
 		const seekedTo = onCurrentTimeChange.mock.calls[0][0] as number;
 		expect(Math.abs(seekedTo - 6)).toBeLessThan(1);
+	});
+
+	it('clicking the stem below the default label seeks instead of firing onMarkerClick', async () => {
+		mockAudio();
+		const onCurrentTimeChange = vi.fn();
+		const onMarkerClick = vi.fn();
+		const markers: Marker[] = [{ time: 60, id: 'm1' }];
+
+		const { container } = render(
+			<WaveformNavigator
+				audio="/test.mp3"
+				responsive={false}
+				controlledCurrentTime={0}
+				onCurrentTimeChange={onCurrentTimeChange}
+				markers={markers}
+				onMarkerClick={onMarkerClick}
+			/>
+		);
+
+		const audioEl = await waitForAudio();
+		await act(async () => setDuration(audioEl, 120));
+		await waitForDuration(container, 120);
+
+		const canvas = container.querySelector('canvas') as HTMLCanvasElement;
+		// Label occupies y≈8–28; click the stem well below it at the marker x
+		fireEvent.click(canvas, { clientX: 100, clientY: 40 });
+
+		expect(onMarkerClick).not.toHaveBeenCalled();
+		await waitFor(() => expect(onCurrentTimeChange).toHaveBeenCalled());
+		const seekedTo = onCurrentTimeChange.mock.calls[0][0] as number;
+		expect(Math.abs(seekedTo - 60)).toBeLessThan(1);
 	});
 
 	it('resolves overlapping hit regions to nearest marker', async () => {
@@ -186,7 +217,7 @@ describe('WaveformNavigator marker click/hit-testing', () => {
 		expect(onMarkerClick.mock.calls[0][1]).toBe(0);
 	});
 
-	it('respects a custom hitTest that reports a hit far from the default column', async () => {
+	it('respects a custom hitTest that reports a hit far from the default label', async () => {
 		mockAudio();
 		const onMarkerClick = vi.fn();
 		const hitTest = vi.fn(() => true);
@@ -215,7 +246,7 @@ describe('WaveformNavigator marker click/hit-testing', () => {
 		expect(onMarkerClick.mock.calls[0][0]).toBe(markers[0]);
 	});
 
-	it('respects a custom hitTest that reports a miss inside the default column', async () => {
+	it('respects a custom hitTest that reports a miss inside the default label', async () => {
 		mockAudio();
 		const onCurrentTimeChange = vi.fn();
 		const onMarkerClick = vi.fn();

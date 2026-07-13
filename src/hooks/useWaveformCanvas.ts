@@ -1,5 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { syncCanvasSize } from '../utils';
+import {
+	DEFAULT_MARKER_LABEL_FONT,
+	DEFAULT_MARKER_LABEL_HEIGHT,
+	DEFAULT_MARKER_LABEL_PAD_X,
+	DEFAULT_MARKER_LABEL_Y,
+} from '../utils/defaultMarkerLabel';
 import type { Marker } from '../WaveformNavigator';
 
 interface UseWaveformCanvasProps {
@@ -259,16 +265,16 @@ export function useWaveformCanvas({
 
 				// Draw label background and text
 				const label = `M${index + 1}`;
-				ctx.font = '12px sans-serif';
+				ctx.font = DEFAULT_MARKER_LABEL_FONT;
 				const textMetrics = ctx.measureText(label);
-				const labelWidth = textMetrics.width + 8;
-				const labelHeight = 20;
+				const labelWidth = textMetrics.width + DEFAULT_MARKER_LABEL_PAD_X;
+				const labelHeight = DEFAULT_MARKER_LABEL_HEIGHT;
 				// Clamp label position to stay within canvas bounds
 				const labelX = Math.max(
 					0,
 					Math.min(canvasWidth - labelWidth, markerX - labelWidth / 2)
 				);
-				const labelY = 8;
+				const labelY = DEFAULT_MARKER_LABEL_Y;
 
 				// Draw label background
 				ctx.fillStyle = markerColor;

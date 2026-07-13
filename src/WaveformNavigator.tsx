@@ -7,6 +7,7 @@ import { useResponsiveWidth } from './hooks/useResponsiveWidth';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
 import { WaveformControls } from './components/WaveformControls';
 import { formatTime } from './utils';
+import { hitTestDefaultMarkerLabel } from './utils/defaultMarkerLabel';
 
 type AudioProp = string | File | null | undefined;
 
@@ -79,7 +80,7 @@ export interface Marker {
 	id?: string;
 	/** Optional custom rendering function. If not provided, uses default marker appearance. */
 	markup?: (props: MarkerRenderProps) => void;
-	/** Optional custom hit region; overrides the default hit column for this marker. */
+	/** Optional custom hit region; overrides the default label-badge hit region for this marker. */
 	hitTest?: (args: MarkerHitTestArgs) => boolean;
 }
 
@@ -149,8 +150,10 @@ export interface WaveformNavigatorProps {
 		event: React.MouseEvent | React.TouchEvent
 	) => void;
 	/**
-	 * Half-width in CSS px of the default full-height hit column around each marker.
-	 * @default 12
+	 * Extra padding in CSS px around the default M1/M2/… label badge hit region.
+	 * The stem below the label is not part of the default hit target, so waveform
+	 * clicks near markers can still seek.
+	 * @default 2
 	 */
 	markerHitRadius?: number;
 	/**
@@ -288,7 +291,7 @@ const WaveformNavigator = React.forwardRef<
 		styles = {},
 		markers = [],
 		onMarkerClick,
-		markerHitRadius = 12,
+		markerHitRadius = 2,
 		onMarkerHover,
 		precomputedPeaks,
 		peakComputationWidth = 1400,
@@ -506,7 +509,14 @@ const WaveformNavigator = React.forwardRef<
 			const markerX = (marker.time / duration) * rectWidth;
 			const hit = marker.hitTest
 				? marker.hitTest({ x, y, markerX, width: rectWidth, height: rectHeight })
-				: Math.abs(x - markerX) <= markerHitRadius;
+				: hitTestDefaultMarkerLabel({
+						x,
+						y,
+						markerX,
+						index,
+						canvasWidth: rectWidth,
+						hitPadding: markerHitRadius,
+					});
 
 			if (!hit) {
 				return;

@@ -187,7 +187,7 @@ The component supports displaying markers at specific time positions on the wave
 - **`markers`** (Marker[] | undefined): Array of marker objects to display on the waveform. Each marker specifies a time position and optionally custom rendering.
 - **`onMarkerClick`** ((marker, index, event) => void | undefined): Fires when a marker's hit region is clicked or tapped. Supplying this (or `onMarkerHover`) enables marker hit-testing; when a click hits a marker, the default click-to-seek is suppressed so your handler decides what happens.
 - **`onMarkerHover`** ((marker | null, index | null) => void | undefined): Fires when the hovered marker changes — with `(marker, index)` on enter/change and `(null, null)` when the pointer leaves all markers.
-- **`markerHitRadius`** (number, default: `12`): Half-width in CSS pixels of the default full-height hit column around each marker.
+- **`markerHitRadius`** (number, default: `2`): Extra padding in CSS pixels around the default M1/M2/… label badge hit region. The stem below the label is not part of the default hit target.
 
 **Marker Interface:**
 
@@ -322,7 +322,7 @@ When neither `onMarkerClick` nor `onMarkerHover` is supplied, markers remain pur
 - Markers outside the valid time range (time < 0 or time > duration) will not be rendered.
 - The marker index (shown in default labels as M1, M2, etc.) corresponds to the marker's position in the array, starting from 1.
 - Custom markup functions receive the canvas context and should handle all drawing operations.
-- The default hit region for a marker is a full-height column `markerHitRadius` px wide on either side of its x position; override it per-marker with `hitTest`.
+- The default hit region for a marker is the M1/M2/… label badge (plus `markerHitRadius` padding), not the full-height stem — so clicks on the waveform near markers can still seek. Override the region per-marker with `hitTest`.
 - When multiple markers' hit regions overlap, the nearest one to the pointer wins; ties resolve to the lowest array index.
 - On touch devices, tapping a marker fires `onMarkerClick` without seeking; dragging away from the initial touch point falls back to the normal scrub-seek behavior.
 

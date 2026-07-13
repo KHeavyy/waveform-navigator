@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import BasicTab from './tabs/BasicTab';
 import StylesTab from './tabs/StylesTab';
 import MarkersTab from './tabs/MarkersTab';
+import InteractiveMarkersTab from './tabs/InteractiveMarkersTab';
 import ControlledTab from './tabs/ControlledTab';
 import ResponsiveTab from './tabs/ResponsiveTab';
 import AdvancedTab from './tabs/AdvancedTab';
@@ -11,6 +12,7 @@ type TabId =
 	| 'basic'
 	| 'styles'
 	| 'markers'
+	| 'interactivemarkers'
 	| 'controlled'
 	| 'responsive'
 	| 'advanced'
@@ -20,6 +22,7 @@ const TABS: { id: TabId; label: string }[] = [
 	{ id: 'basic', label: 'Basic' },
 	{ id: 'styles', label: 'Styles' },
 	{ id: 'markers', label: 'Markers' },
+	{ id: 'interactivemarkers', label: 'Interactive Markers' },
 	{ id: 'controlled', label: 'Controlled' },
 	{ id: 'responsive', label: 'Responsive' },
 	{ id: 'advanced', label: 'Advanced' },
@@ -86,6 +89,7 @@ export default function App() {
 				{activeTab === 'basic' && <BasicTab />}
 				{activeTab === 'styles' && <StylesTab />}
 				{activeTab === 'markers' && <MarkersTab />}
+				{activeTab === 'interactivemarkers' && <InteractiveMarkersTab />}
 				{activeTab === 'controlled' && <ControlledTab />}
 				{activeTab === 'responsive' && <ResponsiveTab />}
 				{activeTab === 'advanced' && <AdvancedTab />}
