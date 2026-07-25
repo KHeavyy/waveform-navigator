@@ -186,8 +186,16 @@ are a courtesy summary. When guidance and README disagree, this file wins.
 - **Visual regression** — snapshots in `e2e/__snapshots__/` are committed.
   Intentional visual changes require `npm run visual:update` plus committing
   the new baselines, or CI fails.
-- In this remote environment browser binaries are preinstalled at
-  `/opt/pw-browsers`; never run `playwright install`.
+- **Playwright browsers** differ by environment:
+  - _Claude Code on the web / agent sandboxes_ — binaries are preinstalled at
+    `/opt/pw-browsers` (`PLAYWRIGHT_BROWSERS_PATH` points there) and downloads
+    are blocked. Don't run `playwright install` here; it will fail or waste
+    time. `.claude/hooks/session-start.sh` covers the OS-level deps on
+    session start.
+  - _CI_ — `ci.yml` installs them itself with
+    `npx playwright install --with-deps chromium` before the integration and
+    visual jobs. That step is meant to be there; leave it alone.
+  - _A fresh local checkout_ — run `npx playwright install chromium` once.
 
 ## Code style
 
