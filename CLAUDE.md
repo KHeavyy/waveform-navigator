@@ -30,6 +30,9 @@ npm run test:watch     # vitest watch
 npm run test:coverage  # vitest + v8 coverage (70% thresholds, enforced)
 npm run e2e            # playwright; auto-starts the demo dev server
 npm run e2e -- e2e/visual.spec.ts   # visual regression only
+npm run e2e:ui         # playwright interactive UI mode
+npm run e2e:headed     # run e2e with a visible browser
+npm run e2e:debug      # playwright inspector
 npm run visual:update  # regenerate committed visual snapshots
 ```
 
@@ -40,6 +43,11 @@ The demo has its own `package.json`/lockfile — install it separately
 **Before finishing any code change:** `npm run type-check`, `npm run lint:ci`,
 `npm run format:check`, and `npm test`. Run `npm run e2e` when touching canvas
 rendering, controls layout, or the worker.
+
+Note: `format:check` currently reports ~12 pre-existing offenders (several test
+files, `eslint.config.cjs`, `.github/PUBLISHING.md`). CI does not run it, so
+that backlog is not blocking — just make sure the files _you_ touched are
+clean rather than reformatting the repo as a side effect.
 
 ## Architecture
 
@@ -138,9 +146,22 @@ So when you add or change a public prop, callback, style field, or ref method:
    list and the corresponding `activeTab` branch if it warrants its own).
 5. Export any new public type from `src/index.ts`.
 
-`.github/copilot-instructions.md` covers similar ground but is **stale** in its
-build/test sections (it predates Vite and Vitest). Trust this file and
-`package.json` over it.
+### This file is the single source of truth
+
+Contributor and AI-assistant guidance lives **here and nowhere else**. These
+files used to carry their own copies and are now pointers — if you change a
+workflow, a command, or a convention, edit this file and leave them alone:
+
+- `.github/copilot-instructions.md` → points here.
+- `e2e/README.md` → points here.
+- `.github/PUBLISHING.md` → keeps only what this file does not cover: the
+  one-time npm OIDC trusted-publishing setup, publish-failure troubleshooting,
+  and the emergency manual-publish steps. Release _rules_ (what bumps what)
+  live in "Git, CI, and releases" below.
+
+`README.md` is the consumer-facing npm page, not contributor docs. It documents
+the public API for people installing the package; its "Development" sections
+are a courtesy summary. When guidance and README disagree, this file wins.
 
 ## Testing
 
@@ -156,7 +177,12 @@ build/test sections (it predates Vite and Vitest). Trust this file and
 - **E2E** — Playwright against the demo app on `localhost:5173`, which
   Playwright starts itself. Projects: `chromium-dpr1`, `chromium-dpr2`, and
   `mobile-chrome` (Pixel 5, runs only `mobile.spec.ts`). Navigate with
-  `?tab=<id>` via the `WaveformPage` helper in `e2e/helpers.ts`.
+  `?tab=<id>` via the `WaveformPage` helper in `e2e/helpers.ts`. The specs are
+  `waveform.spec.ts` (loading, DPR, play/pause, click-to-seek, axe-core a11y),
+  `visual.spec.ts`, `mobile.spec.ts`, `worker.spec.ts`, `customButtons.spec.ts`,
+  and `generate-screenshots.spec.ts` (regenerates `screenshots/` for the README).
+  There is no fixtures directory — tests play the demo's own
+  `demo/public/media/Demo.mp3`, served by the demo dev server.
 - **Visual regression** — snapshots in `e2e/__snapshots__/` are committed.
   Intentional visual changes require `npm run visual:update` plus committing
   the new baselines, or CI fails.
@@ -181,7 +207,8 @@ Prettier owns formatting and ESLint reports it as an error. Notable settings:
 
 ## Git, CI, and releases
 
-- Work on the branch you were assigned; open PRs against `main`.
+- Work on the branch you were assigned; open PRs against `main`. Squash on
+  merge — commit subjects become the release changelog.
 - **Commit subjects drive releases.** On every push to `main`, `publish.yml`
   reads commits since the last `v*` tag: `BREAKING CHANGE:` or `type!:` → major,
   `feat:`/`feature:` → minor, anything else → patch. It then bumps, tags,
@@ -189,8 +216,18 @@ Prettier owns formatting and ESLint reports it as an error. Notable settings:
   prefixes deliberately — `feat:` on a bugfix ships a minor version. The repo
   history uses `feat:`, `fix:`, `bug:`, and `ci:`. Note that `bug:` is not one
   of the recognised prefixes, so it falls through to a patch bump.
+
+  ```text
+  fix: resolve audio playback issue on Safari      → 1.0.0 → 1.0.1
+  feat: add support for custom waveform colors     → 1.0.0 → 1.1.0
+  feat: redesign component API                     → 1.0.0 → 2.0.0
+    (body) BREAKING CHANGE: onTimeUpdate now receives an object
+  ```
+
 - `package.json`'s `version` is not the source of truth; git tags are. Don't
-  hand-bump it.
+  hand-bump it. Publishing uses npm OIDC trusted publishing — no tokens. See
+  `.github/PUBLISHING.md` for the one-time setup, failure troubleshooting, and
+  the emergency manual-publish procedure.
 - `ci.yml` runs on PRs to `main`: lint + type-check, unit tests with coverage,
   Playwright integration tests, visual regression, and a build that asserts all
   five dist artifacts exist.

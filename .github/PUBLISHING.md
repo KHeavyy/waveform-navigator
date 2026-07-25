@@ -1,6 +1,8 @@
 # Publishing Guide for waveform-navigator
 
-This document explains how the automated NPM publishing workflow works and how to set it up.
+This document is scoped to **release operations**: the one-time NPM trusted-publishing setup, what the publish workflow does, how to troubleshoot a failed publish, and the emergency manual-publish procedure.
+
+Day-to-day contributor guidance — commands, architecture, testing, code style, and the commit-message conventions that decide each version bump — lives in [`CLAUDE.md`](../CLAUDE.md), the repository's single source of truth. Don't duplicate it here.
 
 ## Overview
 
@@ -72,44 +74,7 @@ The workflow will:
 
 ## Semantic Versioning
 
-The workflow uses **Semantic Versioning** (semver) based on your commit messages:
-
-### Commit Message Conventions
-
-| Commit Message Pattern | Version Bump | Example |
-|------------------------|--------------|---------|
-| `BREAKING CHANGE:` anywhere in message | **Major** (1.0.0 → 2.0.0) | Breaking API changes |
-| `feat:` or `feature:` prefix | **Minor** (1.0.0 → 1.1.0) | New features |
-| Any other commit | **Patch** (1.0.0 → 1.0.1) | Bug fixes, docs, etc. |
-
-### Examples
-
-#### Patch Release (Bug Fix)
-```bash
-git commit -m "fix: resolve audio playback issue on Safari"
-```
-Result: `1.0.0` → `1.0.1`
-
-#### Minor Release (New Feature)
-```bash
-git commit -m "feat: add support for custom waveform colors"
-```
-Result: `1.0.0` → `1.1.0`
-
-#### Major Release (Breaking Change)
-```bash
-git commit -m "feat: redesign component API
-
-BREAKING CHANGE: The onTimeUpdate callback now receives an object instead of a number"
-```
-Result: `1.0.0` → `2.0.0`
-
-### Best Practices
-
-1. **Use conventional commit messages** - This ensures proper version bumping
-2. **Squash commits** when merging PRs to keep a clean commit history
-3. **Include detailed PR descriptions** - They help generate better changelogs
-4. **Test thoroughly** before merging - The publish is automatic!
+The version bump is derived from the commit messages since the last `v*` tag. Those rules, with examples, are documented once in [`CLAUDE.md`](../CLAUDE.md) under "Git, CI, and releases" — see that file before choosing a commit prefix.
 
 ## Workflow Details
 
