@@ -7,6 +7,7 @@ import ControlledTab from './tabs/ControlledTab';
 import ResponsiveTab from './tabs/ResponsiveTab';
 import AdvancedTab from './tabs/AdvancedTab';
 import CustomButtonsTab from './tabs/CustomButtonsTab';
+import LoudnessTab from './tabs/LoudnessTab';
 
 type TabId =
 	| 'basic'
@@ -16,7 +17,8 @@ type TabId =
 	| 'controlled'
 	| 'responsive'
 	| 'advanced'
-	| 'custombuttons';
+	| 'custombuttons'
+	| 'loudness';
 
 const TABS: { id: TabId; label: string }[] = [
 	{ id: 'basic', label: 'Basic' },
@@ -27,6 +29,7 @@ const TABS: { id: TabId; label: string }[] = [
 	{ id: 'responsive', label: 'Responsive' },
 	{ id: 'advanced', label: 'Advanced' },
 	{ id: 'custombuttons', label: 'Custom Buttons' },
+	{ id: 'loudness', label: 'Loudness' },
 ];
 
 function getInitialTab(): TabId {
@@ -94,6 +97,7 @@ export default function App() {
 				{activeTab === 'responsive' && <ResponsiveTab />}
 				{activeTab === 'advanced' && <AdvancedTab />}
 				{activeTab === 'custombuttons' && <CustomButtonsTab />}
+				{activeTab === 'loudness' && <LoudnessTab />}
 			</main>
 		</div>
 	);

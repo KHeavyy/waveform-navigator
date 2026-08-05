@@ -7,5 +7,7 @@ describe('package entry', () => {
 		// default should be the WaveformNavigator component or proxy
 		expect(pkg.default).toBeDefined();
 		expect(pkg.WaveformNavigator).toBeDefined();
+		expect(pkg.computeIntegratedLoudness).toBeTypeOf('function');
+		expect(pkg.computeKWeightingCoefficients).toBeTypeOf('function');
 	});
 });

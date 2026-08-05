@@ -4,15 +4,23 @@ import {
 	resamplePeaks,
 } from '../utils/peaksComputation';
 import { createPeaksWorker } from '../utils/workerCreation';
+import {
+	computeIntegratedLoudnessAsync,
+	type LoudnessResult,
+} from '../utils/loudnessComputation';
 
 function peaksMatch(
 	a: Float32Array,
 	b: Float32Array,
 	threshold = 0.001
 ): boolean {
-	if (a.length !== b.length) return false;
+	if (a.length !== b.length) {
+		return false;
+	}
 	for (let i = 0; i < a.length; i++) {
-		if (Math.abs(a[i] - b[i]) > threshold) return false;
+		if (Math.abs(a[i] - b[i]) > threshold) {
+			return false;
+		}
 	}
 	return true;
 }
@@ -53,6 +61,18 @@ interface UseWaveformDataProps {
 	 * persist a single version that renders well on any screen size.
 	 */
 	onPeaksComputed?: (peaks: Float32Array) => void;
+	/**
+	 * Fired once per decoded source with BS.1770 integrated loudness, after
+	 * `onPeaksComputed`. Only runs when this callback is set and
+	 * `precomputedLoudness` is not provided. Skipped entirely when
+	 * `precomputedPeaks` causes decode to be skipped (no buffer to measure).
+	 */
+	onLoudnessComputed?: (result: LoudnessResult) => void;
+	/**
+	 * When provided, skips loudness computation (mirrors `precomputedPeaks`).
+	 * Pass the previously persisted `integratedLufs` value.
+	 */
+	precomputedLoudness?: number;
 	onError?: (error: Error) => void;
 }
 
@@ -75,6 +95,8 @@ export function useWaveformData({
 	precomputedPeaks,
 	onBlobUrlReady,
 	onPeaksComputed,
+	onLoudnessComputed,
+	precomputedLoudness,
 	onError,
 }: UseWaveformDataProps): UseWaveformDataReturn {
 	const displayBarCount = Math.max(1, Math.floor(width / (barWidth + gap)));
@@ -101,6 +123,8 @@ export function useWaveformData({
 	const audioCtxRef = useRef<AudioContext | null>(null);
 	const workerRef = useRef<Worker | null>(null);
 	const onPeaksComputedRef = useRef(onPeaksComputed);
+	const onLoudnessComputedRef = useRef(onLoudnessComputed);
+	const precomputedLoudnessRef = useRef(precomputedLoudness);
 	const onBlobUrlReadyRef = useRef(onBlobUrlReady);
 	const onErrorRef = useRef(onError);
 	const audioBufferRef = useRef<Float32Array | null>(null);
@@ -114,12 +138,78 @@ export function useWaveformData({
 	const prevPrecomputedPeaksRef = useRef<
 		Float32Array | number[] | null | undefined
 	>(precomputedPeaks);
+	const loudnessAbortRef = useRef<AbortController | null>(null);
+	/** In-flight loudness promise — awaited before closing AudioContext. */
+	const loudnessJobRef = useRef<Promise<unknown> | null>(null);
+	/**
+	 * Monotonic generation for the current audio load. Stale fetch/decode
+	 * completions compare against this and exit without touching loudness state.
+	 */
+	const loadGenerationRef = useRef(0);
+	/** Audio source for which loudness has already been reported (or skipped). */
+	const loudnessReportedForRef = useRef<string | File | null | undefined>(null);
+	/**
+	 * Decoded channel views for the current generation, retained so a late-attached
+	 * `onLoudnessComputed` can still measure without re-decoding.
+	 */
+	const decodedForLoudnessRef = useRef<{
+		source: string | File;
+		generation: number;
+		channels: Float32Array[];
+		sampleRate: number;
+	} | null>(null);
 
 	useEffect(() => {
 		onPeaksComputedRef.current = onPeaksComputed;
+		onLoudnessComputedRef.current = onLoudnessComputed;
+		precomputedLoudnessRef.current = precomputedLoudness;
 		onBlobUrlReadyRef.current = onBlobUrlReady;
 		onErrorRef.current = onError;
-	}, [onPeaksComputed, onBlobUrlReady, onError]);
+	}, [
+		onPeaksComputed,
+		onLoudnessComputed,
+		precomputedLoudness,
+		onBlobUrlReady,
+		onError,
+	]);
+
+	// If the host attaches onLoudnessComputed after decode, measure from the
+	// retained channel views (same generation / source only).
+	useEffect(() => {
+		if (!onLoudnessComputed) {
+			return;
+		}
+
+		const pending = decodedForLoudnessRef.current;
+		if (!pending) {
+			return;
+		}
+
+		if (pending.generation !== loadGenerationRef.current) {
+			return;
+		}
+
+		if (prevAudioRef.current !== pending.source) {
+			return;
+		}
+
+		scheduleLoudnessFromChannels(
+			pending.channels,
+			pending.sampleRate,
+			pending.source,
+			pending.generation
+		);
+		// scheduleLoudnessFromChannels is stable enough via refs; audio/load gen
+		// changes clear decodedForLoudnessRef before this can misfire.
+	}, [onLoudnessComputed]);
+
+	// Abort any in-flight loudness job on unmount.
+	useEffect(() => {
+		return () => {
+			loadGenerationRef.current += 1;
+			loudnessAbortRef.current?.abort();
+		};
+	}, []);
 
 	// Initialize worker and cleanup when props change
 	useEffect(() => {
@@ -164,20 +254,44 @@ export function useWaveformData({
 		if (audioBufferRef.current) {
 			computePeaks(audioBufferRef.current, { forceNotify: true });
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [forceMainThread]);
 
-	// Cleanup audio context on unmount
+	// Cleanup audio context on unmount (loudness abort runs in a separate effect).
 	useEffect(() => {
 		return () => {
 			if (audioCtxRef.current && typeof audioCtxRef.current.close === 'function') {
-				audioCtxRef.current.close();
+				void audioCtxRef.current.close();
 			}
 		};
 	}, []);
 
+	async function cancelLoudnessJob(): Promise<void> {
+		loudnessAbortRef.current?.abort();
+		const job = loudnessJobRef.current;
+		loudnessJobRef.current = null;
+		if (job) {
+			try {
+				await job;
+			} catch {
+				// Aborted or failed — safe to proceed with context teardown.
+			}
+		}
+	}
+
+	async function closeAudioContextAfterLoudness(): Promise<void> {
+		// Abort + await so in-flight work is not reading channel views from a
+		// closed AudioContext (we measure from views, not copies).
+		await cancelLoudnessJob();
+		if (audioCtxRef.current && typeof audioCtxRef.current.close === 'function') {
+			await audioCtxRef.current.close();
+			audioCtxRef.current = null;
+		}
+	}
+
 	// Load and decode audio data when audio prop changes
 	useEffect(() => {
+		const generation = ++loadGenerationRef.current;
+
 		if (!audio) {
 			// Preserve the waveform shape when precomputed peaks are seeding the display;
 			// only reset to null when no canonical baseline is active.
@@ -187,6 +301,11 @@ export function useWaveformData({
 			audioBufferRef.current = null;
 			// Clear the canonical baseline so the next audio load always computes fresh.
 			canonicalPeaksRef.current = null;
+			decodedForLoudnessRef.current = null;
+			void cancelLoudnessJob().then(() => {
+				loudnessAbortRef.current = null;
+			});
+			loudnessReportedForRef.current = null;
 			prevAudioRef.current = audio;
 			return;
 		}
@@ -197,6 +316,10 @@ export function useWaveformData({
 		const audioChanged = prevAudioRef.current !== audio;
 		if (audioChanged) {
 			canonicalPeaksRef.current = null;
+			decodedForLoudnessRef.current = null;
+			loudnessAbortRef.current?.abort();
+			loudnessAbortRef.current = null;
+			loudnessReportedForRef.current = null;
 		}
 		prevAudioRef.current = audio;
 
@@ -222,30 +345,36 @@ export function useWaveformData({
 
 		// Skip the fetch entirely when canonical peaks are already available.
 		// There is nothing to compute — the canvas already shows the correct waveform.
+		// Loudness also cannot be measured without a decoded buffer; mark this source
+		// so we do not attempt a late measurement if the callback is added later.
 		if (canonicalPeaksRef.current) {
+			loudnessReportedForRef.current = audio;
+			decodedForLoudnessRef.current = null;
 			return;
 		}
 
 		const loadArrayBuffer = async () => {
 			try {
-				// Close previous AudioContext if it exists
-				if (
-					audioCtxRef.current &&
-					typeof audioCtxRef.current.close === 'function'
-				) {
-					await audioCtxRef.current.close();
-					audioCtxRef.current = null;
+				await closeAudioContextAfterLoudness();
+				if (loadGenerationRef.current !== generation) {
+					return;
 				}
 
 				let arrayBuffer: ArrayBuffer | null = null;
 				if (typeof audio === 'string') {
 					const resp = await fetch(audio, { mode: 'cors' });
+					if (loadGenerationRef.current !== generation) {
+						return;
+					}
 					if (!resp.ok) {
 						throw new Error(
 							`Failed to fetch audio: ${resp.status} ${resp.statusText}`
 						);
 					}
 					arrayBuffer = await resp.arrayBuffer();
+					if (loadGenerationRef.current !== generation) {
+						return;
+					}
 					// Share the fetched buffer with the audio element via a Blob URL so the
 					// browser does not issue a second network request for the same file.
 					// Only create the Blob URL when there is a consumer — otherwise it would
@@ -260,6 +389,9 @@ export function useWaveformData({
 					}
 				} else if (audio instanceof File) {
 					arrayBuffer = await audio.arrayBuffer();
+					if (loadGenerationRef.current !== generation) {
+						return;
+					}
 				} else {
 					console.warn('Unsupported audio prop', audio);
 					return;
@@ -275,6 +407,9 @@ export function useWaveformData({
 
 				try {
 					const decoded = await ac.decodeAudioData(arrayBuffer.slice(0));
+					if (loadGenerationRef.current !== generation) {
+						return;
+					}
 					const channelData =
 						decoded.numberOfChannels > 0 ? decoded.getChannelData(0) : null;
 
@@ -285,6 +420,11 @@ export function useWaveformData({
 						lastGapRef.current = gap;
 						lastPeakComputationWidthRef.current = peakComputationWidth;
 						computePeaks(channelData);
+
+						// Loudness reuses the already-decoded buffer — no extra fetch
+						// or decodeAudioData. Channel *views* are used (no full PCM copy);
+						// the AudioContext stays open until the next load awaits the job.
+						scheduleLoudnessFromBuffer(decoded, audio, generation);
 					}
 				} catch (decodeError: any) {
 					throw new Error(
@@ -292,6 +432,9 @@ export function useWaveformData({
 					);
 				}
 			} catch (err: unknown) {
+				if (loadGenerationRef.current !== generation) {
+					return;
+				}
 				console.warn('Failed to load audio for waveform:', err);
 				// Create a more user-friendly error message
 				let errorMessage = 'Failed to load waveform';
@@ -316,7 +459,7 @@ export function useWaveformData({
 			}
 		};
 
-		loadArrayBuffer();
+		void loadArrayBuffer();
 	}, [audio]);
 
 	// Re-derive display peaks when the responsive width changes, without
@@ -326,10 +469,14 @@ export function useWaveformData({
 	// already seeded from useState's lazy initializer.
 	const lastDisplayBarCountRef = useRef<number>(displayBarCount);
 	useEffect(() => {
-		if (lastDisplayBarCountRef.current === displayBarCount) return;
+		if (lastDisplayBarCountRef.current === displayBarCount) {
+			return;
+		}
 		lastDisplayBarCountRef.current = displayBarCount;
 		const canonical = canonicalPeaksRef.current;
-		if (!canonical) return;
+		if (!canonical) {
+			return;
+		}
 		setPeaks(resamplePeaks(canonical, displayBarCount));
 	}, [displayBarCount]);
 
@@ -342,7 +489,9 @@ export function useWaveformData({
 		const peakWidthChanged =
 			peakComputationWidth !== lastPeakComputationWidthRef.current;
 
-		if (!barWidthChanged && !gapChanged && !peakWidthChanged) return;
+		if (!barWidthChanged && !gapChanged && !peakWidthChanged) {
+			return;
+		}
 
 		lastBarWidthRef.current = barWidth;
 		lastGapRef.current = gap;
@@ -351,8 +500,118 @@ export function useWaveformData({
 		if (audioBufferRef.current) {
 			computePeaks(audioBufferRef.current);
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [barWidth, gap, peakComputationWidth]);
+
+	function scheduleLoudnessFromBuffer(
+		decoded: AudioBuffer,
+		source: string | File,
+		generation: number
+	) {
+		// Refuse stale completions before touching abort state — otherwise a late
+		// decode for track A can abort track B's in-flight measurement.
+		if (loadGenerationRef.current !== generation) {
+			return;
+		}
+
+		if (prevAudioRef.current !== source) {
+			return;
+		}
+
+		const channelCount = decoded.numberOfChannels;
+		const channels: Float32Array[] = [];
+		for (let c = 0; c < channelCount; c++) {
+			// Views into the AudioBuffer — no full PCM copy. Context stays open
+			// until cancelLoudnessJob() completes on the next load/unmount.
+			channels.push(decoded.getChannelData(c));
+		}
+
+		decodedForLoudnessRef.current = {
+			source,
+			generation,
+			channels,
+			sampleRate: decoded.sampleRate,
+		};
+
+		scheduleLoudnessFromChannels(
+			channels,
+			decoded.sampleRate,
+			source,
+			generation
+		);
+	}
+
+	function scheduleLoudnessFromChannels(
+		channels: Float32Array[],
+		sampleRate: number,
+		source: string | File,
+		generation: number
+	) {
+		if (loadGenerationRef.current !== generation) {
+			return;
+		}
+
+		if (prevAudioRef.current !== source) {
+			return;
+		}
+
+		const callback = onLoudnessComputedRef.current;
+		if (!callback) {
+			return;
+		}
+
+		// Skip when the host already has a persisted loudness figure.
+		const precomputed = precomputedLoudnessRef.current;
+		if (precomputed !== undefined && precomputed !== null) {
+			loudnessReportedForRef.current = source;
+			return;
+		}
+
+		// Fire at most once per decoded source.
+		if (loudnessReportedForRef.current === source) {
+			return;
+		}
+
+		const controller = new AbortController();
+		loudnessAbortRef.current = controller;
+
+		// Mark before the async work so a second path for the same source
+		// (e.g. late-attached callback effect) does not schedule a duplicate.
+		loudnessReportedForRef.current = source;
+
+		const job = computeIntegratedLoudnessAsync(channels, sampleRate, {
+			signal: controller.signal,
+		})
+			.then((result) => {
+				if (controller.signal.aborted) {
+					return;
+				}
+
+				if (loadGenerationRef.current !== generation) {
+					return;
+				}
+
+				// Only deliver if this source is still current.
+				if (prevAudioRef.current !== source) {
+					return;
+				}
+
+				onLoudnessComputedRef.current?.(result);
+			})
+			.catch((err: unknown) => {
+				if (err instanceof Error && err.name === 'AbortError') {
+					return;
+				}
+
+				console.warn('[WaveformNavigator] Loudness computation failed:', err);
+			})
+			.finally(() => {
+				if (loudnessJobRef.current === job) {
+					loudnessJobRef.current = null;
+				}
+			});
+
+		loudnessJobRef.current = job;
+	}
 
 	function computePeaks(
 		channelData: Float32Array,
