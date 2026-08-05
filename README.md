@@ -124,6 +124,47 @@ const savedPeaks = JSON.parse(localStorage.getItem('peaks') ?? 'null');
 
 This is especially useful for large audio files on slow connections: the waveform is immediately visible while the audio element itself continues loading in the background.
 
+#### Integrated Loudness (LUFS)
+
+ITU-R BS.1770 integrated (gated) loudness is measured from the **same** `AudioBuffer` already decoded for peaks — no extra network request and no second `decodeAudioData` call. Hosts that omit `onLoudnessComputed` do zero additional work.
+
+- **`onLoudnessComputed`** ((result: `LoudnessResult`) => void): Fired once per decoded source, after `onPeaksComputed`, with:
+
+  | Field | Meaning |
+  |---|---|
+  | `integratedLufs` | BS.1770 integrated loudness in LUFS. `-Infinity` for digital silence, files shorter than 400 ms, or when no gating block survives. Never `NaN`. |
+  | `sampleRate` | Sample rate of the decoded buffer (Hz). |
+  | `channels` | Channel count of the decoded buffer. |
+
+- **`precomputedLoudness`** (number | undefined): When provided, skips loudness computation entirely (mirrors `precomputedPeaks`). Pass a previously persisted `integratedLufs` value.
+
+**Interaction with `precomputedPeaks`:** when `precomputedPeaks` causes fetch/decode to be skipped, there is no `AudioBuffer` to measure — loudness cannot be computed either. Persist peaks and loudness together on the first load, and pass both back on subsequent mounts.
+
+**Mono vs dual-mono:** a mono file and the same content as dual-mono stereo measure roughly **3 LU apart**, because the channel sum has two contributing channels rather than one. This is correct per BS.1770 (ffmpeg's `loudnorm` `input_i` shows the same gap).
+
+**Typical workflow:**
+
+```tsx
+<WaveformNavigator
+  audio={audioUrl}
+  onLoudnessComputed={(result) => {
+    // Persist for A/B level matching / skip on next mount
+    localStorage.setItem('lufs', String(result.integratedLufs));
+  }}
+/>
+
+// Later — skip recomputation
+<WaveformNavigator
+  audio={audioUrl}
+  precomputedLoudness={Number(localStorage.getItem('lufs'))}
+  onLoudnessComputed={(result) => {
+    localStorage.setItem('lufs', String(result.integratedLufs));
+  }}
+/>
+```
+
+Measurement is time-sliced on the main thread so a multi-minute stereo file does not block the UI. The pure `computeIntegratedLoudness(channels, sampleRate)` helper is also exported for offline use.
+
 - **`barWidth`** (number, default: 3): Width of each waveform bar in pixels.
 - **`gap`** (number, default: 2): Gap between waveform bars in pixels.
 - **`styles`** (WaveformNavigatorStyles | undefined): A centralized style configuration object for customizing all visual aspects of the waveform and controls. Provides a clean way to configure colors without needing individual props for each element.
@@ -342,6 +383,7 @@ The component supports both controlled and uncontrolled modes for playback posit
 - **`onLoaded`** ((duration: number) => void): Callback fired when audio metadata is loaded, providing the duration in seconds.
 - **`onTimeUpdate`** ((currentTime: number) => void): Callback fired during playback as the current time updates, providing the current time in seconds.
 - **`onPeaksComputed`** ((peaks: Float32Array) => void): Callback fired when canonical waveform peaks are freshly computed (and differ from any provided `precomputedPeaks`). The reported peaks are sampled at `peakComputationWidth`, not the current rendered width, so the same value renders well on any screen size. Use this to persist peaks for faster future loads. If `precomputedPeaks` were provided and the computed result matches, this callback is skipped. It does not fire for display-only resampling on resize.
+- **`onLoudnessComputed`** ((result: `LoudnessResult`) => void): Callback fired once per decoded source with ITU-R BS.1770 integrated loudness, after `onPeaksComputed`. Only computed when this prop is set and `precomputedLoudness` is not provided. See [Integrated Loudness (LUFS)](#integrated-loudness-lufs).
 - **`onLoadingChange`** ((isLoading: boolean) => void): Callback fired whenever the audio loading/buffering state changes. Receives `true` while the browser is fetching or buffering after play is requested, and `false` once playback starts, pauses, or errors. Mirrors the spinner shown on the play button during loading.
 - **`onVolumeChange`** ((volume: number) => void): Callback fired whenever the user changes the volume via the slider or mute/unmute toggle. Receives the new clamped value (0–1). Pair with `defaultVolume` to persist and restore volume across sessions (e.g. `localStorage`).
 - **`onError`** ((error: Error, type: 'audio' | 'waveform') => void): Callback fired when an error occurs during audio loading or waveform computation. The `type` parameter indicates whether the error occurred during audio playback ('audio') or waveform generation ('waveform'). Common errors include CORS issues, unsupported audio formats, and decoding failures.

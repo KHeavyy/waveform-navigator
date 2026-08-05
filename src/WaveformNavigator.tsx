@@ -8,6 +8,9 @@ import { useKeyboardControls } from './hooks/useKeyboardControls';
 import { WaveformControls } from './components/WaveformControls';
 import { formatTime } from './utils';
 import { hitTestDefaultMarkerLabel } from './utils/defaultMarkerLabel';
+import type { LoudnessResult } from './utils/loudnessComputation';
+
+export type { LoudnessResult } from './utils/loudnessComputation';
 
 type AudioProp = string | File | null | undefined;
 
@@ -176,6 +179,16 @@ export interface WaveformNavigatorProps {
 	 */
 	precomputedPeaks?: Float32Array | number[];
 	/**
+	 * When provided, skips BS.1770 integrated-loudness computation entirely
+	 * (mirrors `precomputedPeaks`). Pass a previously persisted
+	 * `integratedLufs` value from `onLoudnessComputed`.
+	 *
+	 * Note: loudness requires a decoded `AudioBuffer`. When `precomputedPeaks`
+	 * causes fetch/decode to be skipped, loudness cannot be measured either —
+	 * persist both peaks and loudness together on the first load.
+	 */
+	precomputedLoudness?: number;
+	/**
 	 * Width in pixels used to determine how many peak samples are computed from
 	 * the audio, independent of the rendered component width. Peaks are
 	 * resampled at render time so the waveform fits the responsive display
@@ -201,6 +214,19 @@ export interface WaveformNavigatorProps {
 	onLoaded?: (duration: number) => void;
 	onTimeUpdate?: (currentTime: number) => void;
 	onPeaksComputed?: (peaks: Float32Array) => void;
+	/**
+	 * Fired once per decoded source with ITU-R BS.1770 integrated (gated)
+	 * loudness in LUFS, after `onPeaksComputed`. Only computed when this prop
+	 * is set and `precomputedLoudness` is not provided. Hosts that omit this
+	 * callback do zero additional work.
+	 *
+	 * `integratedLufs` is `-Infinity` for digital silence, files shorter than
+	 * 400 ms, or when no gating block survives. Never `NaN`.
+	 *
+	 * Mono vs dual-mono stereo of the same content measure roughly 3 LU apart
+	 * (two contributing channels vs one) — correct per BS.1770.
+	 */
+	onLoudnessComputed?: (result: LoudnessResult) => void;
 	/**
 	 * Called whenever the audio loading state changes.
 	 * Receives `true` while the browser is fetching/buffering after play() is called,
@@ -294,6 +320,7 @@ const WaveformNavigator = React.forwardRef<
 		markerHitRadius = 2,
 		onMarkerHover,
 		precomputedPeaks,
+		precomputedLoudness,
 		peakComputationWidth = 1400,
 		responsive = true,
 		responsiveDebounceMs = 150,
@@ -308,6 +335,7 @@ const WaveformNavigator = React.forwardRef<
 		onLoaded,
 		onTimeUpdate,
 		onPeaksComputed,
+		onLoudnessComputed,
 		onLoadingChange,
 		onError,
 		keyboardSmallStep = 5,
@@ -458,11 +486,13 @@ const WaveformNavigator = React.forwardRef<
 		peakComputationWidth,
 		workerUrl,
 		forceMainThread,
+		precomputedLoudness,
 		onBlobUrlReady: handleBlobUrlReady,
 		onPeaksComputed: (peaks) => {
 			setErrorState(null); // Clear error on successful peaks computation
 			onPeaksComputed?.(peaks);
 		},
+		onLoudnessComputed,
 		onError: (error) => {
 			setErrorState({ message: error.message, type: 'waveform' });
 			onError?.(error, 'waveform');
