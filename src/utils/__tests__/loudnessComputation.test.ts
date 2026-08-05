@@ -102,13 +102,14 @@ describe('channelWeight', () => {
 		expect(channelWeight(1, 2)).toBe(1);
 	});
 
-	it('excludes LFE (index 3) in 5.1 and weights surrounds at 1.41', () => {
+	it('excludes LFE (index 3) in 5.1 and weights surrounds at 10^(1.5/10)', () => {
+		const surround = Math.pow(10, 1.5 / 10);
 		expect(channelWeight(0, 6)).toBe(1);
 		expect(channelWeight(1, 6)).toBe(1);
 		expect(channelWeight(2, 6)).toBe(1);
 		expect(channelWeight(3, 6)).toBe(0);
-		expect(channelWeight(4, 6)).toBeCloseTo(1.41, 10);
-		expect(channelWeight(5, 6)).toBeCloseTo(1.41, 10);
+		expect(channelWeight(4, 6)).toBeCloseTo(surround, 12);
+		expect(channelWeight(5, 6)).toBeCloseTo(surround, 12);
 	});
 });
 
@@ -196,5 +197,21 @@ describe('computeIntegratedLoudness', () => {
 		const result = computeIntegratedLoudness([], 48000);
 		expect(Number.isNaN(result.integratedLufs)).toBe(false);
 		expect(result.integratedLufs).toBe(Number.NEGATIVE_INFINITY);
+	});
+
+	it('returns -Infinity for non-finite sample rates (no throw)', () => {
+		const tone = makeSine(48000, 1, 1000, 0.4);
+		expect(computeIntegratedLoudness([tone], Number.NaN).integratedLufs).toBe(
+			Number.NEGATIVE_INFINITY
+		);
+		expect(
+			computeIntegratedLoudness([tone], Number.POSITIVE_INFINITY).integratedLufs
+		).toBe(Number.NEGATIVE_INFINITY);
+	});
+
+	it('throws when channel lengths differ', () => {
+		const a = new Float32Array(48000);
+		const b = new Float32Array(24000);
+		expect(() => computeIntegratedLoudness([a, b], 48000)).toThrow(RangeError);
 	});
 });

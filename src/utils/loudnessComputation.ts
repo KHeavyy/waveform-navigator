@@ -35,8 +35,8 @@ const RELATIVE_GATE_OFFSET_LU = 10.0;
 const LOUDNESS_OFFSET = -0.691;
 const BLOCK_DURATION_S = 0.4;
 const STEP_DURATION_S = 0.1;
-/** Surround channel weight ≈ 10^(1.5/10). */
-const SURROUND_WEIGHT = 1.41;
+/** Surround channel weight = 10^(1.5/10) per BS.1770. */
+const SURROUND_WEIGHT = Math.pow(10, 1.5 / 10);
 
 /**
  * Derive BS.1770 K-weighting biquad coefficients for an arbitrary sample rate.
@@ -192,16 +192,16 @@ function accumulateChannelBlockMeanSquares(
 	blockSamples: number,
 	stepSamples: number,
 	numBlocks: number,
-	out: Float64Array
+	out: Float64Array,
+	numSamples: number
 ): void {
 	const shelfState = createBiquadState();
 	const hpState = createBiquadState();
 	out.fill(0);
 
-	const N = channel.length;
 	const invBlock = 1 / blockSamples;
 
-	for (let n = 0; n < N; n++) {
+	for (let n = 0; n < numSamples; n++) {
 		const shelved = applyBiquad(coeffs.shelf, shelfState, channel[n]);
 		const y = applyBiquad(coeffs.highpass, hpState, shelved);
 		const y2 = y * y;
@@ -219,6 +219,56 @@ function accumulateChannelBlockMeanSquares(
 	for (let j = 0; j < numBlocks; j++) {
 		out[j] *= invBlock;
 	}
+}
+
+/**
+ * Validate channel arrays and sample rate; return shared processing parameters
+ * or `null` when the input is empty / too short / invalid rate.
+ *
+ * @throws {RangeError} when a channel is missing or lengths differ.
+ */
+function prepareChannels(
+	channels: Float32Array[],
+	sampleRate: number
+): {
+	channelCount: number;
+	numSamples: number;
+	blockSamples: number;
+	stepSamples: number;
+	numBlocks: number;
+} | null {
+	const channelCount = channels.length;
+	if (channelCount === 0 || !Number.isFinite(sampleRate) || sampleRate <= 0) {
+		return null;
+	}
+
+	const numSamples = channels[0].length;
+	for (let c = 0; c < channelCount; c++) {
+		const ch = channels[c];
+		if (!ch) {
+			throw new RangeError(`computeIntegratedLoudness: channel ${c} is missing`);
+		}
+
+		if (ch.length !== numSamples) {
+			throw new RangeError(
+				`computeIntegratedLoudness: channel lengths must match (channel 0 has ${numSamples}, channel ${c} has ${ch.length})`
+			);
+		}
+	}
+
+	const blockSamples = Math.round(BLOCK_DURATION_S * sampleRate);
+	const stepSamples = Math.round(STEP_DURATION_S * sampleRate);
+
+	if (numSamples < blockSamples || blockSamples <= 0 || stepSamples <= 0) {
+		return null;
+	}
+
+	const numBlocks = Math.floor((numSamples - blockSamples) / stepSamples) + 1;
+	if (numBlocks <= 0) {
+		return null;
+	}
+
+	return { channelCount, numSamples, blockSamples, stepSamples, numBlocks };
 }
 
 function gateIntegratedLoudness(
@@ -312,23 +362,13 @@ export function computeIntegratedLoudness(
 	channels: Float32Array[],
 	sampleRate: number
 ): LoudnessResult {
-	const channelCount = channels.length;
-	if (channelCount === 0 || sampleRate <= 0) {
-		return emptyResult(sampleRate, channelCount);
+	const prepared = prepareChannels(channels, sampleRate);
+	if (!prepared) {
+		return emptyResult(sampleRate, channels.length);
 	}
 
-	const numSamples = channels[0].length;
-	const blockSamples = Math.round(BLOCK_DURATION_S * sampleRate);
-	const stepSamples = Math.round(STEP_DURATION_S * sampleRate);
-
-	if (numSamples < blockSamples || blockSamples <= 0 || stepSamples <= 0) {
-		return emptyResult(sampleRate, channelCount);
-	}
-
-	const numBlocks = Math.floor((numSamples - blockSamples) / stepSamples) + 1;
-	if (numBlocks <= 0) {
-		return emptyResult(sampleRate, channelCount);
-	}
+	const { channelCount, numSamples, blockSamples, stepSamples, numBlocks } =
+		prepared;
 
 	const coeffs = computeKWeightingCoefficients(sampleRate);
 	const weights = Array.from({ length: channelCount }, (_, i) =>
@@ -344,7 +384,8 @@ export function computeIntegratedLoudness(
 			blockSamples,
 			stepSamples,
 			numBlocks,
-			out
+			out,
+			numSamples
 		);
 		meanSquares.push(out);
 	}
@@ -388,24 +429,13 @@ export async function computeIntegratedLoudnessAsync(
 	options: LoudnessAsyncOptions = {}
 ): Promise<LoudnessResult> {
 	const { signal, maxSliceMs = 40, onProgress } = options;
-	const channelCount = channels.length;
-
-	if (channelCount === 0 || sampleRate <= 0) {
-		return emptyResult(sampleRate, channelCount);
+	const prepared = prepareChannels(channels, sampleRate);
+	if (!prepared) {
+		return emptyResult(sampleRate, channels.length);
 	}
 
-	const numSamples = channels[0].length;
-	const blockSamples = Math.round(BLOCK_DURATION_S * sampleRate);
-	const stepSamples = Math.round(STEP_DURATION_S * sampleRate);
-
-	if (numSamples < blockSamples || blockSamples <= 0 || stepSamples <= 0) {
-		return emptyResult(sampleRate, channelCount);
-	}
-
-	const numBlocks = Math.floor((numSamples - blockSamples) / stepSamples) + 1;
-	if (numBlocks <= 0) {
-		return emptyResult(sampleRate, channelCount);
-	}
+	const { channelCount, numSamples, blockSamples, stepSamples, numBlocks } =
+		prepared;
 
 	const coeffs = computeKWeightingCoefficients(sampleRate);
 	const weights = Array.from({ length: channelCount }, (_, i) =>
