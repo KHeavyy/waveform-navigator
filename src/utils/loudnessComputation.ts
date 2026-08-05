@@ -41,10 +41,18 @@ const SURROUND_WEIGHT = 1.41;
 /**
  * Derive BS.1770 K-weighting biquad coefficients for an arbitrary sample rate.
  * Do not hardcode the 48 kHz published table — that silently mismeasures 44.1 kHz.
+ *
+ * @throws {RangeError} if `sampleRate` is not a finite number greater than 0.
  */
 export function computeKWeightingCoefficients(
 	sampleRate: number
 ): KWeightingCoeffs {
+	if (!Number.isFinite(sampleRate) || sampleRate <= 0) {
+		throw new RangeError(
+			`computeKWeightingCoefficients: sampleRate must be a finite number > 0 (got ${sampleRate})`
+		);
+	}
+
 	const fs = sampleRate;
 
 	// Stage 1 — high-shelf ("head effect")

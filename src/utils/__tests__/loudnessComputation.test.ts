@@ -84,6 +84,15 @@ describe('computeKWeightingCoefficients', () => {
 		expect(Math.abs(at48.shelf.b0 - at441.shelf.b0)).toBeGreaterThan(1e-4);
 		expect(Math.abs(at48.highpass.a1 - at441.highpass.a1)).toBeGreaterThan(1e-4);
 	});
+
+	it('rejects non-positive or non-finite sample rates', () => {
+		expect(() => computeKWeightingCoefficients(0)).toThrow(RangeError);
+		expect(() => computeKWeightingCoefficients(-48000)).toThrow(RangeError);
+		expect(() => computeKWeightingCoefficients(Number.NaN)).toThrow(RangeError);
+		expect(() => computeKWeightingCoefficients(Number.POSITIVE_INFINITY)).toThrow(
+			RangeError
+		);
+	});
 });
 
 describe('channelWeight', () => {
