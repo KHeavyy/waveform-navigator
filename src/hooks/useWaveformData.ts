@@ -222,11 +222,20 @@ export function useWaveformData({
 				if (msg.type === 'progress') {
 					const fresh = new Float32Array(msg.peaksBuffer);
 					const existing = canonicalPeaksRef.current;
+					const targetBars = displayBarCountRef.current;
 					if (existing && peaksMatch(fresh, existing)) {
+						// Canonical is unchanged, but display peaks may still be stuck at a
+						// stale bar count from a main-thread compute that closed over an
+						// outdated width. Re-resample when the lengths diverge.
+						setPeaks((prev) =>
+							prev && prev.length === targetBars
+								? prev
+								: resamplePeaks(existing, targetBars)
+						);
 						return;
 					}
 					canonicalPeaksRef.current = fresh;
-					setPeaks(resamplePeaks(fresh, displayBarCountRef.current));
+					setPeaks(resamplePeaks(fresh, targetBars));
 					onPeaksComputedRef.current?.(fresh);
 				}
 			};
@@ -627,14 +636,25 @@ export function useWaveformData({
 			gap,
 		});
 
+		// Always read the live bar count via the ref. This function is often invoked
+		// from an async decode that started when the responsive fallback width was
+		// still in effect; closing over `displayBarCount` would bake that oversized
+		// count into the display peaks and leave the waveform denser than a later
+		// visit that loads the same canonical data through precomputedPeaks.
+		const targetBars = displayBarCountRef.current;
 		const existing = canonicalPeaksRef.current;
 		if (existing && peaksMatch(canonicalPeaks, existing)) {
+			setPeaks((prev) =>
+				prev && prev.length === targetBars
+					? prev
+					: resamplePeaks(existing, targetBars)
+			);
 			if (forceNotify) {
 				onPeaksComputedRef.current?.(existing);
 			}
 		} else {
 			canonicalPeaksRef.current = canonicalPeaks;
-			setPeaks(resamplePeaks(canonicalPeaks, displayBarCount));
+			setPeaks(resamplePeaks(canonicalPeaks, targetBars));
 			onPeaksComputedRef.current?.(canonicalPeaks);
 		}
 
