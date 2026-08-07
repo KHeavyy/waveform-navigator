@@ -1,5 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 /**
  * Regression: decode often starts while the responsive fallback width is still in
@@ -32,15 +32,21 @@ function makeDelayedFile(delayMs: number): File {
 	const file = new File([new ArrayBuffer(8)], 'delayed.wav', {
 		type: 'audio/wav',
 	});
-	(file as any).arrayBuffer = () =>
-		new Promise<ArrayBuffer>((resolve) => {
-			setTimeout(() => resolve(new ArrayBuffer(8)), delayMs);
-		});
+	Object.defineProperty(file, 'arrayBuffer', {
+		value: () =>
+			new Promise<ArrayBuffer>((resolve) => {
+				setTimeout(() => resolve(new ArrayBuffer(8)), delayMs);
+			}),
+		configurable: true,
+	});
 	return file;
 }
 
 describe('useWaveformData stale display bar count', () => {
+	const originalAudioContext = (window as any).AudioContext;
+
 	beforeEach(() => {
+		vi.useFakeTimers();
 		(window as any).AudioContext = class {
 			async decodeAudioData(_: ArrayBuffer) {
 				return {
@@ -50,6 +56,11 @@ describe('useWaveformData stale display bar count', () => {
 			}
 			close() {}
 		};
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+		(window as any).AudioContext = originalAudioContext;
 	});
 
 	it('resamples main-thread peaks to the current width when decode finishes after a resize', async () => {
@@ -77,8 +88,11 @@ describe('useWaveformData stale display bar count', () => {
 		// Container measures in before decode completes: 500 → floor(500/5) = 100
 		rerender(<TestComponent w={500} />);
 
-		await waitFor(() => {
-			expect(screen.getByTestId('peaks-len').textContent).toBe('100');
+		// Advance fake timers past the 40ms delay and flush pending promises.
+		await act(async () => {
+			await vi.runAllTimersAsync();
 		});
+
+		expect(screen.getByTestId('peaks-len').textContent).toBe('100');
 	});
 });
